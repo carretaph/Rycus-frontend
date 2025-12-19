@@ -34,25 +34,19 @@ const DashboardPage: React.FC = () => {
 
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadStats = async () => {
       try {
         setLoading(true);
-        // 🔹 Muy importante: limpiamos error ANTES de pedir datos
-        setError(null);
 
         const userEmail = user?.email?.trim();
         if (!userEmail) {
-          // Si por alguna razón no hay email, no es error de backend,
-          // simplemente mostramos todo en cero.
           setStats(EMPTY_STATS);
-          setError(null);
           return;
         }
 
-        // 1) My Customers (backend: /customers?userEmail=...)
+        // 1) My Customers (solo los del usuario)
         const customersRes = await axios.get("/customers", {
           params: { userEmail },
         });
@@ -60,10 +54,9 @@ const DashboardPage: React.FC = () => {
         const customers: any[] = customersRes.data ?? [];
         const totalCustomers = customers.length;
 
-        // Si no hay clientes, ES UN ESTADO VÁLIDO (no es error)
+        // Si no hay clientes, es un estado válido
         if (totalCustomers === 0) {
           setStats(EMPTY_STATS);
-          setError(null);
           return;
         }
 
@@ -71,7 +64,7 @@ const DashboardPage: React.FC = () => {
           .map((c) => c.id)
           .filter((id: any) => id != null);
 
-        // 2) Reviews por customer (NO dejamos que 1 error tumbe todo)
+        // 2) Reviews por customer (sin tumbar todo si falla uno)
         const results = await Promise.allSettled(
           customerIds.map((id) =>
             axios
@@ -95,13 +88,14 @@ const DashboardPage: React.FC = () => {
           }
         });
 
-        // 3) Métricas basadas SOLO en reviews del usuario
+        // 3) Métricas solo con mis reviews
         const customersReviewedByMe = new Set<number>();
         const myReviews: Review[] = [];
 
         reviewsByCustomer.forEach((reviews, customerId) => {
           const mine = (reviews ?? []).filter(
-            (r) => (r.createdBy ?? "").toLowerCase() === userEmail.toLowerCase()
+            (r) =>
+              (r.createdBy ?? "").toLowerCase() === userEmail.toLowerCase()
           );
 
           if (mine.length > 0) {
@@ -128,19 +122,15 @@ const DashboardPage: React.FC = () => {
           completedReviews,
           averageRating,
         });
-
-        // 🔹 Llegamos al final SIN errores → aseguramos que error quede en null
-        setError(null);
       } catch (err) {
         console.error("Error loading dashboard stats", err);
-        setError("Could not load data from backend.");
+        // No mostramos mensaje rojo, solo log en consola
         setStats(EMPTY_STATS);
       } finally {
         setLoading(false);
       }
     };
 
-    // Solo recargamos cuando cambia el email (no todo el objeto user)
     loadStats();
   }, [user?.email]);
 
@@ -180,10 +170,6 @@ const DashboardPage: React.FC = () => {
       <h2>Dashboard</h2>
 
       {loading && <p>Loading data...</p>}
-      {/* 🔹 Solo mostramos el error si realmente hay error */}
-      {error && !loading && (
-        <p style={{ color: "red", marginBottom: "10px" }}>{error}</p>
-      )}
 
       <div className="dashboard-grid">
         <div className="dashboard-card">
