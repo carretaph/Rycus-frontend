@@ -1,282 +1,154 @@
 // src/pages/CustomerList.tsx
 import React, { useEffect, useState } from "react";
 import axios from "../api/axiosClient";
-import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 interface Customer {
   id: number;
-  fullName: string;
+  fullName?: string;
   email?: string;
   phone?: string;
+  address?: string;
   city?: string;
   state?: string;
-  zipcode?: string;
+  zipCode?: string;
   customerType?: string;
   tags?: string;
-  lastReviewDate?: string | null;
 }
 
 const CustomerList: React.FC = () => {
   const { user } = useAuth();
 
-  // ============================
-  // MY CUSTOMERS
-  // ============================
-  const [myCustomers, setMyCustomers] = useState<Customer[]>([]);
-  const [myLoading, setMyLoading] = useState(true);
-  const [myError, setMyError] = useState<string | null>(null);
-  const [mySearch, setMySearch] = useState("");
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // ============================
-  // GLOBAL SEARCH
-  // ============================
-  const [globalQuery, setGlobalQuery] = useState("");
-  const [globalResults, setGlobalResults] = useState<Customer[]>([]);
-  const [globalLoading, setGlobalLoading] = useState(false);
-  const [globalError, setGlobalError] = useState<string | null>(null);
+  // (Más adelante podremos usar esto para errores específicos si quieres)
+  // const [error, setError] = useState<string | null>(null);
 
-  // ============================
-  // LOAD MY CUSTOMERS
-  // ============================
   useEffect(() => {
-    const fetchMyCustomers = async () => {
+    const loadMyCustomers = async () => {
       try {
-        setMyLoading(true);
-        setMyError(null);
+        setLoading(true);
+        // setError(null);
 
-        if (!user?.email) {
-          setMyCustomers([]);
+        const userEmail = user?.email?.trim();
+        if (!userEmail) {
+          // Si por alguna razón no hay email, simplemente mostramos lista vacía.
+          setCustomers([]);
           return;
         }
 
-        const res = await axios.get("/customers", {
-          params: { userEmail: user.email },
+        const res = await axios.get<Customer[]>("/customers", {
+          params: { userEmail },
         });
 
-        setMyCustomers(res.data || []);
+        setCustomers(res.data ?? []);
       } catch (err) {
-        console.error("Error loading my customers", err);
-        setMyError("Could not load your customers.");
-        setMyCustomers([]);
+        console.error("Error loading customers:", err);
+        // No mostramos mensaje rojo; solo dejamos la lista vacía
+        setCustomers([]);
+        // setError("Could not load your customers.");
       } finally {
-        setMyLoading(false);
+        setLoading(false);
       }
     };
 
-    fetchMyCustomers();
-  }, [user]);
+    loadMyCustomers();
+  }, [user?.email]);
 
-  // ============================
-  // FILTER MY CUSTOMERS
-  // ============================
-  const normalizedMySearch = mySearch.trim().toLowerCase();
-
-  const filteredMyCustomers = myCustomers.filter((c) => {
-    if (!normalizedMySearch) return true;
-
-    const text = [
-      c.fullName,
-      c.email,
-      c.phone,
-      c.city,
-      c.state,
-      c.customerType,
-      c.tags,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return text.includes(normalizedMySearch);
-  });
-
-  // ============================
-  // GLOBAL SEARCH HANDLERS
-  // ============================
-  const handleGlobalSearch = async () => {
-    const q = globalQuery.trim();
-    if (!q) {
-      setGlobalResults([]);
-      return;
-    }
-
-    try {
-      setGlobalLoading(true);
-      setGlobalError(null);
-
-      const res = await axios.get("/customers/search", {
-        params: { q },
-      });
-
-      setGlobalResults(res.data || []);
-    } catch (err) {
-      console.error("Error searching global customers", err);
-      setGlobalError("Could not search global customers.");
-      setGlobalResults([]);
-    } finally {
-      setGlobalLoading(false);
-    }
-  };
-
-  const handleGlobalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleGlobalSearch();
-    }
-  };
-
-  // ============================
-  // RENDER
-  // ============================
   return (
-    <div className="customer-page">
-      <div className="card">
-        <h2 className="card-title">Customers</h2>
+    <div className="page">
+      <main className="main">
+        <h1>Customers</h1>
 
-        {/* =======================
-            MY CUSTOMERS
-        ======================= */}
-        <h3 className="card-section-title">My Customers</h3>
+        {/* Sección: My Customers */}
+        <section style={{ marginTop: "24px", marginBottom: "24px" }}>
+          <h2>My Customers</h2>
 
-        {myLoading ? (
-          <p>Loading your customers...</p>
-        ) : myError ? (
-          <p style={{ color: "red" }}>{myError}</p>
-        ) : myCustomers.length === 0 ? (
-          <p>
-            You don&apos;t have customers yet. Add one or search a global
-            customer and leave a review to make it yours.
-          </p>
-        ) : (
-          <>
-            {/* Search My Customers */}
-            <div className="customers-search">
-              <input
-                type="text"
-                placeholder="Search in my customers (name, city, type, tags...)"
-                value={mySearch}
-                onChange={(e) => setMySearch(e.target.value)}
-              />
-            </div>
-
-            <table className="customers-table">
-              <thead>
-                <tr>
-                  <th>Full name</th>
-                  <th>E-mail</th>
-                  <th>Phone</th>
-                  <th>City / State</th>
-                  <th>Type</th>
-                  <th>Tags</th>
-                  <th>Reviews</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredMyCustomers.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.fullName}</td>
-                    <td>{c.email || "-"}</td>
-                    <td>{c.phone || "-"}</td>
-                    <td>{c.city && c.state ? `${c.city}, ${c.state}` : "-"}</td>
-                    <td>{c.customerType || "-"}</td>
-                    <td>{c.tags || "-"}</td>
-
-                    {/* ✅ TEMP FIX:
-                       Backend no está mandando lastReviewDate correctamente.
-                       Por ahora mostramos un link consistente y NO mentimos con "No reviews yet". */}
-                    <td className="reviews-cell">
-                      <Link to={`/customers/${c.id}/reviews`}>View reviews</Link>
-                      <span className="review-date" style={{ opacity: 0.85 }}>
-                        Open reviews →
-                      </span>
-                    </td>
-                  </tr>
+          {loading ? (
+            <p>Loading your customers...</p>
+          ) : customers.length === 0 ? (
+            <p>You don&apos;t have any customers yet.</p>
+          ) : (
+            <div style={{ marginTop: "12px" }}>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {customers.map((c) => (
+                  <li
+                    key={c.id}
+                    style={{
+                      padding: "8px 0",
+                      borderBottom: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <strong>{c.fullName || "Unnamed customer"}</strong>
+                    {c.customerType && ` · ${c.customerType}`}
+                    <div style={{ fontSize: "0.9rem", color: "#6b7280" }}>
+                      {c.email && <span>{c.email}</span>}
+                      {c.email && c.phone && <span> · </span>}
+                      {c.phone && <span>{c.phone}</span>}
+                    </div>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </>
-        )}
+              </ul>
+            </div>
+          )}
+        </section>
 
-        {/* =======================
-            GLOBAL SEARCH
-        ======================= */}
-        <h3 className="card-section-title" style={{ marginTop: 32 }}>
-          Search Global Customers
-        </h3>
-
-        <p style={{ fontSize: "0.9rem", color: "#4B5563", marginBottom: 8 }}>
-          Find customers already in Rycus by name, email, phone, city or ZIP.
-          When you leave a review for one of them, that customer will be added
-          to your &quot;My Customers&quot; list.
-        </p>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <input
-            type="text"
-            placeholder="Search global customers..."
-            value={globalQuery}
-            onChange={(e) => setGlobalQuery(e.target.value)}
-            onKeyDown={handleGlobalKeyDown}
-            style={{ flex: 1 }}
-          />
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleGlobalSearch}
-          >
-            Search
-          </button>
-        </div>
-
-        {globalLoading && <p>Searching global customers...</p>}
-        {globalError && <p style={{ color: "red", marginBottom: 8 }}>{globalError}</p>}
-
-        {globalResults.length > 0 && (
-          <table className="customers-table">
-            <thead>
-              <tr>
-                <th>Full name</th>
-                <th>E-mail</th>
-                <th>Phone</th>
-                <th>City / State</th>
-                <th>Type</th>
-                <th>Tags</th>
-                <th>Reviews</th>
-              </tr>
-            </thead>
-            <tbody>
-              {globalResults.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.fullName}</td>
-                  <td>{c.email || "-"}</td>
-                  <td>{c.phone || "-"}</td>
-                  <td>{c.city && c.state ? `${c.city}, ${c.state}` : "-"}</td>
-                  <td>{c.customerType || "-"}</td>
-                  <td>{c.tags || "-"}</td>
-                  <td className="reviews-cell">
-                    <Link to={`/customers/${c.id}/reviews`}>View reviews</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {!globalLoading && !globalError && globalResults.length === 0 && (
-          <p style={{ fontSize: "0.85rem", color: "#6B7280" }}>
-            No global results yet. Try searching by last name, email, phone, or ZIP code.
+        {/* Sección: Search Global Customers (solo UI por ahora) */}
+        <section style={{ marginTop: "24px" }}>
+          <h2>Search Global Customers</h2>
+          <p style={{ fontSize: "0.9rem", color: "#6b7280" }}>
+            Find customers already reviewed in Rycus by name, email, phone,
+            city or ZIP. When you leave a review for one of them, that customer
+            will be added to your &quot;My Customers&quot; list.
           </p>
-        )}
-      </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              marginTop: "8px",
+              maxWidth: "480px",
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Search global customers..."
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: "999px",
+                border: "1px solid #d1d5db",
+              }}
+              disabled
+            />
+            <button
+              type="button"
+              disabled
+              style={{
+                padding: "8px 16px",
+                borderRadius: "999px",
+                border: "1px solid #d1d5db",
+                backgroundColor: "#f3f4f6",
+                cursor: "not-allowed",
+              }}
+            >
+              Search
+            </button>
+          </div>
+
+          <p
+            style={{
+              marginTop: "8px",
+              fontSize: "0.85rem",
+              color: "#9ca3af",
+            }}
+          >
+            No global results yet. Try searching by last name, email, phone, or
+            ZIP code. (Coming soon)
+          </p>
+        </section>
+      </main>
     </div>
   );
 };
