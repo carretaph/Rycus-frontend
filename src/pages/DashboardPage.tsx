@@ -41,6 +41,8 @@ const DashboardPage: React.FC = () => {
         setLoading(true);
 
         const userEmail = user?.email?.trim();
+        const userName = (user?.name || "").trim();
+
         if (!userEmail) {
           setStats(EMPTY_STATS);
           return;
@@ -88,15 +90,32 @@ const DashboardPage: React.FC = () => {
           }
         });
 
-        // 3) Métricas solo con mis reviews
+        // 3) Métricas
+
+        // 3a) Clientes que tienen AL MENOS UN review (de cualquiera)
+        const customersWithAnyReview = new Set<number>();
+
+        // 3b) Reviews hechos por mí (creados por mí)
         const customersReviewedByMe = new Set<number>();
         const myReviews: Review[] = [];
 
+        const userEmailLower = userEmail.toLowerCase();
+        const userNameLower = userName.toLowerCase();
+
         reviewsByCustomer.forEach((reviews, customerId) => {
-          const mine = (reviews ?? []).filter(
-            (r) =>
-              (r.createdBy ?? "").toLowerCase() === userEmail.toLowerCase()
-          );
+          const list = reviews ?? [];
+
+          if (list.length > 0) {
+            customersWithAnyReview.add(customerId);
+          }
+
+          const mine = list.filter((r) => {
+            const createdBy = (r.createdBy ?? "").toLowerCase();
+            return (
+              createdBy === userEmailLower ||
+              (userNameLower && createdBy === userNameLower)
+            );
+          });
 
           if (mine.length > 0) {
             customersReviewedByMe.add(customerId);
@@ -104,9 +123,13 @@ const DashboardPage: React.FC = () => {
           }
         });
 
-        const completedReviews = myReviews.length;
-        const pendingReviews = totalCustomers - customersReviewedByMe.size;
+        // Clientes pendientes = total clientes - clientes que ya tienen AL MENOS UN review
+        const pendingReviews = totalCustomers - customersWithAnyReview.size;
 
+        // CompletedReviews = cantidad de reviews míos
+        const completedReviews = myReviews.length;
+
+        // AverageRating sobre mis reviews (si no hay, 0)
         let averageRating = 0;
         if (completedReviews > 0) {
           const sum = myReviews.reduce((acc, r) => {
@@ -124,7 +147,6 @@ const DashboardPage: React.FC = () => {
         });
       } catch (err) {
         console.error("Error loading dashboard stats", err);
-        // No mostramos mensaje rojo, solo log en consola
         setStats(EMPTY_STATS);
       } finally {
         setLoading(false);
@@ -132,7 +154,7 @@ const DashboardPage: React.FC = () => {
     };
 
     loadStats();
-  }, [user?.email]);
+  }, [user?.email, user?.name]);
 
   const { totalCustomers, pendingReviews, completedReviews, averageRating } =
     stats;
@@ -188,7 +210,9 @@ const DashboardPage: React.FC = () => {
           <div className="dashboard-number">
             {loading ? "…" : pendingReviews}
           </div>
-          <p className="dashboard-text">Customers you still need to rate.</p>
+          <p className="dashboard-text">
+            Customers that don&apos;t have any review yet.
+          </p>
           <Link to="/customers" className="dashboard-link">
             Rate now
           </Link>
