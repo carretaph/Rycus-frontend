@@ -1,6 +1,11 @@
 // src/context/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect } from "react";
-import type { ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
 
 export interface User {
   id: number;
@@ -30,18 +35,28 @@ interface AuthContextType {
 
   // local updates (for now)
   updateAvatar: (avatarUrl: string) => void;
-  updateUser: (patch: Partial<User>) => void; // ✅ NEW
+  updateUser: (patch: Partial<User>) => void;
+
+  // ✅ nuevo: indica si estamos cargando user desde localStorage
+  initializing: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
+  const [initializing, setInitializing] = useState<boolean>(true);
 
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("rycus_user");
-      if (storedUser && storedUser !== "undefined" && storedUser !== "null") {
+      if (
+        storedUser &&
+        storedUser !== "undefined" &&
+        storedUser !== "null"
+      ) {
         const parsed = JSON.parse(storedUser);
         setUser(parsed);
       }
@@ -50,6 +65,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.removeItem("rycus_user");
       localStorage.removeItem("rycus_token");
       setUser(null);
+    } finally {
+      // 👇 muy importante para que App.tsx sepa que ya terminó de inicializar
+      setInitializing(false);
     }
   }, []);
 
@@ -92,7 +110,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateAvatar, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        updateAvatar,
+        updateUser,
+        initializing,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
