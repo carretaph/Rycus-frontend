@@ -42,8 +42,11 @@ const CustomerList: React.FC = () => {
         setError(null);
 
         const userEmail = user?.email?.trim();
+
+        // 👇 Fix importante: si no hay email, NO nos quedamos en loading
         if (!userEmail) {
           setMyCustomers([]);
+          setLoadingMy(false);
           return;
         }
 
@@ -69,8 +72,7 @@ const CustomerList: React.FC = () => {
   // ============================
   const handleCustomerClick = (id?: number) => {
     if (!id) return;
-    // 🔴 ANTES: navigate(`/customers/${id}`);
-    // ✅ AHORA:
+    // Ruta que definiste en App.tsx: /customers/:id/reviews
     navigate(`/customers/${id}/reviews`);
   };
 
@@ -129,7 +131,9 @@ const CustomerList: React.FC = () => {
           </div>
         )}
 
-        {/* My Customers */}
+        {/* ============================
+            My Customers
+        ============================= */}
         <section style={{ marginTop: "24px", marginBottom: "24px" }}>
           <h2>My Customers</h2>
 
@@ -178,7 +182,9 @@ const CustomerList: React.FC = () => {
           )}
         </section>
 
-        {/* Search Global Customers */}
+        {/* ============================
+            Search Global Customers
+        ============================= */}
         <section style={{ marginTop: "24px" }}>
           <h2>Search Global Customers</h2>
           <p style={{ fontSize: "0.9rem", color: "#6b7280" }}>
