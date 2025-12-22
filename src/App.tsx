@@ -17,10 +17,23 @@ import CustomerList from "./pages/CustomerList";
 import CustomerReviewsPage from "./pages/CustomerReviewsPage";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, initializing } = useAuth();
+
+  // Mientras restauramos sesión desde localStorage
+  if (initializing) {
+    return (
+      <div className="page">
+        <main className="main">
+          <p>Loading...</p>
+        </main>
+      </div>
+    );
+  }
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
   return <>{children}</>;
 };
 
@@ -32,7 +45,6 @@ function App() {
       <header className="site-header">
         <div className="site-header-logo-block">
           <img src={logo} alt="Rycus logo" className="site-logo" />
-          {/* Eliminado: <div className="site-title">Rycus</div> */}
           <div className="site-subtitle">Rate Your Customer US</div>
         </div>
 
@@ -93,6 +105,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/profile"
             element={
@@ -101,6 +114,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/customers/new"
             element={
@@ -109,6 +123,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/customers"
             element={
@@ -117,6 +132,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/customers/:id/reviews"
             element={
