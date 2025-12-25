@@ -43,7 +43,6 @@ const CustomerList: React.FC = () => {
 
         const userEmail = user?.email?.trim();
 
-        // Si no hay email, no cargamos nada y salimos
         if (!userEmail) {
           setMyCustomers([]);
           setLoadingMy(false);
@@ -68,7 +67,7 @@ const CustomerList: React.FC = () => {
   }, [user?.email]);
 
   // ============================
-  // Navegar al detalle (reviews)
+  // Click en cliente
   // ============================
   const handleCustomerClick = (id?: number) => {
     if (!id) return;
@@ -76,12 +75,11 @@ const CustomerList: React.FC = () => {
   };
 
   // ============================
-  // Función común de búsqueda GLOBAL
+  // BÚSQUEDA GLOBAL
   // ============================
-  const performGlobalSearch = async (rawTerm: string) => {
-    const q = rawTerm.trim();
-
-    if (!q || q.length < 3) {
+  const handleSearch = async () => {
+    const q = searchTerm.trim();
+    if (!q || q.length < 2) {
       setGlobalResults([]);
       return;
     }
@@ -104,39 +102,8 @@ const CustomerList: React.FC = () => {
     }
   };
 
-  // ============================
-  // Búsqueda GLOBAL automática (debounce)
-  // ============================
-  useEffect(() => {
-    const term = searchTerm.trim();
-
-    // Menos de 3 letras: limpiamos resultados y no buscamos
-    if (term.length < 3) {
-      setGlobalResults([]);
-      return;
-    }
-
-    // Debounce: esperamos 500 ms después de que el usuario deja de escribir
-    const timeoutId = setTimeout(() => {
-      void performGlobalSearch(term);
-    }, 500);
-
-    // Si vuelve a escribir antes de 500 ms, cancelamos la búsqueda anterior
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
-
-  // ============================
-  // Búsqueda GLOBAL manual (botón / Enter)
-  // ============================
-  const handleSearch = () => {
-    void performGlobalSearch(searchTerm);
-  };
-
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
+    if (e.key === "Enter") handleSearch();
   };
 
   return (
@@ -216,10 +183,13 @@ const CustomerList: React.FC = () => {
         ============================= */}
         <section style={{ marginTop: "24px" }}>
           <h2>Search Global Customers</h2>
+
           <p style={{ fontSize: "0.9rem", color: "#6b7280" }}>
-            Find customers already reviewed in Rycus by name, email, phone, city
-            or ZIP. When you leave a review for one of them, that customer will
-            be added to your &quot;My Customers&quot; list.
+            Find customers already reviewed in Rycus using any information you
+            have: name, last name, email, phone number, city, state, ZIP code,
+            address, customer type or tags. When you leave a review for one of
+            them, that customer will automatically be added to your
+            &quot;My Customers&quot; list.
           </p>
 
           <div
@@ -261,13 +231,12 @@ const CustomerList: React.FC = () => {
             </button>
           </div>
 
-          {/* Resultados globales */}
           <div style={{ marginTop: "12px" }}>
             {loadingGlobal && <p>Searching global customers...</p>}
 
             {!loadingGlobal &&
               globalResults.length === 0 &&
-              searchTerm.trim().length >= 3 && (
+              searchTerm.trim().length >= 2 && (
                 <p style={{ fontSize: "0.9rem", color: "#6b7280" }}>
                   No customers found for &quot;{searchTerm}&quot;.
                 </p>
