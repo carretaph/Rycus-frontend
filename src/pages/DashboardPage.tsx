@@ -241,8 +241,11 @@ const DashboardPage: React.FC = () => {
           <h2>Search Global Customers</h2>
           <div className="dashboard-number">🔎</div>
           <p className="dashboard-text">
-            Find customers already reviewed in Rycus by name, ZIP, email, or
-            phone. If you leave a review, they will be added to your customers.
+            Find customers already reviewed in Rycus using any information you
+            have: first name, last name, email, phone number, city, state, ZIP
+            code, address, customer type or tags. When you leave a review for
+            one of them, that customer will automatically be added to your
+            &quot;My Customers&quot; list.
           </p>
           <Link to="/customers" className="dashboard-link">
             Search global customers
