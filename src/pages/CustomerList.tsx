@@ -43,6 +43,7 @@ const CustomerList: React.FC = () => {
 
         const userEmail = user?.email?.trim();
 
+        // Si no hay email, no dejamos loading infinito
         if (!userEmail) {
           setMyCustomers([]);
           setLoadingMy(false);
@@ -67,18 +68,19 @@ const CustomerList: React.FC = () => {
   }, [user?.email]);
 
   // ============================
-  // Click en cliente
+  // Click en un cliente
   // ============================
   const handleCustomerClick = (id?: number) => {
     if (!id) return;
+    // Ruta definida en App.tsx: /customers/:id/reviews
     navigate(`/customers/${id}/reviews`);
   };
 
   // ============================
-  // BÚSQUEDA GLOBAL
+  // Búsqueda GLOBAL (reutilizable)
   // ============================
-  const handleSearch = async () => {
-    const q = searchTerm.trim();
+  const handleSearch = async (query?: string) => {
+    const q = (query ?? searchTerm).trim();
     if (!q || q.length < 2) {
       setGlobalResults([]);
       return;
@@ -102,9 +104,35 @@ const CustomerList: React.FC = () => {
     }
   };
 
+  // Enter sigue funcionando (además del autosuggest)
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") handleSearch();
+    if (e.key === "Enter") {
+      handleSearch();
+    }
   };
+
+  // ============================
+  // 🔍 BÚSQUEDA AUTOMÁTICA (DEBOUNCE)
+  // ============================
+  useEffect(() => {
+    const q = searchTerm.trim();
+
+    // Si está vacío o muy corto, limpiamos resultados y salimos
+    if (!q || q.length < 2) {
+      setGlobalResults([]);
+      return;
+    }
+
+    // Esperamos 600ms después de que el usuario deja de escribir
+    const timeoutId = window.setTimeout(() => {
+      handleSearch(q);
+    }, 600);
+
+    // Limpiamos el timeout si el usuario sigue escribiendo
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchTerm]);
 
   return (
     <div className="page">
@@ -183,13 +211,11 @@ const CustomerList: React.FC = () => {
         ============================= */}
         <section style={{ marginTop: "24px" }}>
           <h2>Search Global Customers</h2>
-
           <p style={{ fontSize: "0.9rem", color: "#6b7280" }}>
-            Find customers already reviewed in Rycus using any information you
-            have: name, last name, email, phone number, city, state, ZIP code,
-            address, customer type or tags. When you leave a review for one of
-            them, that customer will automatically be added to your
-            &quot;My Customers&quot; list.
+            Find customers already reviewed in Rycus by name, last name, email,
+            phone number, address, city, state, ZIP code, industry type or tags.
+            When you leave a review for one of them, that customer will be
+            automatically added to your &quot;My Customers&quot; list.
           </p>
 
           <div
@@ -215,7 +241,7 @@ const CustomerList: React.FC = () => {
             />
             <button
               type="button"
-              onClick={handleSearch}
+              onClick={() => handleSearch()}
               style={{
                 padding: "8px 16px",
                 borderRadius: "999px",
@@ -231,6 +257,7 @@ const CustomerList: React.FC = () => {
             </button>
           </div>
 
+          {/* Resultados globales */}
           <div style={{ marginTop: "12px" }}>
             {loadingGlobal && <p>Searching global customers...</p>}
 
