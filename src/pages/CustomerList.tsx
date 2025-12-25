@@ -43,7 +43,7 @@ const CustomerList: React.FC = () => {
 
         const userEmail = user?.email?.trim();
 
-        // 👇 Fix importante: si no hay email, NO nos quedamos en loading
+        // Si no hay email, no cargamos nada y salimos
         if (!userEmail) {
           setMyCustomers([]);
           setLoadingMy(false);
@@ -68,20 +68,20 @@ const CustomerList: React.FC = () => {
   }, [user?.email]);
 
   // ============================
-  // Click en un cliente
+  // Navegar al detalle (reviews)
   // ============================
   const handleCustomerClick = (id?: number) => {
     if (!id) return;
-    // Ruta que definiste en App.tsx: /customers/:id/reviews
     navigate(`/customers/${id}/reviews`);
   };
 
   // ============================
-  // Búsqueda GLOBAL
+  // Función común de búsqueda GLOBAL
   // ============================
-  const handleSearch = async () => {
-    const q = searchTerm.trim();
-    if (!q || q.length < 2) {
+  const performGlobalSearch = async (rawTerm: string) => {
+    const q = rawTerm.trim();
+
+    if (!q || q.length < 3) {
       setGlobalResults([]);
       return;
     }
@@ -102,6 +102,35 @@ const CustomerList: React.FC = () => {
     } finally {
       setLoadingGlobal(false);
     }
+  };
+
+  // ============================
+  // Búsqueda GLOBAL automática (debounce)
+  // ============================
+  useEffect(() => {
+    const term = searchTerm.trim();
+
+    // Menos de 3 letras: limpiamos resultados y no buscamos
+    if (term.length < 3) {
+      setGlobalResults([]);
+      return;
+    }
+
+    // Debounce: esperamos 500 ms después de que el usuario deja de escribir
+    const timeoutId = setTimeout(() => {
+      void performGlobalSearch(term);
+    }, 500);
+
+    // Si vuelve a escribir antes de 500 ms, cancelamos la búsqueda anterior
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
+  // ============================
+  // Búsqueda GLOBAL manual (botón / Enter)
+  // ============================
+  const handleSearch = () => {
+    void performGlobalSearch(searchTerm);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -238,7 +267,7 @@ const CustomerList: React.FC = () => {
 
             {!loadingGlobal &&
               globalResults.length === 0 &&
-              searchTerm.trim().length >= 2 && (
+              searchTerm.trim().length >= 3 && (
                 <p style={{ fontSize: "0.9rem", color: "#6b7280" }}>
                   No customers found for &quot;{searchTerm}&quot;.
                 </p>
