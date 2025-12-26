@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
+import CustomerMap from "../components/CustomerMap";
 
 interface Customer {
   id: number;
@@ -314,6 +315,26 @@ const CustomerList: React.FC = () => {
               </div>
             )}
           </div>
+        </section>
+
+        {/* ============================
+            Customers Map (beta)
+        ============================= */}
+        <section style={{ marginTop: "32px" }}>
+          <h2>Customers Map (beta)</h2>
+          <p
+            style={{
+              fontSize: "0.9rem",
+              color: "#6b7280",
+              marginBottom: 8,
+            }}
+          >
+            See all customers with a valid address on the map. Each pin
+            represents one customer based on their address, city, state and ZIP
+            code.
+          </p>
+
+          <CustomerMap />
         </section>
       </main>
     </div>
