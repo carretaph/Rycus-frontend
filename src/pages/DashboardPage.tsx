@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
+import CustomersMap from "../components/CustomerMap"; // 👈 nombre del archivo en tu árbol
 
 type Review = {
   id: number;
@@ -267,6 +268,14 @@ const DashboardPage: React.FC = () => {
           Edit My Profile
         </Link>
       </div>
+
+      {/* ======= MAPA GLOBAL DE CLIENTES ======= */}
+      <h2 style={{ marginTop: "32px" }}>Customers Map</h2>
+      <p className="dashboard-text" style={{ marginBottom: "12px" }}>
+        View customers across the U.S. and tap a pin to open that customer&apos;s
+        profile and reviews.
+      </p>
+      <CustomersMap />
     </div>
   );
 };

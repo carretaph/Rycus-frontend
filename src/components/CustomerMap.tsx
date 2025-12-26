@@ -1,6 +1,7 @@
 // src/components/CustomersMap.tsx
 import React, { useEffect, useState, useCallback } from "react";
 import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
+import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
 
 type Customer = {
@@ -34,9 +35,19 @@ const CustomersMap: React.FC = () => {
   const [locations, setLocations] = useState<{ [key: number]: Coordinates }>({});
   const [loading, setLoading] = useState(true);
 
+  const navigate = useNavigate();
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
   });
+
+  // ============================
+  // Navegar al perfil (reviews) al hacer click en el PIN
+  // ============================
+  const handleMarkerClick = (id: number) => {
+    // 👇 Esta ruta ya existe en tu App.tsx
+    navigate(`/customers/${id}/reviews`);
+  };
 
   // ============================
   // Cargar clientes globales
@@ -116,9 +127,20 @@ const CustomersMap: React.FC = () => {
         center={centerDefault}
         zoom={5}
       >
-        {Object.entries(locations).map(([id, loc]) => (
-          <MarkerF key={id} position={loc} />
-        ))}
+        {/* Usamos la lista de customers para poder pasar id y nombre al Marker */}
+        {customers.map((c) => {
+          const loc = locations[c.id];
+          if (!loc) return null;
+
+          return (
+            <MarkerF
+              key={c.id}
+              position={loc}
+              title={c.fullName || "Customer"}
+              onClick={() => handleMarkerClick(c.id)} // 👈 CLICK DEL PIN
+            />
+          );
+        })}
       </GoogleMap>
     </div>
   );

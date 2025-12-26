@@ -60,6 +60,7 @@ function App() {
                 <span className="nav-icon">🔐</span>
                 Sign In
               </Link>
+
               <Link to="/register" className="nav-btn">
                 <span className="nav-icon">📝</span>
                 Sign Up
@@ -73,15 +74,13 @@ function App() {
                 <span className="nav-icon">📊</span>
                 Dashboard
               </Link>
+
               <Link to="/profile" className="nav-btn">
                 <span className="nav-icon">👤</span>
                 Profile
               </Link>
-              <button
-                type="button"
-                className="nav-btn logout-btn"
-                onClick={logout}
-              >
+
+              <button type="button" className="nav-btn logout-btn" onClick={logout}>
                 <span className="nav-icon">🚪</span>
                 Logout
               </button>
@@ -133,6 +132,7 @@ function App() {
             }
           />
 
+          {/* 👇 Esta es la ruta a la cual llevaremos el click del PIN */}
           <Route
             path="/customers/:id/reviews"
             element={
