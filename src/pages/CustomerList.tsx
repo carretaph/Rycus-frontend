@@ -321,7 +321,7 @@ const CustomerList: React.FC = () => {
             Customers Map (beta)
         ============================= */}
         <section style={{ marginTop: "32px" }}>
-          <h2>Customers Map (beta)</h2>
+          <h2>Customers Map</h2>
           <p
             style={{
               fontSize: "0.9rem",
