@@ -1,4 +1,4 @@
-// src/components/CustomersMap.tsx
+// src/components/CustomerMap.tsx  (o CustomersMap.tsx según tu nombre de archivo)
 import React, { useEffect, useState, useCallback } from "react";
 import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import { useNavigate } from "react-router-dom";
@@ -37,15 +37,19 @@ const CustomersMap: React.FC = () => {
 
   const navigate = useNavigate();
 
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  // ✅ Aceptar cualquiera de los dos nombres de variable de entorno
+  const apiKey =
+    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+    import.meta.env.VITE_GOOGLE_MAPS_KEY;
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: apiKey || "",
   });
 
   // ============================
   // Navegar al perfil (reviews) al hacer click en el PIN
   // ============================
   const handleMarkerClick = (id: number) => {
-    // 👇 Esta ruta ya existe en tu App.tsx
     navigate(`/customers/${id}/reviews`);
   };
 
@@ -55,6 +59,7 @@ const CustomersMap: React.FC = () => {
   useEffect(() => {
     const loadCustomers = async () => {
       try {
+        setLoading(true);
         const res = await axios.get("/customers");
         setCustomers(res.data || []);
       } catch (err) {
@@ -117,6 +122,18 @@ const CustomersMap: React.FC = () => {
     loadLocations();
   }, [isLoaded, customers, geocodeAddress]);
 
+  // ============================
+  // Render
+  // ============================
+  if (!apiKey) {
+    return <p>Map unavailable: missing Google Maps API key.</p>;
+  }
+
+  if (loadError) {
+    console.error("Error loading Google Maps script", loadError);
+    return <p>Map failed to load.</p>;
+  }
+
   if (!isLoaded) return <p>Loading map…</p>;
   if (loading) return <p>Loading customers…</p>;
 
@@ -127,7 +144,6 @@ const CustomersMap: React.FC = () => {
         center={centerDefault}
         zoom={5}
       >
-        {/* Usamos la lista de customers para poder pasar id y nombre al Marker */}
         {customers.map((c) => {
           const loc = locations[c.id];
           if (!loc) return null;
@@ -137,7 +153,7 @@ const CustomersMap: React.FC = () => {
               key={c.id}
               position={loc}
               title={c.fullName || "Customer"}
-              onClick={() => handleMarkerClick(c.id)} // 👈 CLICK DEL PIN
+              onClick={() => handleMarkerClick(c.id)}
             />
           );
         })}
