@@ -1,5 +1,5 @@
 // src/pages/UsersSearchPage.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "../api/axiosClient";
 import { Link } from "react-router-dom";
 
@@ -18,45 +18,49 @@ const UsersSearchPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setTouched(true);
-
+  // ================================
+  // 🔍 AUTO SEARCH (debounce)
+  // ================================
+  useEffect(() => {
     const q = query.trim();
-    if (!q) {
+
+    if (!q || q.length < 2) {
       setResults([]);
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
+    const timer = setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const res = await axios.get<UserSummary[]>("/users/search", {
-        params: { q },
-      });
+        const res = await axios.get<UserSummary[]>("/users/search", {
+          params: { q },
+        });
 
-      setResults(res.data || []);
-    } catch (err) {
-      console.error("Error searching users", err);
-      setError("There was an error searching users. Please try again.");
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        setResults(res.data || []);
+      } catch (err) {
+        console.error("Error searching users", err);
+        setError("There was an error searching users. Please try again.");
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300); // debounce
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   return (
     <div className="page">
       <h1>Search Users</h1>
+
       <p className="dashboard-text" style={{ maxWidth: 640 }}>
-        Find other Rycus users and see how many customer reviews they&apos;ve
-        submitted. In future versions you&apos;ll be able to open each user and
-        see all the customers they have rated.
+        Find other Rycus users and see how many customer reviews they've submitted.
+        Type at least <strong>2 letters</strong> to start searching automatically.
       </p>
 
-      <form
-        onSubmit={handleSearch}
+      <div
         style={{
           marginTop: 16,
           marginBottom: 24,
@@ -69,43 +73,52 @@ const UsersSearchPage: React.FC = () => {
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onBlur={() => setTouched(true)}
+          onChange={(e) => {
+            setTouched(true);
+            setQuery(e.target.value);
+          }}
           placeholder="Search by name or email..."
           className="input"
           style={{ maxWidth: 420, flex: "1 1 240px" }}
         />
-        <button type="submit" className="dashboard-btn">
-          Search
-        </button>
-      </form>
+      </div>
 
       {loading && <p>Searching users...</p>}
 
       {error && (
-        <p style={{ color: "#b91c1c", marginBottom: 16 }}>
-          {error}
-        </p>
+        <p style={{ color: "#b91c1c", marginBottom: 16 }}>{error}</p>
       )}
 
-      {!loading && !error && results.length === 0 && touched && query.trim() && (
-        <p>No users found for &quot;{query.trim()}&quot;.</p>
-      )}
+      {!loading &&
+        !error &&
+        results.length === 0 &&
+        touched &&
+        query.trim().length >= 2 && (
+          <p>No users found for "{query.trim()}".</p>
+        )}
 
       {!loading && !error && !touched && (
         <p style={{ color: "#6b7280" }}>
-          Type a name or email and click <strong>Search</strong> to find users.
+          Start typing a name or email to find users.
         </p>
       )}
 
+      {/* ================================
+          RESULT CARDS
+      ================================= */}
       <div className="dashboard-grid">
         {results.map((u) => (
-          <div key={u.id} className="dashboard-card">
+          <Link
+            key={u.id}
+            to={`/users/${u.id}`}
+            className="dashboard-card"
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
             <h2>{u.fullName}</h2>
             <p className="dashboard-text">{u.email}</p>
+
             <p className="dashboard-text">
-              Reviews written:{" "}
-              <strong>{u.totalReviews}</strong>
+              Reviews written: <strong>{u.totalReviews}</strong>
               <br />
               Average rating:{" "}
               <strong>
@@ -115,12 +128,8 @@ const UsersSearchPage: React.FC = () => {
               </strong>
             </p>
 
-            {/* Por ahora solo dejamos esto como placeholder.
-               Más adelante lo conectamos a /users/:id/reviews */}
-            <span className="dashboard-link" style={{ opacity: 0.5 }}>
-              User reviews (coming soon)
-            </span>
-          </div>
+            <span className="dashboard-link">View user profile →</span>
+          </Link>
         ))}
       </div>
 
