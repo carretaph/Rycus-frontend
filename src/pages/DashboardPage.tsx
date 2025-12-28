@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
-import CustomersMap from "../components/CustomerMap"; // 👈 nombre del archivo en tu árbol
 
 type Review = {
   id: number;
@@ -30,11 +29,36 @@ const EMPTY_STATS: DashboardStats = {
   averageRating: 0,
 };
 
+// 🔹 mismo key que en ProfilePage
+const EXTRA_KEY = "rycus_profile_extra";
+
+interface ProfileExtra {
+  firstName?: string;
+  lastName?: string;
+}
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
+  const [profileFirstName, setProfileFirstName] = useState<string | null>(null);
+
+  // Leer el primer nombre guardado en el perfil (localStorage)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(EXTRA_KEY);
+      if (stored && stored !== "undefined" && stored !== "null") {
+        const parsed = JSON.parse(stored) as ProfileExtra;
+        const fn = parsed.firstName?.trim();
+        if (fn) {
+          setProfileFirstName(fn);
+        }
+      }
+    } catch (err) {
+      console.error("Error reading profile extra for dashboard:", err);
+    }
+  }, []);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -160,7 +184,9 @@ const DashboardPage: React.FC = () => {
   const { totalCustomers, pendingReviews, completedReviews, averageRating } =
     stats;
 
+  // ⬇️ Preferimos el firstName del perfil. Si no hay, usamos el name del user, luego el email.
   const displayName =
+    profileFirstName ||
     (user?.name && user.name.split(" ")[0]) ||
     (user?.email ? user.email.split("@")[0] : "User");
 
@@ -268,14 +294,6 @@ const DashboardPage: React.FC = () => {
           Edit My Profile
         </Link>
       </div>
-
-      {/* ======= MAPA GLOBAL DE CLIENTES ======= */}
-      <h2 style={{ marginTop: "32px" }}>Customers Map</h2>
-      <p className="dashboard-text" style={{ marginBottom: "12px" }}>
-        View customers across the U.S. and tap a pin to open that customer&apos;s
-        profile and reviews.
-      </p>
-      <CustomersMap />
     </div>
   );
 };

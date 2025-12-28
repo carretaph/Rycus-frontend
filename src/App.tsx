@@ -16,6 +16,7 @@ import CustomerCreate from "./pages/CustomerCreate";
 import CustomerList from "./pages/CustomerList";
 import CustomerReviewsPage from "./pages/CustomerReviewsPage";
 import UsersSearchPage from "./pages/UsersSearchPage";
+import UserProfilePage from "./pages/UserProfilePage";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -76,18 +77,22 @@ function App() {
                 <span className="nav-icon">📊</span>
                 Dashboard
               </Link>
+
               <Link to="/customers" className="nav-btn">
                 <span className="nav-icon">👥</span>
                 Customers
               </Link>
+
               <Link to="/users" className="nav-btn">
                 <span className="nav-icon">🧑‍💼</span>
                 Users
               </Link>
+
               <Link to="/profile" className="nav-btn">
                 <span className="nav-icon">👤</span>
                 Profile
               </Link>
+
               <button
                 type="button"
                 className="nav-btn logout-btn"
@@ -103,11 +108,12 @@ function App() {
 
       <main className="main">
         <Routes>
+          {/* Rutas públicas */}
           <Route path="/" element={<HomePage />} />
-
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
+          {/* Rutas protegidas */}
           <Route
             path="/dashboard"
             element={
@@ -162,6 +168,16 @@ function App() {
             }
           />
 
+          <Route
+            path="/users/:id"
+            element={
+              <ProtectedRoute>
+                <UserProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
