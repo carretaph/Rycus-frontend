@@ -135,9 +135,10 @@ const DashboardPage: React.FC = () => {
           }
 
           const mine = list.filter((r) => {
-            const createdBy = (r.createdBy ?? "").toLowerCase();
+            const createdBy = (r.createdBy ?? "").trim().toLowerCase();
+
             return (
-              createdBy === userEmailLower ||
+              (userEmailLower && createdBy === userEmailLower) ||
               (userNameLower && createdBy === userNameLower)
             );
           });
