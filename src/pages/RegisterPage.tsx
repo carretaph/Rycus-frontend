@@ -33,42 +33,42 @@ const RegisterPage: React.FC = () => {
     setError("");
     setLoading(true);
 
-    const fullName = `${firstName} ${lastName}`.trim() || email;
+    const fullName =
+      `${firstName.trim()} ${lastName.trim()}`.trim() || email.trim();
 
     try {
       // 1) Registrar usuario en el backend
+      // ✅ IMPORTANTE: el backend espera "fullName" (no "name")
       const response = await axiosClient.post("/auth/register", {
-        name: fullName,
-        email,
+        fullName,
+        email: email.trim(),
         password,
-        phone,
+        phone: phone.trim() || null,
       });
 
       console.log("REGISTER RESPONSE:", response.data);
       const data = response.data;
 
-      const apiUser = data.user ?? {
-        id: data.id,
-        email: data.email,
-        name: data.name,
-        phone: data.phone,
-      };
+      // Tu backend hoy está devolviendo:
+      // { message: "...", user: null }
+      // Por eso construimos un usuario "safe" para el AuthContext
+      const apiUser = data?.user ?? null;
 
       const safeUser = {
-        id: apiUser?.id ?? 0,
-        email: apiUser?.email ?? email,
-        name: apiUser?.name ?? fullName,
-        phone: apiUser?.phone ?? phone,
+        id: apiUser?.id ?? data?.id ?? 0,
+        email: apiUser?.email ?? data?.email ?? email.trim(),
+        name: apiUser?.fullName ?? apiUser?.name ?? data?.fullName ?? fullName,
+        phone: apiUser?.phone ?? data?.phone ?? (phone.trim() || undefined),
       };
 
       const token =
-        data.token ??
-        data.accessToken ??
-        data.jwt ??
-        data.authToken ??
+        data?.token ??
+        data?.accessToken ??
+        data?.jwt ??
+        data?.authToken ??
         "";
 
-      // 2) Loguear en el AuthContext
+      // 2) Loguear en el AuthContext (aunque no haya token, tu app sigue)
       login(safeUser, token);
 
       // 3) Guardar datos extra del perfil EN LOCALSTORAGE
@@ -85,7 +85,7 @@ const RegisterPage: React.FC = () => {
         industry: accountType,
       };
 
-      const extraKey = `${EXTRA_KEY_PREFIX}${email.toLowerCase()}`;
+      const extraKey = `${EXTRA_KEY_PREFIX}${email.trim().toLowerCase()}`;
       localStorage.setItem(extraKey, JSON.stringify(extraProfile));
 
       // 4) Ir al dashboard
