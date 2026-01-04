@@ -6,19 +6,21 @@ import { useAuth } from "../context/AuthContext";
 import { usStates } from "../assets/usStates";
 import { industries } from "../assets/industriesList";
 
+const EXTRA_KEY_PREFIX = "rycus_profile_extra_";
+
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState(""); // ✅ NEW
+  const [phone, setPhone] = useState(""); // opcional
   const [businessName, setBusinessName] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [zipcode, setZipcode] = useState("");
   const [stateValue, setStateValue] = useState("");
-  const [accountType, setAccountType] = useState("HOMEOWNER");
+  const [accountType, setAccountType] = useState(""); // industria seleccionada
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,12 +36,12 @@ const RegisterPage: React.FC = () => {
     const fullName = `${firstName} ${lastName}`.trim() || email;
 
     try {
-      // ✅ Enviamos phone también (si el backend aún no lo soporta, no pasa nada: lo arreglamos en la parte backend)
+      // 1) Registrar usuario en el backend
       const response = await axiosClient.post("/auth/register", {
         name: fullName,
         email,
         password,
-        phone, // ✅ NEW
+        phone,
       });
 
       console.log("REGISTER RESPONSE:", response.data);
@@ -49,14 +51,14 @@ const RegisterPage: React.FC = () => {
         id: data.id,
         email: data.email,
         name: data.name,
-        phone: data.phone, // opcional si backend lo devuelve
+        phone: data.phone,
       };
 
       const safeUser = {
         id: apiUser?.id ?? 0,
         email: apiUser?.email ?? email,
         name: apiUser?.name ?? fullName,
-        phone: apiUser?.phone ?? phone, // ✅ NEW (si no viene, usamos lo que escribió)
+        phone: apiUser?.phone ?? phone,
       };
 
       const token =
@@ -66,13 +68,15 @@ const RegisterPage: React.FC = () => {
         data.authToken ??
         "";
 
+      // 2) Loguear en el AuthContext
       login(safeUser, token);
 
-      // Guardamos datos extra del perfil
+      // 3) Guardar datos extra del perfil EN LOCALSTORAGE
+      //    usando una clave única por email
       const extraProfile = {
         firstName,
         lastName,
-        phone, // ✅ NEW
+        phone,
         businessName,
         address,
         city,
@@ -81,8 +85,10 @@ const RegisterPage: React.FC = () => {
         industry: accountType,
       };
 
-      localStorage.setItem("rycus_profile_extra", JSON.stringify(extraProfile));
+      const extraKey = `${EXTRA_KEY_PREFIX}${email.toLowerCase()}`;
+      localStorage.setItem(extraKey, JSON.stringify(extraProfile));
 
+      // 4) Ir al dashboard
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Register error:", err);
@@ -159,7 +165,8 @@ const RegisterPage: React.FC = () => {
             {/* Business name */}
             <div className="form-grid-full">
               <label htmlFor="businessName">
-                Business name <span style={{ color: "#9ca3af" }}>(optional)</span>
+                Business name{" "}
+                <span style={{ color: "#9ca3af" }}>(optional)</span>
               </label>
               <input
                 id="businessName"

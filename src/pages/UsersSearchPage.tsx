@@ -56,8 +56,9 @@ const UsersSearchPage: React.FC = () => {
       <h1>Search Users</h1>
 
       <p className="dashboard-text" style={{ maxWidth: 640 }}>
-        Find other Rycus users and see how many customer reviews they've submitted.
-        Type at least <strong>2 letters</strong> to start searching automatically.
+        Find other Rycus users and see how many customer reviews they've
+        submitted. Type at least <strong>2 letters</strong> to start searching
+        automatically.
       </p>
 
       <div
@@ -85,17 +86,13 @@ const UsersSearchPage: React.FC = () => {
 
       {loading && <p>Searching users...</p>}
 
-      {error && (
-        <p style={{ color: "#b91c1c", marginBottom: 16 }}>{error}</p>
-      )}
+      {error && <p style={{ color: "#b91c1c", marginBottom: 16 }}>{error}</p>}
 
       {!loading &&
         !error &&
         results.length === 0 &&
         touched &&
-        query.trim().length >= 2 && (
-          <p>No users found for "{query.trim()}".</p>
-        )}
+        query.trim().length >= 2 && <p>No users found for "{query.trim()}".</p>}
 
       {!loading && !error && !touched && (
         <p style={{ color: "#6b7280" }}>
@@ -108,9 +105,8 @@ const UsersSearchPage: React.FC = () => {
       ================================= */}
       <div className="dashboard-grid">
         {results.map((u) => (
-          <Link
+          <div
             key={u.id}
-            to={`/users/${u.id}`}
             className="dashboard-card"
             style={{ textDecoration: "none", color: "inherit" }}
           >
@@ -128,8 +124,37 @@ const UsersSearchPage: React.FC = () => {
               </strong>
             </p>
 
-            <span className="dashboard-link">View user profile →</span>
-          </Link>
+            {/* ACTIONS */}
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                marginTop: 12,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <Link to={`/users/${u.id}`} className="dashboard-link">
+                View user profile →
+              </Link>
+
+              <Link
+                to={`/messages/${encodeURIComponent(u.email)}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #e5e7eb",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                }}
+              >
+                💬 Message
+              </Link>
+            </div>
+          </div>
         ))}
       </div>
 

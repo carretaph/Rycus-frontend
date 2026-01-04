@@ -1,4 +1,4 @@
-// src/components/CustomerMap.tsx  (o CustomersMap.tsx según tu nombre de archivo)
+// src/components/CustomersMap.tsx
 import React, { useEffect, useState, useCallback } from "react";
 import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import { useNavigate } from "react-router-dom";
@@ -26,31 +26,33 @@ const containerStyle = {
 };
 
 const centerDefault = {
-  lat: 39.8283, // Centro USA
+  lat: 39.8283, // centro USA
   lng: -98.5795,
 };
 
 const CustomersMap: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [locations, setLocations] = useState<{ [key: number]: Coordinates }>({});
+  const [locations, setLocations] = useState<{ [key: number]: Coordinates }>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
 
-  // ✅ Aceptar cualquiera de los dos nombres de variable de entorno
-  const apiKey =
-    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
-    import.meta.env.VITE_GOOGLE_MAPS_KEY;
+  // SOLO UNA variable de entorno
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  console.log("MAPS KEY FRONTEND =>", apiKey);
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || "",
   });
 
   // ============================
-  // Navegar al perfil (reviews) al hacer click en el PIN
+  // Navegar al detalle del cliente
   // ============================
   const handleMarkerClick = (id: number) => {
-    navigate(`/customers/${id}/reviews`);
+    // 👇 coincide con la ruta de App.tsx: /customers/:id
+    navigate(`/customers/${id}`);
   };
 
   // ============================
@@ -75,35 +77,31 @@ const CustomersMap: React.FC = () => {
   // ============================
   // Geocoding
   // ============================
-  const geocodeAddress = useCallback(
-    async (customer: Customer) => {
-      return new Promise<Coordinates | null>((resolve) => {
-        if (!window.google) return resolve(null);
+  const geocodeAddress = useCallback(async (customer: Customer) => {
+    return new Promise<Coordinates | null>((resolve) => {
+      if (!window.google) return resolve(null);
 
-        const geocoder = new window.google.maps.Geocoder();
+      const geocoder = new window.google.maps.Geocoder();
 
-        const fullAddress =
-          `${customer.address ?? ""} ${customer.city ?? ""} ${
-            customer.state ?? ""
-          } ${customer.zipCode ?? ""}`.trim();
+      const fullAddress = `${customer.address ?? ""} ${customer.city ?? ""} ${
+        customer.state ?? ""
+      } ${customer.zipCode ?? ""}`.trim();
 
-        if (!fullAddress) return resolve(null);
+      if (!fullAddress) return resolve(null);
 
-        geocoder.geocode({ address: fullAddress }, (results, status) => {
-          if (status === "OK" && results && results[0]) {
-            resolve({
-              lat: results[0].geometry.location.lat(),
-              lng: results[0].geometry.location.lng(),
-            });
-          } else {
-            console.warn("Geocode failed:", fullAddress, status);
-            resolve(null);
-          }
-        });
+      geocoder.geocode({ address: fullAddress }, (results, status) => {
+        if (status === "OK" && results && results[0]) {
+          resolve({
+            lat: results[0].geometry.location.lat(),
+            lng: results[0].geometry.location.lng(),
+          });
+        } else {
+          console.warn("Geocode failed:", fullAddress, status);
+          resolve(null);
+        }
       });
-    },
-    []
-  );
+    });
+  }, []);
 
   useEffect(() => {
     const loadLocations = async () => {

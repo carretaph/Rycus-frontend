@@ -1,6 +1,6 @@
 // src/pages/CustomerReviewsPage.tsx
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 
@@ -30,9 +30,18 @@ interface Review {
 
 const STAR_VALUES = [1, 2, 3, 4, 5];
 
+// 🔹 mismo key que en ProfilePage / Dashboard
+const EXTRA_KEY = "rycus_profile_extra";
+
+interface ProfileExtra {
+  firstName?: string;
+  lastName?: string;
+}
+
 const CustomerReviewsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const customerId = id;
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -56,6 +65,15 @@ const CustomerReviewsPage: React.FC = () => {
 
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // 🔹 nombre completo del perfil (para usarlo como sugerencia)
+  const [profileFullName, setProfileFullName] = useState<string | null>(
+    null
+  );
+
+  // 🔹 nombre que se mostrará en ESTE review (cuando es público)
+  const [publicName, setPublicName] = useState<string>("");
+
+  // Cargar datos del cliente + reviews
   useEffect(() => {
     const fetchData = async () => {
       if (!customerId) return;
@@ -72,7 +90,6 @@ const CustomerReviewsPage: React.FC = () => {
         setCustomer(customerRes.data);
         setReviews(reviewsRes.data || []);
 
-        // Si ya hay reviews, por defecto NO mostramos el formulario
         if (reviewsRes.data && reviewsRes.data.length > 0) {
           setShowForm(false);
         } else {
@@ -88,6 +105,37 @@ const CustomerReviewsPage: React.FC = () => {
 
     fetchData();
   }, [customerId]);
+
+  // 🔹 Leer firstName + lastName desde localStorage (perfil)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(EXTRA_KEY);
+      if (stored && stored !== "undefined" && stored !== "null") {
+        const parsed = JSON.parse(stored) as ProfileExtra;
+        const full = [parsed.firstName, parsed.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        if (full) {
+          setProfileFullName(full);
+        }
+      }
+    } catch (err) {
+      console.error("Error reading profile extra in reviews page:", err);
+    }
+  }, []);
+
+  // 🔹 Cuando marcan / desmarcan “Make my name public”,
+  // pre-llenamos el campo con el mejor nombre que tengamos
+  useEffect(() => {
+    if (makeNamePublic) {
+      const fromUserName = (user?.name || "").trim();
+      const initial = profileFullName || fromUserName || "";
+      setPublicName(initial);
+    } else {
+      setPublicName("");
+    }
+  }, [makeNamePublic, profileFullName, user?.name]);
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,10 +163,23 @@ const CustomerReviewsPage: React.FC = () => {
       comment,
     };
 
-    // Si el usuario marcó "Make my name public"
-    if (makeNamePublic && user) {
-      reviewData.createdBy = user.name || user.email;
-      reviewData.userEmail = user.email; // para que el backend lo vincule
+    // Enviamos siempre userEmail para que el backend pueda vincular
+    if (user?.email) {
+      reviewData.userEmail = user.email;
+    }
+
+    // Lógica de nombre público / anónimo
+    if (makeNamePublic) {
+      const nameToUse = publicName.trim();
+      if (!nameToUse) {
+        setSubmitError(
+          "Please enter the name you want to display on this review."
+        );
+        return;
+      }
+      reviewData.createdBy = nameToUse;
+    } else {
+      reviewData.createdBy = "Anonymous reviewer";
     }
 
     try {
@@ -137,7 +198,7 @@ const CustomerReviewsPage: React.FC = () => {
       setRatingCommunication(0);
       setComment("");
       setMakeNamePublic(false);
-      setShowForm(false); // después de enviar, esconder el form otra vez
+      setShowForm(false);
     } catch (err) {
       console.error("Error creating review", err);
       setSubmitError("Error creating review. Please try again.");
@@ -165,7 +226,6 @@ const CustomerReviewsPage: React.FC = () => {
     </div>
   );
 
-  // Estrellas en los reviews de abajo
   const renderStars = (value: number) => {
     return (
       <span className="review-stars">
@@ -199,7 +259,6 @@ const CustomerReviewsPage: React.FC = () => {
 
   const displayName = customer.fullName || "Customer";
 
-  // Dirección completa
   const locationParts = [
     customer.address,
     customer.city,
@@ -214,55 +273,86 @@ const CustomerReviewsPage: React.FC = () => {
   return (
     <div className="customer-page">
       <div className="card">
-        {/* HEADER DEL CLIENTE */}
-        <h1 className="card-title">{displayName}</h1>
+        {/* HEADER + ACCIONES */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "16px",
+            marginBottom: 12,
+          }}
+        >
+          <div>
+            <h1 className="card-title" style={{ marginBottom: 4 }}>
+              {displayName}
+            </h1>
 
-        <p className="card-subtitle">
-          {locationParts.length > 0
-            ? locationParts.join(", ")
-            : "Location not specified"}
-          {extraInfoParts.length > 0 && <> • {extraInfoParts.join(" • ")}</>}
-        </p>
+            <p className="card-subtitle">
+              {locationParts.length > 0
+                ? locationParts.join(", ")
+                : "Location not specified"}
+              {extraInfoParts.length > 0 && (
+                <> • {extraInfoParts.join(" • ")}</>
+              )}
+            </p>
+          </div>
 
-        {/* BOTÓN PARA CREAR NUEVO REVIEW */}
-        {reviews.length > 0 && !showForm && (
-          <div style={{ marginTop: 24, marginBottom: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              minWidth: "150px",
+            }}
+          >
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setShowForm(true)}
+              onClick={() => navigate(`/customers/${customer.id}/edit`)}
             >
-              + Create new review
+              Edit customer
             </button>
-          </div>
-        )}
 
-        {/* FORMULARIO PARA NUEVO REVIEW */}
+            {reviews.length > 0 && !showForm && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowForm(true)}
+              >
+                + Create new review
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* FORMULARIO NUEVO REVIEW */}
         {showForm && (
           <>
-            <h3 style={{ marginTop: 24, marginBottom: 8 }}>Leave a review</h3>
+            <h3 style={{ marginTop: 24, marginBottom: 8 }}>
+              Leave a review
+            </h3>
 
             <form onSubmit={handleReviewSubmit}>
               <div className="form-grid">
-                {/* Overall Experience */}
                 <div>
                   <label>Overall Experience</label>
                   {renderStarSelector(ratingOverall, setRatingOverall)}
                 </div>
 
-                {/* Payment Reliability */}
                 <div>
                   <label>Payment Reliability</label>
                   {renderStarSelector(ratingPayment, setRatingPayment)}
                 </div>
 
-                {/* Professional Behavior */}
                 <div>
                   <label>Professional Behavior</label>
-                  {renderStarSelector(ratingBehavior, setRatingBehavior)}
+                  {renderStarSelector(
+                    ratingBehavior,
+                    setRatingBehavior
+                  )}
                 </div>
 
-                {/* Communication */}
                 <div>
                   <label>Communication</label>
                   {renderStarSelector(
@@ -271,7 +361,6 @@ const CustomerReviewsPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Comment – ocupa toda la fila */}
                 <div className="form-grid-full">
                   <label htmlFor="comment">Comment</label>
                   <textarea
@@ -283,7 +372,6 @@ const CustomerReviewsPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Checkbox – también fila completa, debajo del comment */}
                 <div className="form-grid-full">
                   <label className="public-toggle">
                     <input
@@ -296,10 +384,27 @@ const CustomerReviewsPage: React.FC = () => {
                     <span>Make my name public on this review</span>
                   </label>
                 </div>
+
+                {makeNamePublic && (
+                  <div className="form-grid-full">
+                    <label htmlFor="publicName">
+                      Name to display on this review
+                    </label>
+                    <input
+                      id="publicName"
+                      type="text"
+                      value={publicName}
+                      onChange={(e) => setPublicName(e.target.value)}
+                      placeholder="Example: Diego Perez"
+                    />
+                  </div>
+                )}
               </div>
 
               {submitError && (
-                <p style={{ color: "red", marginTop: 8 }}>{submitError}</p>
+                <p style={{ color: "red", marginTop: 8 }}>
+                  {submitError}
+                </p>
               )}
 
               <button
@@ -336,7 +441,8 @@ const CustomerReviewsPage: React.FC = () => {
                   <div>Payment: {renderStars(rev.ratingPayment)}</div>
                   <div>Behavior: {renderStars(rev.ratingBehavior)}</div>
                   <div>
-                    Communication: {renderStars(rev.ratingCommunication)}
+                    Communication:{" "}
+                    {renderStars(rev.ratingCommunication)}
                   </div>
                 </div>
                 <div className="review-comment">{rev.comment}</div>

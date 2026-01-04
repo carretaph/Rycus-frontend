@@ -1,14 +1,26 @@
-// src/pages/CustomerCreate.tsx
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+// src/pages/CustomerEditPage.tsx
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { usStates } from "../assets/usStates";
-import { useAuth } from "../context/AuthContext"; // 👈 NUEVO
 
-const CustomerCreate: React.FC = () => {
+interface Customer {
+  id: number;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  customerType?: string;
+}
+
+const CustomerEditPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth(); // 👈 NUEVO
 
+  // mismos campos que en Create
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -19,76 +31,118 @@ const CustomerCreate: React.FC = () => {
   const [zipCode, setZipCode] = useState("");
   const [customerType, setCustomerType] = useState("Homeowner");
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ============================
+  // Cargar datos del cliente
+  // ============================
+  useEffect(() => {
+    const loadCustomer = async () => {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await axios.get<Customer>(`/customers/${id}`);
+        const c = res.data;
+
+        // dividir fullName en first / last (simple)
+        const fullName = c.fullName?.trim() || "";
+        const parts = fullName.split(" ");
+        const f = parts.shift() || "";
+        const l = parts.join(" ");
+
+        setFirstName(f);
+        setLastName(l);
+        setEmail(c.email ?? "");
+        setPhone(c.phone ?? "");
+        setAddress(c.address ?? "");
+        setCity(c.city ?? "");
+        setStateValue(c.state ?? "");
+        setZipCode(c.zipCode ?? "");
+        setCustomerType(c.customerType ?? "Homeowner");
+      } catch (err) {
+        console.error("Error loading customer for edit", err);
+        setError("Could not load customer data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCustomer();
+  }, [id]);
+
+  // ============================
+  // Guardar cambios
+  // ============================
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!id) return;
+
     setError(null);
-    setLoading(true);
+    setSaving(true);
 
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
 
     try {
-      const response = await axios.post(
-        "/customers",
-        {
-          fullName,
-          email,
-          phone,
-          address,
-          city,
-          state: stateValue,
-          zipCode,
-          customerType,
-        },
-        {
-          // 👇 Vinculamos el CUSTOMER al USUARIO que lo crea
-          params: { userEmail: user?.email },
-        }
-      );
+      await axios.put(`/customers/${id}`, {
+        fullName,
+        email,
+        phone,
+        address,
+        city,
+        state: stateValue,
+        zipCode,
+        customerType,
+      });
 
-      const createdCustomer = response?.data;
-      console.log("Created customer response:", createdCustomer);
-
-      const customerId =
-        createdCustomer?.id ??
-        createdCustomer?.customerId ??
-        createdCustomer?.customerID;
-
-      if (customerId) {
-        // ✅ Ir directo a la página de reviews de ese cliente
-        navigate(`/customers/${customerId}`);
-      } else {
-        console.warn(
-          "Customer created but no id/customerId returned. Redirecting to /customers."
-        );
-        navigate("/customers");
-      }
-    } catch (err: any) {
-      console.error("Error creating customer", err);
-      let msg = "Could not create customer. Please try again.";
-      if (err?.response?.data?.message) {
-        msg = err.response.data.message;
-      }
-      setError(msg);
+      // volver a la página de reviews de ese cliente
+      navigate(`/customers/${id}`);
+    } catch (err) {
+      console.error("Error updating customer", err);
+      setError("Could not update customer. Please try again.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="page">
+        <main className="main">
+          <p>Loading customer...</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (error && !firstName && !lastName) {
+    // error al cargar, no hay datos
+    return (
+      <div className="page">
+        <main className="main">
+          <p style={{ color: "red" }}>{error}</p>
+          <p>
+            <Link to="/customers">← Back to customers</Link>
+          </p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="page">
       <div className="card">
-        <h1 className="card-title">Add New Customer</h1>
+        <h1 className="card-title">Edit Customer</h1>
         <p className="card-subtitle">
-          Enter your customer information to begin reviewing them.
+          Update this customer&apos;s contact information.
         </p>
 
         {error && (
-          <p style={{ color: "red", marginBottom: 12 }}>
-            {error}
-          </p>
+          <p style={{ color: "red", marginBottom: 12 }}>{error}</p>
         )}
 
         <form onSubmit={handleSubmit} className="form-grid">
@@ -166,7 +220,7 @@ const CustomerCreate: React.FC = () => {
             />
           </div>
 
-          {/* State */}
+          {/* State – LISTA COMO EN CREATE */}
           <div>
             <label htmlFor="state">State</label>
             <select
@@ -196,7 +250,7 @@ const CustomerCreate: React.FC = () => {
             />
           </div>
 
-          {/* Customer Type */}
+          {/* Customer Type – LISTA COMO EN CREATE */}
           <div>
             <label htmlFor="customerType">Customer Type</label>
             <select
@@ -212,43 +266,24 @@ const CustomerCreate: React.FC = () => {
             </select>
           </div>
 
-          {/* Notes - Informational message */}
-          <div className="form-grid-full">
-            <div
-              style={{
-                fontSize: "0.9rem",
-                backgroundColor: "#F3F4F6",
-                borderRadius: 8,
-                padding: "8px 12px",
-                marginTop: 8,
-              }}
-            >
-              <strong>Notes:</strong>{" "}
-              <span style={{ color: "#4B5563" }}>
-                this is not a review. After saving this customer, you will be
-                directed to the page where you can leave their official review.
-              </span>
-            </div>
-          </div>
-
           {/* Save Button */}
           <div className="form-grid-full">
             <button
               type="submit"
               className="btn-primary"
-              disabled={loading}
+              disabled={saving}
             >
-              {loading ? "Saving..." : "Save Customer"}
+              {saving ? "Saving..." : "Save changes"}
             </button>
           </div>
         </form>
 
         <p className="auth-footer-text">
-          <Link to="/customers">← Back to customers</Link>
+          <Link to={`/customers/${id}`}>← Back to customer</Link>
         </p>
       </div>
     </div>
   );
 };
 
-export default CustomerCreate;
+export default CustomerEditPage;

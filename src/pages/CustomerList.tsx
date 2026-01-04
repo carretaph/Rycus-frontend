@@ -73,8 +73,8 @@ const CustomerList: React.FC = () => {
   // ============================
   const handleCustomerClick = (id?: number) => {
     if (!id) return;
-    // Ruta definida en App.tsx: /customers/:id/reviews
-    navigate(`/customers/${id}/reviews`);
+    // 👇 Ruta definida en App.tsx: /customers/:id
+    navigate(`/customers/${id}`);
   };
 
   // ============================
@@ -160,7 +160,26 @@ const CustomerList: React.FC = () => {
             My Customers
         ============================= */}
         <section style={{ marginTop: "24px", marginBottom: "24px" }}>
-          <h2>My Customers</h2>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "8px",
+            }}
+          >
+            <h2 style={{ margin: 0 }}>My Customers</h2>
+
+            {/* 👉 Botón para crear nuevo cliente */}
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => navigate("/customers/new")}
+            >
+              + Add new customer
+            </button>
+          </div>
 
           {loadingMy ? (
             <p>Loading your customers...</p>

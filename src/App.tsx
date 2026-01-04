@@ -1,29 +1,37 @@
 // src/App.tsx
-import React from "react";
-import { Routes, Route, Link, Navigate } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import axios from "./api/axiosClient";
+
 import "./App.css";
 
-import logo from "./assets/rycus-logo.png";
-import { useAuth } from "./context/AuthContext";
-
-// Páginas
+// Pages
 import HomePage from "./HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import ProfilePage from "./pages/ProfilePage";
 import DashboardPage from "./pages/DashboardPage";
-import CustomerCreate from "./pages/CustomerCreate";
-import CustomerList from "./pages/CustomerList";
+import CustomerCreatePage from "./pages/CustomerCreate";
+import CustomerListPage from "./pages/CustomerList";
 import CustomerReviewsPage from "./pages/CustomerReviewsPage";
 import UsersSearchPage from "./pages/UsersSearchPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import UserConnectionsPage from "./pages/UserConnectionsPage";
+import ProfilePage from "./pages/ProfilePage";
+import CustomerEditPage from "./pages/CustomerEdit";
+import MessagesPage from "./pages/MessagesPage";
+import InboxPage from "./pages/InboxPage";
 
+import logo from "./assets/rycus-logo.png";
+
+// ============================
+// 🔐 Protected route
+// ============================
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user, initializing } = useAuth();
 
-  // Mientras restauramos sesión desde localStorage
   if (initializing) {
     return (
       <div className="page">
@@ -41,66 +49,138 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   return <>{children}</>;
 };
 
-function App() {
+// ============================
+// APP
+// ============================
+const App: React.FC = () => {
   const { user, logout } = useAuth();
+  const location = useLocation();
+
+  // Display name in nav
+  const navDisplayName =
+    (user?.firstName?.trim() && user.firstName.trim()) ||
+    (user?.name?.trim() && user.name.trim().split(" ")[0]) ||
+    (user?.email && user.email.split("@")[0]) ||
+    "Profile";
+
+  // Avatar initial
+  const userInitial =
+    user?.firstName?.trim().charAt(0).toUpperCase() ||
+    user?.name?.trim().charAt(0).toUpperCase() ||
+    user?.email?.charAt(0).toUpperCase() ||
+    "?";
+
+  // Unread messages badge
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  const loadUnread = useCallback(async () => {
+    try {
+      const userEmail = user?.email?.trim();
+      if (!userEmail) {
+        setUnreadCount(0);
+        return;
+      }
+
+      const res = await axios.get<number>("/messages/unread-count", {
+        params: { userEmail },
+      });
+
+      setUnreadCount(typeof res.data === "number" ? res.data : 0);
+    } catch {
+      setUnreadCount(0);
+    }
+  }, [user?.email]);
+
+  // ✅ Polling normal
+  useEffect(() => {
+    let timer: number | undefined;
+
+    void loadUnread();
+    timer = window.setInterval(() => {
+      void loadUnread();
+    }, 12000);
+
+    return () => {
+      if (timer) window.clearInterval(timer);
+    };
+  }, [loadUnread]);
+
+  // ✅ Refrescar cuando cambias de ruta (especialmente al entrar/salir de Inbox/Chat)
+  useEffect(() => {
+    // cada vez que cambia la URL, refrescamos el badge una vez
+    void loadUnread();
+  }, [location.pathname, loadUnread]);
 
   return (
     <div className="app">
       <header className="site-header">
+        {/* Logo */}
         <div className="site-header-logo-block">
-          <img src={logo} alt="Rycus logo" className="site-logo" />
-          <div className="site-subtitle">Rate Your Customer US</div>
+          <img src={logo} alt="Rycus" className="site-header-logo" />
+          <div className="site-header-title">Rycus</div>
+          <div className="site-header-subtitle">Rate Your Customer US</div>
         </div>
 
-        <nav className="site-nav">
-          <Link to="/" className="nav-btn">
-            <span className="nav-icon">🏠</span>
-            Home
-          </Link>
-
-          {!user && (
+        {/* NAV */}
+        <nav className="site-header-nav">
+          {user ? (
             <>
-              <Link to="/login" className="nav-btn">
-                <span className="nav-icon">🔐</span>
-                Sign In
-              </Link>
-              <Link to="/register" className="nav-btn">
-                <span className="nav-icon">📝</span>
-                Sign Up
-              </Link>
-            </>
-          )}
-
-          {user && (
-            <>
-              <Link to="/dashboard" className="nav-btn">
-                <span className="nav-icon">📊</span>
-                Dashboard
+              {/* Profile */}
+              <Link to="/profile" className="nav-profile-link">
+                <div className="nav-avatar">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="avatar" />
+                  ) : (
+                    <span>{userInitial}</span>
+                  )}
+                </div>
+                <span>{navDisplayName}</span>
               </Link>
 
-              <Link to="/customers" className="nav-btn">
-                <span className="nav-icon">👥</span>
-                Customers
-              </Link>
+              <Link to="/">🏠 Home</Link>
+              <Link to="/dashboard">📊 Dashboard</Link>
+              <Link to="/customers">👥 Customers</Link>
+              <Link to="/connections">🤝 Network</Link>
 
-              <Link to="/users" className="nav-btn">
-                <span className="nav-icon">🧑‍💼</span>
-                Users
-              </Link>
-
-              <Link to="/profile" className="nav-btn">
-                <span className="nav-icon">👤</span>
-                Profile
-              </Link>
-
-              <button
-                type="button"
-                className="nav-btn logout-btn"
-                onClick={logout}
+              {/* 💬 Messages */}
+              <Link
+                to="/inbox"
+                style={{ display: "inline-flex", alignItems: "center" }}
               >
-                <span className="nav-icon">🚪</span>
+                💬 Messages
+                {unreadCount > 0 && (
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 22,
+                      height: 22,
+                      padding: "0 7px",
+                      borderRadius: 999,
+                      border: "1px solid #e5e7eb",
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}
+                  >
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link to="/users">🙋‍♂️ Users</Link>
+
+              <button className="logoutBtn" onClick={logout}>
                 Logout
               </button>
+            </>
+          ) : (
+            <>
+              {/* Public menu */}
+              <Link to="/">🏠 Home</Link>
+              <Link to="/login">Sign in</Link>
+              <Link to="/register">Create account</Link>
             </>
           )}
         </nav>
@@ -108,12 +188,12 @@ function App() {
 
       <main className="main">
         <Routes>
-          {/* Rutas públicas */}
+          {/* Public */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Rutas protegidas */}
+          {/* Private */}
           <Route
             path="/dashboard"
             element={
@@ -124,10 +204,10 @@ function App() {
           />
 
           <Route
-            path="/profile"
+            path="/customers"
             element={
               <ProtectedRoute>
-                <ProfilePage />
+                <CustomerListPage />
               </ProtectedRoute>
             }
           />
@@ -136,25 +216,25 @@ function App() {
             path="/customers/new"
             element={
               <ProtectedRoute>
-                <CustomerCreate />
+                <CustomerCreatePage />
               </ProtectedRoute>
             }
           />
 
           <Route
-            path="/customers"
-            element={
-              <ProtectedRoute>
-                <CustomerList />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/customers/:id/reviews"
+            path="/customers/:id"
             element={
               <ProtectedRoute>
                 <CustomerReviewsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/customers/:id/edit"
+            element={
+              <ProtectedRoute>
+                <CustomerEditPage />
               </ProtectedRoute>
             }
           />
@@ -177,12 +257,49 @@ function App() {
             }
           />
 
-          {/* Catch-all */}
+          <Route
+            path="/connections"
+            element={
+              <ProtectedRoute>
+                <UserConnectionsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Inbox / Messages */}
+          <Route
+            path="/inbox"
+            element={
+              <ProtectedRoute>
+                <InboxPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/messages/:otherEmail"
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
   );
-}
+};
 
 export default App;

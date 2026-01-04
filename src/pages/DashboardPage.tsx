@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
+import CustomerMap from "../components/CustomerMap"; // 🔹 Mapa
 
 type Review = {
   id: number;
@@ -29,36 +30,11 @@ const EMPTY_STATS: DashboardStats = {
   averageRating: 0,
 };
 
-// 🔹 mismo key que en ProfilePage
-const EXTRA_KEY = "rycus_profile_extra";
-
-interface ProfileExtra {
-  firstName?: string;
-  lastName?: string;
-}
-
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
-  const [profileFirstName, setProfileFirstName] = useState<string | null>(null);
-
-  // Leer el primer nombre guardado en el perfil (localStorage)
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(EXTRA_KEY);
-      if (stored && stored !== "undefined" && stored !== "null") {
-        const parsed = JSON.parse(stored) as ProfileExtra;
-        const fn = parsed.firstName?.trim();
-        if (fn) {
-          setProfileFirstName(fn);
-        }
-      }
-    } catch (err) {
-      console.error("Error reading profile extra for dashboard:", err);
-    }
-  }, []);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -120,7 +96,7 @@ const DashboardPage: React.FC = () => {
         // 3a) Clientes que tienen AL MENOS UN review (de cualquiera)
         const customersWithAnyReview = new Set<number>();
 
-        // 3b) Reviews hechos por mí (creados por mí)
+        // 3b) Clientes que yo ya revieweé + mis reviews
         const customersReviewedByMe = new Set<number>();
         const myReviews: Review[] = [];
 
@@ -136,7 +112,6 @@ const DashboardPage: React.FC = () => {
 
           const mine = list.filter((r) => {
             const createdBy = (r.createdBy ?? "").trim().toLowerCase();
-
             return (
               (userEmailLower && createdBy === userEmailLower) ||
               (userNameLower && createdBy === userNameLower)
@@ -149,10 +124,11 @@ const DashboardPage: React.FC = () => {
           }
         });
 
-        // Clientes pendientes = total clientes - clientes que ya tienen AL MENOS UN review
-        const pendingReviews = totalCustomers - customersWithAnyReview.size;
+        // 🔹 Pendientes = clientes míos que YO todavía no he revieweado
+        let pendingReviews = totalCustomers - customersReviewedByMe.size;
+        if (pendingReviews < 0) pendingReviews = 0;
 
-        // CompletedReviews = cantidad de reviews míos
+        // 🔹 CompletedReviews = cantidad de reviews que yo he enviado
         const completedReviews = myReviews.length;
 
         // AverageRating sobre mis reviews (si no hay, 0)
@@ -185,13 +161,17 @@ const DashboardPage: React.FC = () => {
   const { totalCustomers, pendingReviews, completedReviews, averageRating } =
     stats;
 
-  // ⬇️ Preferimos el firstName del perfil. Si no hay, usamos el name del user, luego el email.
-  const displayName =
-    profileFirstName ||
-    (user?.name && user.name.split(" ")[0]) ||
-    (user?.email ? user.email.split("@")[0] : "User");
+  // ✅ DISPLAY NAME: primero nombre real, luego fallback a email
+  const firstName = (user?.firstName || "").trim();
+  const fullName = (user?.name || "").trim(); // si tu backend lo llena
+  const emailPrefix = user?.email ? user.email.split("@")[0] : "User";
 
-  const initial = (user?.name || user?.email || "U")
+  const displayName =
+    (firstName && firstName) ||
+    (fullName && fullName.split(" ")[0]) ||
+    emailPrefix;
+
+  const initial = (firstName || fullName || user?.email || "U")
     .charAt(0)
     .toUpperCase();
 
@@ -224,9 +204,7 @@ const DashboardPage: React.FC = () => {
       <div className="dashboard-grid">
         <div className="dashboard-card">
           <h2>My Customers</h2>
-          <div className="dashboard-number">
-            {loading ? "…" : totalCustomers}
-          </div>
+          <div className="dashboard-number">{loading ? "…" : totalCustomers}</div>
           <p className="dashboard-text">Active customers added by you.</p>
           <Link to="/customers" className="dashboard-link">
             View customers
@@ -235,12 +213,8 @@ const DashboardPage: React.FC = () => {
 
         <div className="dashboard-card">
           <h2>Pending Reviews</h2>
-          <div className="dashboard-number">
-            {loading ? "…" : pendingReviews}
-          </div>
-          <p className="dashboard-text">
-            Customers that don&apos;t have any review yet.
-          </p>
+          <div className="dashboard-number">{loading ? "…" : pendingReviews}</div>
+          <p className="dashboard-text">Customers you haven&apos;t reviewed yet.</p>
           <Link to="/customers" className="dashboard-link">
             Rate now
           </Link>
@@ -295,6 +269,28 @@ const DashboardPage: React.FC = () => {
           Edit My Profile
         </Link>
       </div>
+
+      {/* 🔹 Sección del mapa en el Dashboard */}
+      <section style={{ marginTop: "32px" }}>
+        <h2 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>
+          Customers Map
+        </h2>
+        <p
+          style={{
+            color: "#4b5563",
+            fontSize: "14px",
+            marginBottom: "12px",
+            maxWidth: "640px",
+          }}
+        >
+          See all customers with a valid address on the map. Each pin represents
+          one customer based on their address, city, state and ZIP code.
+        </p>
+
+        <div className="card">
+          <CustomerMap />
+        </div>
+      </section>
     </div>
   );
 };
