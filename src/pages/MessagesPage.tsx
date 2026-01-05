@@ -21,9 +21,24 @@ type UserMini = {
   avatarUrl?: string | null;
 };
 
+// ✅ FIX: Render/Postgres a veces manda timestamps sin timezone.
+// Si NO viene zona horaria, asumimos UTC y agregamos "Z".
 function safeDate(iso?: string | null): Date | null {
   if (!iso) return null;
-  const d = new Date(iso);
+
+  let s = String(iso).trim();
+  if (!s) return null;
+
+  // Normaliza "YYYY-MM-DD HH:mm:ss" => "YYYY-MM-DDTHH:mm:ss"
+  s = s.replace(" ", "T");
+
+  // ¿Trae timezone? (Z o +hh:mm / -hh:mm)
+  const hasTimezone = /Z$/i.test(s) || /[+-]\d{2}:\d{2}$/.test(s);
+
+  // Si no trae timezone, asumimos UTC
+  const normalized = hasTimezone ? s : `${s}Z`;
+
+  const d = new Date(normalized);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -149,15 +164,6 @@ const MessagesPage: React.FC = () => {
     if (!otherEmail) return;
 
     try {
-      /**
-       * 👉 AJUSTA ESTE ENDPOINT si tu backend usa otro:
-       * - /users/by-email
-       * - /users/public
-       * - /users/lookup
-       * etc.
-       *
-       * Debe devolver algo como: { fullName, avatarUrl }
-       */
       const res = await axios.get<UserMini>("/users/by-email", {
         params: { email: otherEmail },
       });
@@ -170,7 +176,6 @@ const MessagesPage: React.FC = () => {
 
       setOtherAvatarUrl(avatar || null);
     } catch {
-      // si no existe endpoint o falla, seguimos con fallback
       setOtherAvatarUrl(null);
       setOtherName(otherEmail);
     }
@@ -188,7 +193,6 @@ const MessagesPage: React.FC = () => {
       const data = Array.isArray(res.data) ? res.data : [];
       setMessages(data);
 
-      // ✅ inferir nombre del otro lado si viene en los mensajes
       const first = data[0];
       if (first) {
         const inferred =
@@ -202,7 +206,6 @@ const MessagesPage: React.FC = () => {
         setOtherName(otherEmail);
       }
 
-      // ✅ marcar como leído al abrir conversación
       await axios.put("/messages/mark-read", null, {
         params: { userEmail: myEmail, otherUserEmail: otherEmail },
       });
@@ -216,8 +219,8 @@ const MessagesPage: React.FC = () => {
 
   useEffect(() => {
     setOtherName(otherEmail || "");
-    void loadOtherUser();     // avatar del otro
-    void loadConversation();  // mensajes
+    void loadOtherUser();
+    void loadConversation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otherEmail, myEmail]);
 
@@ -233,7 +236,6 @@ const MessagesPage: React.FC = () => {
       content,
     };
 
-    // ✅ optimistic: NO usar "You" como nombre (eso te generaba la "Y")
     const myDisplayName =
       (user?.firstName?.trim() && user.firstName.trim()) ||
       (user?.name?.trim() && user.name.trim()) ||
@@ -271,7 +273,6 @@ const MessagesPage: React.FC = () => {
     }
   };
 
-  // ✅ read receipts: buscamos el ÚLTIMO mensaje mío
   const lastMyMessageId = useMemo(() => {
     const mine = [...messages].reverse().find((m) =>
       (m.senderEmail || "").toLowerCase() === myEmail.toLowerCase()
@@ -345,7 +346,6 @@ const MessagesPage: React.FC = () => {
 
             const bubbleBg = mine ? "#e0e7ff" : "#ffffff";
 
-            // avatar data
             const myAvatar = user?.avatarUrl || null;
             const myName =
               (user?.firstName?.trim() && user.firstName.trim()) ||
@@ -390,7 +390,6 @@ const MessagesPage: React.FC = () => {
                       maxWidth: "100%",
                     }}
                   >
-                    {/* ✅ Avatar al costado */}
                     <AvatarBubble
                       size={34}
                       avatarUrl={mine ? myAvatar : otherAvatarUrl}
@@ -414,7 +413,6 @@ const MessagesPage: React.FC = () => {
 
                       <div style={{ fontSize: 14 }}>{m.content}</div>
 
-                      {/* ✅ hora SIEMPRE + Seen/Sent */}
                       <div
                         style={{
                           marginTop: 6,
