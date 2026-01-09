@@ -4,6 +4,12 @@ import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 
+type UserMini = {
+  email?: string | null;
+  fullName?: string | null;
+  avatarUrl?: string | null;
+};
+
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -11,16 +17,18 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, updateUser } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    const emailTrimmed = email.trim();
+
     try {
       const response = await axiosClient.post("/auth/login", {
-        email,
+        email: emailTrimmed,
         password,
       });
 
@@ -35,7 +43,7 @@ const LoginPage: React.FC = () => {
 
       const safeUser = {
         id: apiUser?.id ?? 0,
-        email: apiUser?.email ?? email,
+        email: apiUser?.email ?? emailTrimmed,
         name: apiUser?.name ?? "",
       };
 
@@ -46,7 +54,28 @@ const LoginPage: React.FC = () => {
         data.authToken ??
         "";
 
+      // ✅ 1) Login básico (set user + token)
       login(safeUser, token);
+
+      // ✅ 2) Cargar perfil real desde backend (nombre + avatar Cloudinary)
+      // Esto hace que en cualquier PC salga "Hola Alberto" y la foto
+      try {
+        const miniRes = await axiosClient.get<UserMini>("/users/by-email", {
+          params: { email: emailTrimmed },
+        });
+
+        const fullName = (miniRes.data?.fullName || "").trim();
+        const avatarUrl = (miniRes.data?.avatarUrl || "").trim();
+
+        updateUser({
+          name: fullName || safeUser.name || emailTrimmed,
+          avatarUrl: avatarUrl || undefined,
+        });
+      } catch (e2) {
+        // Si falla, no rompemos login; solo seguirá con fallback (aperez)
+        console.warn("Could not load user mini profile:", e2);
+      }
+
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err);
