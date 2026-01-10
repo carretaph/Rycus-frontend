@@ -156,7 +156,10 @@ const MessagesPage: React.FC = () => {
   const canLoad = useMemo(() => !!myEmail && !!otherEmail, [myEmail, otherEmail]);
 
   const scrollBottom = () => {
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+    setTimeout(
+      () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
+      60
+    );
   };
 
   // ✅ Cargar info del otro usuario (avatar + fullName)
@@ -274,8 +277,8 @@ const MessagesPage: React.FC = () => {
   };
 
   const lastMyMessageId = useMemo(() => {
-    const mine = [...messages].reverse().find((m) =>
-      (m.senderEmail || "").toLowerCase() === myEmail.toLowerCase()
+    const mine = [...messages].reverse().find(
+      (m) => (m.senderEmail || "").toLowerCase() === myEmail.toLowerCase()
     );
     return mine?.id ?? null;
   }, [messages, myEmail]);
@@ -329,7 +332,9 @@ const MessagesPage: React.FC = () => {
         {loading && <div style={{ fontSize: 14, opacity: 0.7 }}>Loading...</div>}
 
         {messages.length === 0 && !loading ? (
-          <div style={{ fontSize: 14, opacity: 0.8 }}>No messages yet. Say hi 👋</div>
+          <div style={{ fontSize: 14, opacity: 0.8 }}>
+            No messages yet. Say hi 👋
+          </div>
         ) : (
           messages.map((m, idx) => {
             const mine =
@@ -352,12 +357,20 @@ const MessagesPage: React.FC = () => {
               (user?.name?.trim() && user.name.trim()) ||
               null;
 
-            const otherBubbleName = (m.senderName || otherName || otherEmail) as string;
+            const otherBubbleName = (m.senderName ||
+              otherName ||
+              otherEmail) as string;
 
             return (
               <React.Fragment key={m.id}>
                 {showDaySeparator && (
-                  <div style={{ display: "flex", justifyContent: "center", margin: "14px 0" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      margin: "14px 0",
+                    }}
+                  >
                     <span
                       style={{
                         fontSize: 12,
@@ -407,7 +420,13 @@ const MessagesPage: React.FC = () => {
                         whiteSpace: "pre-wrap",
                       }}
                     >
-                      <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          opacity: 0.75,
+                          marginBottom: 4,
+                        }}
+                      >
                         {mine ? "You" : otherBubbleName}
                       </div>
 

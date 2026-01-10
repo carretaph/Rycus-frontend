@@ -70,7 +70,9 @@ const App: React.FC = () => {
     user?.email?.charAt(0).toUpperCase() ||
     "?";
 
-  // Unread messages badge
+  // ============================
+  // 💬 Unread messages badge
+  // ============================
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const loadUnread = useCallback(async () => {
@@ -91,25 +93,91 @@ const App: React.FC = () => {
     }
   }, [user?.email]);
 
-  // ✅ Polling normal
+  // ============================
+  // 🤝 Pending connections badge
+  // ============================
+  const [pendingConnectionsCount, setPendingConnectionsCount] =
+    useState<number>(0);
+
+  const loadPendingConnections = useCallback(async () => {
+    try {
+      const email = user?.email?.trim();
+      console.log("[pending-count] user.email =", email);
+
+      if (!email) {
+        setPendingConnectionsCount(0);
+        return;
+      }
+
+      console.log("[pending-count] calling /connections/pending/count ...");
+
+      // backend devuelve: { "count": 0 }
+      const res = await axios.get<{ count: number }>(
+        "/connections/pending/count",
+        {
+          params: { email },
+        }
+      );
+
+      console.log("[pending-count] response =", res.data);
+
+      const count = Number(res.data?.count ?? 0);
+      setPendingConnectionsCount(Number.isFinite(count) ? count : 0);
+    } catch (err) {
+      console.log("[pending-count] error =", err);
+      setPendingConnectionsCount(0);
+    }
+  }, [user?.email]);
+
+  // ============================
+  // ✅ Polling normal (Messages + Network)
+  // ============================
   useEffect(() => {
     let timer: number | undefined;
 
     void loadUnread();
+    void loadPendingConnections();
+
     timer = window.setInterval(() => {
       void loadUnread();
+      void loadPendingConnections();
     }, 12000);
 
     return () => {
       if (timer) window.clearInterval(timer);
     };
-  }, [loadUnread]);
+  }, [loadUnread, loadPendingConnections]);
 
-  // ✅ Refrescar cuando cambias de ruta (especialmente al entrar/salir de Inbox/Chat)
+  // ✅ Refrescar cuando cambias de ruta
   useEffect(() => {
-    // cada vez que cambia la URL, refrescamos el badge una vez
     void loadUnread();
-  }, [location.pathname, loadUnread]);
+    void loadPendingConnections();
+  }, [location.pathname, loadUnread, loadPendingConnections]);
+
+  // Badge helper
+  const Badge: React.FC<{ value: number }> = ({ value }) => {
+    if (value <= 0) return null;
+
+    return (
+      <span
+        style={{
+          marginLeft: 6,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: 22,
+          height: 22,
+          padding: "0 7px",
+          borderRadius: 999,
+          border: "1px solid #e5e7eb",
+          fontWeight: 800,
+          fontSize: 12,
+        }}
+      >
+        {value}
+      </span>
+    );
+  };
 
   return (
     <div className="app">
@@ -140,33 +208,23 @@ const App: React.FC = () => {
               <Link to="/">🏠 Home</Link>
               <Link to="/dashboard">📊 Dashboard</Link>
               <Link to="/customers">👥 Customers</Link>
-              <Link to="/connections">🤝 Network</Link>
 
-              {/* 💬 Messages */}
+              {/* 🤝 Network badge */}
+              <Link
+                to="/connections"
+                style={{ display: "inline-flex", alignItems: "center" }}
+              >
+                🤝 Network
+                <Badge value={pendingConnectionsCount} />
+              </Link>
+
+              {/* 💬 Messages badge */}
               <Link
                 to="/inbox"
                 style={{ display: "inline-flex", alignItems: "center" }}
               >
                 💬 Messages
-                {unreadCount > 0 && (
-                  <span
-                    style={{
-                      marginLeft: 6,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 22,
-                      height: 22,
-                      padding: "0 7px",
-                      borderRadius: 999,
-                      border: "1px solid #e5e7eb",
-                      fontWeight: 800,
-                      fontSize: 12,
-                    }}
-                  >
-                    {unreadCount}
-                  </span>
-                )}
+                <Badge value={unreadCount} />
               </Link>
 
               <Link to="/users">🙋‍♂️ Users</Link>
