@@ -27,6 +27,13 @@ const UserConnectionsPage: React.FC = () => {
   const [updating, setUpdating] = useState(false);
 
   // ------------------------------------------------
+  // helper: avisar al App.tsx que refresque badges
+  // ------------------------------------------------
+  const refreshBadgesNow = () => {
+    window.dispatchEvent(new Event("rycus:refresh-badges"));
+  };
+
+  // ------------------------------------------------
   // Cargar conexiones + invitaciones pendientes
   // ------------------------------------------------
   useEffect(() => {
@@ -52,6 +59,9 @@ const UserConnectionsPage: React.FC = () => {
 
         setMyConnections(myRes.data);
         setPendingInvites(pendingRes.data);
+
+        // ✅ al entrar a la página, sincroniza badge inmediatamente
+        refreshBadgesNow();
       } catch (err: any) {
         console.error("Error loading connections", err);
         const msg =
@@ -151,6 +161,9 @@ const UserConnectionsPage: React.FC = () => {
 
       setMyConnections(myRes.data);
       setPendingInvites(pendingRes.data);
+
+      // ✅ badge instantáneo
+      refreshBadgesNow();
     } catch (err: any) {
       console.error("Error accepting connection", err);
       const msg =
@@ -182,6 +195,9 @@ const UserConnectionsPage: React.FC = () => {
         params: { email: currentUser.email },
       });
       setPendingInvites(pendingRes.data);
+
+      // ✅ badge instantáneo
+      refreshBadgesNow();
     } catch (err: any) {
       console.error("Error rejecting connection", err);
       const msg =
@@ -286,7 +302,6 @@ const UserConnectionsPage: React.FC = () => {
         <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
           {pendingInvites.map((c) => {
             const otherEmail = getOtherEmail(c);
-           
 
             return (
               <div key={c.id} className="connection-pending-card">
@@ -300,8 +315,10 @@ const UserConnectionsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="connection-actions" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {/* ✅ útil: mandar mensaje incluso si está pending */}
+                <div
+                  className="connection-actions"
+                  style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
+                >
                   <button
                     type="button"
                     className="dashboard-btn"

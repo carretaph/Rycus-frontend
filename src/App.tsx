@@ -102,29 +102,19 @@ const App: React.FC = () => {
   const loadPendingConnections = useCallback(async () => {
     try {
       const email = user?.email?.trim();
-      console.log("[pending-count] user.email =", email);
-
       if (!email) {
         setPendingConnectionsCount(0);
         return;
       }
 
-      console.log("[pending-count] calling /connections/pending/count ...");
-
-      // backend devuelve: { "count": 0 }
       const res = await axios.get<{ count: number }>(
         "/connections/pending/count",
-        {
-          params: { email },
-        }
+        { params: { email } }
       );
-
-      console.log("[pending-count] response =", res.data);
 
       const count = Number(res.data?.count ?? 0);
       setPendingConnectionsCount(Number.isFinite(count) ? count : 0);
-    } catch (err) {
-      console.log("[pending-count] error =", err);
+    } catch {
       setPendingConnectionsCount(0);
     }
   }, [user?.email]);
@@ -153,6 +143,17 @@ const App: React.FC = () => {
     void loadUnread();
     void loadPendingConnections();
   }, [location.pathname, loadUnread, loadPendingConnections]);
+
+  // ✅ NUEVO: refresco instantáneo cuando otras páginas avisan
+  useEffect(() => {
+    const onRefresh = () => {
+      void loadUnread();
+      void loadPendingConnections();
+    };
+
+    window.addEventListener("rycus:refresh-badges", onRefresh);
+    return () => window.removeEventListener("rycus:refresh-badges", onRefresh);
+  }, [loadUnread, loadPendingConnections]);
 
   // Badge helper
   const Badge: React.FC<{ value: number }> = ({ value }) => {
