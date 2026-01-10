@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import axios from "./api/axiosClient";
@@ -50,6 +50,45 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 };
 
 // ============================
+// Sound helper (no mp3 needed)
+// ============================
+function playSoftDing() {
+  try {
+    const AudioCtx =
+      (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    const ctx = new AudioCtx();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    // Soft "ding": short sine + quick fade
+    osc.type = "sine";
+    osc.frequency.value = 880;
+
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+
+    osc.onended = () => {
+      try {
+        ctx.close();
+      } catch {}
+    };
+  } catch {
+    // ignore
+  }
+}
+
+// ============================
 // APP
 // ============================
 const App: React.FC = () => {
@@ -69,6 +108,20 @@ const App: React.FC = () => {
     user?.name?.trim().charAt(0).toUpperCase() ||
     user?.email?.charAt(0).toUpperCase() ||
     "?";
+
+  // ============================
+  // 🔔 Sound toggle (saved)
+  // ============================
+  const SOUND_KEY = "rycus_sound_enabled";
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const raw = localStorage.getItem(SOUND_KEY);
+    if (raw === null) return true; // default ON
+    return raw === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(SOUND_KEY, String(soundEnabled));
+  }, [soundEnabled]);
 
   // ============================
   // 💬 Unread messages badge
@@ -94,16 +147,20 @@ const App: React.FC = () => {
   }, [user?.email]);
 
   // ============================
-  // 🤝 Pending connections badge
+  // 🤝 Pending connections badge + pulse + sound
   // ============================
   const [pendingConnectionsCount, setPendingConnectionsCount] =
     useState<number>(0);
+
+  const prevPendingRef = useRef<number>(0);
+  const [pulseNetwork, setPulseNetwork] = useState(false);
 
   const loadPendingConnections = useCallback(async () => {
     try {
       const email = user?.email?.trim();
       if (!email) {
         setPendingConnectionsCount(0);
+        prevPendingRef.current = 0;
         return;
       }
 
@@ -112,12 +169,28 @@ const App: React.FC = () => {
         { params: { email } }
       );
 
-      const count = Number(res.data?.count ?? 0);
-      setPendingConnectionsCount(Number.isFinite(count) ? count : 0);
+      const next = Number(res.data?.count ?? 0);
+      const safeNext = Number.isFinite(next) ? next : 0;
+
+      const prev = prevPendingRef.current;
+
+      // Pulse + sound only when it increases
+      if (safeNext > prev) {
+        setPulseNetwork(true);
+        window.setTimeout(() => setPulseNetwork(false), 1200);
+
+        if (soundEnabled) {
+          playSoftDing();
+        }
+      }
+
+      prevPendingRef.current = safeNext;
+      setPendingConnectionsCount(safeNext);
     } catch {
       setPendingConnectionsCount(0);
+      prevPendingRef.current = 0;
     }
-  }, [user?.email]);
+  }, [user?.email, soundEnabled]);
 
   // ============================
   // ✅ Polling normal (Messages + Network)
@@ -144,7 +217,7 @@ const App: React.FC = () => {
     void loadPendingConnections();
   }, [location.pathname, loadUnread, loadPendingConnections]);
 
-  // ✅ NUEVO: refresco instantáneo cuando otras páginas avisan
+  // ✅ Refresh instantáneo desde otras páginas
   useEffect(() => {
     const onRefresh = () => {
       void loadUnread();
@@ -155,28 +228,14 @@ const App: React.FC = () => {
     return () => window.removeEventListener("rycus:refresh-badges", onRefresh);
   }, [loadUnread, loadPendingConnections]);
 
-  // Badge helper
-  const Badge: React.FC<{ value: number }> = ({ value }) => {
+  // Badge component
+  const Badge: React.FC<{ value: number; pulse?: boolean }> = ({
+    value,
+    pulse,
+  }) => {
     if (value <= 0) return null;
-
     return (
-      <span
-        style={{
-          marginLeft: 6,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minWidth: 22,
-          height: 22,
-          padding: "0 7px",
-          borderRadius: 999,
-          border: "1px solid #e5e7eb",
-          fontWeight: 800,
-          fontSize: 12,
-        }}
-      >
-        {value}
-      </span>
+      <span className={`badge ${pulse ? "badge--pulse" : ""}`}>{value}</span>
     );
   };
 
@@ -216,7 +275,7 @@ const App: React.FC = () => {
                 style={{ display: "inline-flex", alignItems: "center" }}
               >
                 🤝 Network
-                <Badge value={pendingConnectionsCount} />
+                <Badge value={pendingConnectionsCount} pulse={pulseNetwork} />
               </Link>
 
               {/* 💬 Messages badge */}
@@ -229,6 +288,17 @@ const App: React.FC = () => {
               </Link>
 
               <Link to="/users">🙋‍♂️ Users</Link>
+
+              {/* 🔔 Sound toggle */}
+              <button
+                className="logoutBtn"
+                type="button"
+                onClick={() => setSoundEnabled((v) => !v)}
+                style={{ marginLeft: 8 }}
+                title="Toggle sound"
+              >
+                {soundEnabled ? "🔔 Sound ON" : "🔕 Sound OFF"}
+              </button>
 
               <button className="logoutBtn" onClick={logout}>
                 Logout
