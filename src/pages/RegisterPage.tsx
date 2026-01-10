@@ -8,9 +8,15 @@ import { industries } from "../assets/industriesList";
 
 const EXTRA_KEY_PREFIX = "rycus_profile_extra_";
 
+type UserMini = {
+  email?: string | null;
+  fullName?: string | null;
+  avatarUrl?: string | null;
+};
+
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, updateUser } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -33,15 +39,15 @@ const RegisterPage: React.FC = () => {
     setError("");
     setLoading(true);
 
+    const emailTrimmed = email.trim();
     const fullName =
-      `${firstName.trim()} ${lastName.trim()}`.trim() || email.trim();
+      `${firstName.trim()} ${lastName.trim()}`.trim() || emailTrimmed;
 
     try {
       // 1) Registrar usuario en el backend
-      // ✅ IMPORTANTE: el backend espera "fullName" (no "name")
       const response = await axiosClient.post("/auth/register", {
         fullName,
-        email: email.trim(),
+        email: emailTrimmed,
         password,
         phone: phone.trim() || null,
       });
@@ -49,14 +55,12 @@ const RegisterPage: React.FC = () => {
       console.log("REGISTER RESPONSE:", response.data);
       const data = response.data;
 
-      // Tu backend hoy está devolviendo:
-      // { message: "...", user: null }
-      // Por eso construimos un usuario "safe" para el AuthContext
+      // backend hoy devuelve: { message, user: null } => creamos safeUser
       const apiUser = data?.user ?? null;
 
       const safeUser = {
         id: apiUser?.id ?? data?.id ?? 0,
-        email: apiUser?.email ?? data?.email ?? email.trim(),
+        email: apiUser?.email ?? data?.email ?? emailTrimmed,
         name: apiUser?.fullName ?? apiUser?.name ?? data?.fullName ?? fullName,
         phone: apiUser?.phone ?? data?.phone ?? (phone.trim() || undefined),
       };
@@ -68,11 +72,10 @@ const RegisterPage: React.FC = () => {
         data?.authToken ??
         "";
 
-      // 2) Loguear en el AuthContext (aunque no haya token, tu app sigue)
+      // 2) Login en AuthContext
       login(safeUser, token);
 
-      // 3) Guardar datos extra del perfil EN LOCALSTORAGE
-      //    usando una clave única por email
+      // ✅ 3) Guardar datos extra EN LOCALSTORAGE (compat)
       const extraProfile = {
         firstName,
         lastName,
@@ -85,10 +88,27 @@ const RegisterPage: React.FC = () => {
         industry: accountType,
       };
 
-      const extraKey = `${EXTRA_KEY_PREFIX}${email.trim().toLowerCase()}`;
+      const extraKey = `${EXTRA_KEY_PREFIX}${emailTrimmed.toLowerCase()}`;
       localStorage.setItem(extraKey, JSON.stringify(extraProfile));
 
-      // 4) Ir al dashboard
+      // ✅ 4) Traer perfil real del backend (para nombre+avatar consistentes en cualquier PC)
+      try {
+        const miniRes = await axiosClient.get<UserMini>("/users/by-email", {
+          params: { email: emailTrimmed },
+        });
+
+        const fetchedFullName = (miniRes.data?.fullName || "").trim();
+        const fetchedAvatarUrl = (miniRes.data?.avatarUrl || "").trim();
+
+        updateUser({
+          name: fetchedFullName || safeUser.name || fullName,
+          avatarUrl: fetchedAvatarUrl || undefined,
+        });
+      } catch (e2) {
+        console.warn("Could not load user mini profile after register:", e2);
+      }
+
+      // 5) Ir al dashboard
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Register error:", err);
