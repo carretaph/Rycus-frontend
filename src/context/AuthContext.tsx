@@ -39,6 +39,9 @@ interface AuthContextType {
   updateAvatar: (avatarUrl: string) => void;
   updateUser: (patch: Partial<User>) => void;
 
+  // ✅ NEW: move profile extras from old email -> new email
+  moveExtrasToNewEmail: (oldEmail: string, newEmail: string) => void;
+
   initializing: boolean;
 }
 
@@ -99,11 +102,9 @@ function cleanString(v: unknown): string | undefined {
 }
 
 // ✅ Para campos sensibles: si llega null/undefined/"" NO debe pisar.
-// (muy común que el backend mande avatarUrl:null)
 function sanitizePatch(patch: Partial<User>): Partial<User> {
   const next: Partial<User> = { ...patch };
 
-  // Si viene null/undefined/"" => lo quitamos para que NO sobrescriba
   if ("avatarUrl" in next) {
     const v = (next as any).avatarUrl;
     const cleaned = cleanString(v);
@@ -117,9 +118,6 @@ function sanitizePatch(patch: Partial<User>): Partial<User> {
     if (!cleaned) delete (next as any).name;
     else (next as any).name = cleaned;
   }
-
-  // (opcional) también puedes blindar businessName si quieres
-  // if ("businessName" in next) { ... }
 
   return next;
 }
@@ -154,7 +152,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const key = getExtraKey(email);
     const prev = safeParse<ProfileExtra>(localStorage.getItem(key)) || {};
 
-    // ✅ NO guardamos null/undefined/"" para avatarUrl/name
     const safePatch = sanitizePatch(patch as Partial<User>) as ProfileExtra;
 
     const next = { ...prev, ...safePatch };
@@ -164,19 +161,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   // ✅ Migración del legacy EXTRA_KEY (global) al extra por email
   const migrateLegacyExtraIfNeeded = (email: string) => {
     try {
-      const legacy = safeParse<ProfileExtra>(localStorage.getItem(LEGACY_EXTRA_KEY));
+      const legacy = safeParse<ProfileExtra>(
+        localStorage.getItem(LEGACY_EXTRA_KEY)
+      );
       if (!legacy) return;
 
       const emailKey = getExtraKey(email);
       const already = safeParse<ProfileExtra>(localStorage.getItem(emailKey));
 
       if (!already) {
-        // también sanitizamos por si legacy tenía basura
         const safeLegacy = sanitizePatch(legacy as Partial<User>) as ProfileExtra;
         localStorage.setItem(emailKey, JSON.stringify(safeLegacy));
       }
 
       localStorage.removeItem(LEGACY_EXTRA_KEY);
+    } catch {
+      // no-op
+    }
+  };
+
+  // ✅ NEW: move extras old -> new (useful after change email)
+  const moveExtrasToNewEmail = (oldEmail: string, newEmail: string) => {
+    try {
+      const oldKey = getExtraKey(oldEmail);
+      const newKey = getExtraKey(newEmail);
+
+      const oldExtra = safeParse<ProfileExtra>(localStorage.getItem(oldKey));
+      if (!oldExtra) return;
+
+      const newExtra = safeParse<ProfileExtra>(localStorage.getItem(newKey)) || {};
+      const merged = { ...oldExtra, ...newExtra };
+
+      localStorage.setItem(newKey, JSON.stringify(merged));
+      localStorage.removeItem(oldKey);
     } catch {
       // no-op
     }
@@ -189,13 +206,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       const parsedUser = safeParse<User>(storedUserRaw);
 
-      // ✅ Leer extra SOLO del email del usuario
       const parsedExtra = parsedUser?.email
         ? readExtraForEmail(parsedUser.email)
         : {};
 
-      // ✅ merge: si extra tiene avatarUrl bueno, NO lo pises con null del user
-      // (y viceversa, si user tiene algo bueno, también sirve)
       const mergedUser: User | null = parsedUser
         ? (mergeUser(parsedUser, parsedExtra ?? {}) as User)
         : null;
@@ -228,8 +242,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     const extra = userData?.email ? readExtraForEmail(userData.email) : {};
-
-    // ✅ merge seguro (extra no borra con null/empty)
     const merged: User = mergeUser(userData, extra);
 
     setUser(merged);
@@ -274,7 +286,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       persistUser(updated);
 
       if (prev.email) {
-        // guardamos patch sanitizado en extra
         persistExtraForEmail(prev.email, patch as ProfileExtra);
       }
 
@@ -291,6 +302,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         logout,
         updateAvatar,
         updateUser,
+        moveExtrasToNewEmail,
         initializing,
       }}
     >

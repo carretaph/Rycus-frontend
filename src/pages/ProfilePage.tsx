@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface ProfileExtra {
   firstName?: string;
@@ -31,7 +32,15 @@ const getVisKey = (email?: string | null) =>
   email ? `${VIS_KEY_PREFIX}${email.toLowerCase()}` : `${VIS_KEY_PREFIX}guest`;
 
 const ProfilePage: React.FC = () => {
-  const { user, updateAvatar, updateUser } = useAuth();
+  const {
+    user,
+    updateAvatar,
+    updateUser,
+    logout,
+    moveExtrasToNewEmail,
+  } = useAuth();
+
+  const navigate = useNavigate();
 
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -58,6 +67,12 @@ const ProfilePage: React.FC = () => {
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  // ✅ Change Email UI
+  const [newEmail, setNewEmail] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [changeEmailMsg, setChangeEmailMsg] = useState<string>("");
+
   // =========================================
   // Load extra + visibility from localStorage (per email)
   // =========================================
@@ -66,7 +81,6 @@ const ProfilePage: React.FC = () => {
     const extraKey = getExtraKey(email);
     const visKey = getVisKey(email);
 
-    // avatar preview from backend url
     if (user?.avatarUrl) setPreview(user.avatarUrl);
 
     // load extra
@@ -173,10 +187,8 @@ const ProfilePage: React.FC = () => {
         return;
       }
 
-      // ✅ update UI immediately
       setPreview(url);
 
-      // ✅ update AuthContext (so navbar/messages pick it up)
       updateAvatar(url);
       updateUser({ avatarUrl: url });
 
@@ -197,8 +209,6 @@ const ProfilePage: React.FC = () => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // ✅ Subimos al backend (Cloudinary) — NO base64
     void uploadAvatarToBackend(file);
   };
 
@@ -239,7 +249,6 @@ const ProfilePage: React.FC = () => {
     const email = user?.email ?? undefined;
     const extraKey = getExtraKey(email);
 
-    // 1) localStorage (compat)
     try {
       localStorage.setItem(extraKey, JSON.stringify(cleaned));
     } catch (err) {
@@ -251,14 +260,12 @@ const ProfilePage: React.FC = () => {
       (user as any)?.name ||
       "";
 
-    // 2) backend
     try {
       if (!user?.email) {
         setSavedMsg("Could not save (missing email).");
         return;
       }
 
-      // ✅ avatarUrl ya es URL (Cloudinary)
       const body = {
         fullName: fullNameToSave || null,
         phone: cleaned.phone || null,
@@ -311,6 +318,68 @@ const ProfilePage: React.FC = () => {
       });
 
       setTimeout(() => setSavedMsg(""), 3500);
+    }
+  };
+
+  // =========================================
+  // ✅ Change Email action (A)
+  // =========================================
+  const submitChangeEmail = async () => {
+    setChangeEmailMsg("");
+
+    const currentEmail = user?.email?.trim() || "";
+    const nextEmail = newEmail.trim().toLowerCase();
+    const pwd = confirmPassword;
+
+    if (!currentEmail) {
+      setChangeEmailMsg("Missing current email. Please log in again.");
+      return;
+    }
+    if (!nextEmail || !nextEmail.includes("@")) {
+      setChangeEmailMsg("Please enter a valid new email.");
+      return;
+    }
+    if (nextEmail === currentEmail.toLowerCase()) {
+      setChangeEmailMsg("New email must be different.");
+      return;
+    }
+    if (!pwd || pwd.trim().length < 1) {
+      setChangeEmailMsg("Please enter your password to confirm.");
+      return;
+    }
+
+    try {
+      setChangingEmail(true);
+
+      await axios.post("/auth/change-email", {
+        currentEmail,
+        newEmail: nextEmail,
+        password: pwd,
+      });
+
+      // ✅ Move local extras from old email -> new email (avatar/name/local fields)
+      try {
+        moveExtrasToNewEmail(currentEmail, nextEmail);
+      } catch {}
+
+      setChangeEmailMsg("Email updated ✅ Please sign in again with your new email.");
+
+      // 🔒 Security: force logout + redirect
+      setTimeout(() => {
+        logout();
+        navigate("/login");
+      }, 900);
+    } catch (err: any) {
+      console.error("Change email failed", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.response?.data ||
+        "Could not change email.";
+      setChangeEmailMsg(String(msg));
+    } finally {
+      setChangingEmail(false);
+      setConfirmPassword("");
     }
   };
 
@@ -369,7 +438,13 @@ const ProfilePage: React.FC = () => {
               This picture will be shown across the app (messages, inbox, profile).
             </p>
 
-            <label className="btn-secondary" style={{ cursor: uploadingAvatar ? "not-allowed" : "pointer", opacity: uploadingAvatar ? 0.6 : 1 }}>
+            <label
+              className="btn-secondary"
+              style={{
+                cursor: uploadingAvatar ? "not-allowed" : "pointer",
+                opacity: uploadingAvatar ? 0.6 : 1,
+              }}
+            >
               {uploadingAvatar ? "Uploading..." : "Upload new photo"}
               <input
                 type="file"
@@ -469,7 +544,11 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{city}</div>
             ) : (
-              <input className="input" value={draft.city || ""} onChange={(e) => setField("city", e.target.value)} />
+              <input
+                className="input"
+                value={draft.city || ""}
+                onChange={(e) => setField("city", e.target.value)}
+              />
             )}
           </div>
 
@@ -478,7 +557,11 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{state}</div>
             ) : (
-              <input className="input" value={draft.state || ""} onChange={(e) => setField("state", e.target.value)} />
+              <input
+                className="input"
+                value={draft.state || ""}
+                onChange={(e) => setField("state", e.target.value)}
+              />
             )}
           </div>
 
@@ -487,7 +570,11 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{zipcode}</div>
             ) : (
-              <input className="input" value={draft.zipcode || ""} onChange={(e) => setField("zipcode", e.target.value)} />
+              <input
+                className="input"
+                value={draft.zipcode || ""}
+                onChange={(e) => setField("zipcode", e.target.value)}
+              />
             )}
           </div>
 
@@ -543,6 +630,70 @@ const ProfilePage: React.FC = () => {
             <div className="profile-link-value">{profileUrl}</div>
           </div>
         </div>
+
+        {/* ============================
+            ✅ CHANGE EMAIL (A)
+        ============================ */}
+        <h2 className="card-section-title">Change Email</h2>
+        <p className="dashboard-text" style={{ marginTop: 6 }}>
+          If you update your email, you will need to sign in again.
+        </p>
+
+        <div className="profile-info-grid" style={{ marginTop: 12 }}>
+          <div className="profile-info-full">
+            <label>New email</label>
+            <input
+              className="input"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="new-email@example.com"
+              disabled={changingEmail}
+            />
+          </div>
+
+          <div className="profile-info-full">
+            <label>Confirm your password</label>
+            <input
+              className="input"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Your password"
+              disabled={changingEmail}
+            />
+          </div>
+
+          <div className="profile-info-full" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={submitChangeEmail}
+              disabled={changingEmail}
+              style={{ maxWidth: 320 }}
+            >
+              {changingEmail ? "Updating..." : "Change Email"}
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setNewEmail("");
+                setConfirmPassword("");
+                setChangeEmailMsg("");
+              }}
+              disabled={changingEmail}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        {changeEmailMsg && (
+          <div className="profile-save-msg" style={{ marginTop: 10 }}>
+            {changeEmailMsg}
+          </div>
+        )}
       </div>
     </div>
   );
