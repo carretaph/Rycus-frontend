@@ -31,6 +31,8 @@ const getExtraKey = (email?: string | null) =>
 const getVisKey = (email?: string | null) =>
   email ? `${VIS_KEY_PREFIX}${email.toLowerCase()}` : `${VIS_KEY_PREFIX}guest`;
 
+const SOUND_KEY = "rycus_sound_enabled";
+
 const ProfilePage: React.FC = () => {
   const {
     user,
@@ -43,6 +45,17 @@ const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
 
   const [preview, setPreview] = useState<string | null>(null);
+
+  // ✅ Notifications (local setting for now)
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const raw = localStorage.getItem(SOUND_KEY);
+    if (raw === null) return true; // default ON
+    return raw === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(SOUND_KEY, String(soundEnabled));
+  }, [soundEnabled]);
 
   // visibility (local only for now)
   const [isPublicProfile, setIsPublicProfile] = useState(true);
@@ -322,7 +335,7 @@ const ProfilePage: React.FC = () => {
   };
 
   // =========================================
-  // ✅ Change Email action (A)
+  // ✅ Change Email action
   // =========================================
   const submitChangeEmail = async () => {
     setChangeEmailMsg("");
@@ -357,14 +370,12 @@ const ProfilePage: React.FC = () => {
         password: pwd,
       });
 
-      // ✅ Move local extras from old email -> new email (avatar/name/local fields)
       try {
         moveExtrasToNewEmail(currentEmail, nextEmail);
       } catch {}
 
       setChangeEmailMsg("Email updated ✅ Please sign in again with your new email.");
 
-      // 🔒 Security: force logout + redirect
       setTimeout(() => {
         logout();
         navigate("/login");
@@ -593,6 +604,24 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
 
+        {/* NOTIFICATIONS */}
+        <h2 className="card-section-title">Notifications</h2>
+        <div className="profile-toggle-group" style={{ marginTop: 10 }}>
+          <label className="profile-toggle">
+            <input
+              type="checkbox"
+              checked={soundEnabled}
+              onChange={(e) => setSoundEnabled(e.target.checked)}
+            />
+            <div>
+              <div className="profile-toggle-title">Sound notifications</div>
+              <div className="profile-toggle-description">
+                Play a soft sound when you receive a new network invitation.
+              </div>
+            </div>
+          </label>
+        </div>
+
         {/* VISIBILITY */}
         <h2 className="card-section-title">Visibility & sharing</h2>
 
@@ -631,9 +660,7 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* ============================
-            ✅ CHANGE EMAIL (A)
-        ============================ */}
+        {/* CHANGE EMAIL */}
         <h2 className="card-section-title">Change Email</h2>
         <p className="dashboard-text" style={{ marginTop: 6 }}>
           If you update your email, you will need to sign in again.
