@@ -63,7 +63,6 @@ function playSoftDing() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    // Soft "ding": short sine + quick fade
     osc.type = "sine";
     osc.frequency.value = 880;
 
@@ -110,18 +109,14 @@ const App: React.FC = () => {
     "?";
 
   // ============================
-  // 🔔 Sound toggle (saved)
+  // 🔔 Sound toggle (saved) — control lives in Profile
   // ============================
   const SOUND_KEY = "rycus_sound_enabled";
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+  const [soundEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(SOUND_KEY);
     if (raw === null) return true; // default ON
     return raw === "true";
   });
-
-  useEffect(() => {
-    localStorage.setItem(SOUND_KEY, String(soundEnabled));
-  }, [soundEnabled]);
 
   // ============================
   // 💬 Unread messages badge
@@ -174,7 +169,6 @@ const App: React.FC = () => {
 
       const prev = prevPendingRef.current;
 
-      // Pulse + sound only when it increases
       if (safeNext > prev) {
         setPulseNetwork(true);
         window.setTimeout(() => setPulseNetwork(false), 1200);
@@ -288,17 +282,6 @@ const App: React.FC = () => {
               </Link>
 
               <Link to="/users">🙋‍♂️ Users</Link>
-
-              {/* 🔔 Sound toggle */}
-              <button
-                className="logoutBtn"
-                type="button"
-                onClick={() => setSoundEnabled((v) => !v)}
-                style={{ marginLeft: 8 }}
-                title="Toggle sound"
-              >
-                {soundEnabled ? "🔔 Sound ON" : "🔕 Sound OFF"}
-              </button>
 
               <button className="logoutBtn" onClick={logout}>
                 Logout
