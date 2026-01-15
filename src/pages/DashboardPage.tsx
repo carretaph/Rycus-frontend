@@ -83,7 +83,9 @@ const DashboardPage: React.FC = () => {
         // 2) Reviews por customer (sin tumbar todo si falla uno)
         const results = await Promise.allSettled(
           customerIds.map((id) =>
-            axios.get<Review[]>(`/customers/${id}/reviews`).then((r) => r.data ?? [])
+            axios
+              .get<Review[]>(`/customers/${id}/reviews`)
+              .then((r) => r.data ?? [])
           )
         );
 
@@ -94,7 +96,10 @@ const DashboardPage: React.FC = () => {
           if (res.status === "fulfilled") {
             reviewsByCustomer.set(customerId, res.value);
           } else {
-            console.warn(`Failed loading reviews for customer ${customerId}`, res.reason);
+            console.warn(
+              `Failed loading reviews for customer ${customerId}`,
+              res.reason
+            );
             reviewsByCustomer.set(customerId, []);
           }
         });
@@ -174,16 +179,19 @@ const DashboardPage: React.FC = () => {
         setMilestoneLoading(true);
         setMilestoneError(null);
 
-        // ✅ Cambia este endpoint si el tuyo es diferente:
+        // ✅ FIX PROD: endpoint real (el /milestones/... te estaba dando 404 en producción)
+        // Ideal: el backend identifica al usuario por JWT, sin params.
+        const res = await axios.get("/dashboard/milestone");
+
+        // Si tu backend AÚN requiere userEmail por query, usa esto en vez:
         // const res = await axios.get("/dashboard/milestone", { params: { userEmail } });
-        const res = await axios.get("/milestones/ten-new-customers-with-review", {
-          params: { userEmail },
-        });
 
         setMilestone(res.data ?? null);
       } catch (e: any) {
         console.error("Error loading milestone", e);
-        setMilestoneError(e?.response?.data?.message ?? "Failed to load rewards progress");
+        setMilestoneError(
+          e?.response?.data?.message ?? "Failed to load rewards progress"
+        );
         setMilestone(null);
       } finally {
         setMilestoneLoading(false);
@@ -194,7 +202,8 @@ const DashboardPage: React.FC = () => {
     loadMilestone();
   }, [user?.email, user?.name]);
 
-  const { totalCustomers, pendingReviews, completedReviews, averageRating } = stats;
+  const { totalCustomers, pendingReviews, completedReviews, averageRating } =
+    stats;
 
   // ✅ DISPLAY NAME: primero nombre real, luego fallback a email
   const firstName = (user?.firstName || "").trim();
@@ -206,14 +215,18 @@ const DashboardPage: React.FC = () => {
     (fullName && fullName.split(" ")[0]) ||
     emailPrefix;
 
-  const initial = (firstName || fullName || user?.email || "U").charAt(0).toUpperCase();
+  const initial = (firstName || fullName || user?.email || "U")
+    .charAt(0)
+    .toUpperCase();
 
   // ✅ Milestone derived values (safe)
   const nextRewardAt = milestone?.nextRewardAt ?? 10;
   const qualified = milestone?.qualifiedCustomers ?? 0;
   const remaining = milestone?.remaining ?? Math.max(nextRewardAt - qualified, 0);
   const progressPct =
-    nextRewardAt > 0 ? Math.min(100, Math.floor((qualified * 100) / nextRewardAt)) : 0;
+    nextRewardAt > 0
+      ? Math.min(100, Math.floor((qualified * 100) / nextRewardAt))
+      : 0;
 
   return (
     <div className="page dashboard-container">
@@ -262,7 +275,9 @@ const DashboardPage: React.FC = () => {
 
         <div className="dashboard-card">
           <h2>Completed Reviews</h2>
-          <div className="dashboard-number">{loading ? "…" : completedReviews}</div>
+          <div className="dashboard-number">
+            {loading ? "…" : completedReviews}
+          </div>
           <p className="dashboard-text">Reviews you have already submitted.</p>
           <Link to="/customers" className="dashboard-link">
             See reviews
@@ -320,14 +335,25 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b7280" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 12,
+              color: "#6b7280",
+            }}
+          >
             <span>0</span>
             <span>{progressPct}%</span>
             <span>{nextRewardAt}</span>
           </div>
 
           {/* optional CTA */}
-          <Link to="/customers/new" className="dashboard-link" style={{ marginTop: 10, display: "inline-block" }}>
+          <Link
+            to="/customers/new"
+            className="dashboard-link"
+            style={{ marginTop: 10, display: "inline-block" }}
+          >
             + Add a customer to progress
           </Link>
         </div>
