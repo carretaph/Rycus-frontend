@@ -38,55 +38,6 @@ type MilestoneProgress = {
   remaining: number;
 };
 
-async function fetchMilestoneWithFallback(userEmail?: string) {
-  // ✅ Probamos varias rutas típicas, porque en tu prod vimos 404 en 2 distintas.
-  // Pon primero la que TÚ creas más probable.
-  const candidates: Array<{ url: string; withEmailParam?: boolean }> = [
-    { url: "/milestones/ten-new-customers-with-review", withEmailParam: true },
-    { url: "/milestones/ten-new-customers-with-review", withEmailParam: false },
-
-    { url: "/dashboard/milestone", withEmailParam: true },
-    { url: "/dashboard/milestone", withEmailParam: false },
-
-    // fallback extra (por si tu backend lo nombró distinto)
-    { url: "/milestone/ten-new-customers-with-review", withEmailParam: true },
-    { url: "/milestone/ten-new-customers-with-review", withEmailParam: false },
-  ];
-
-  let lastErr: any = null;
-
-  for (const c of candidates) {
-    try {
-      const res = await axios.get(c.url, c.withEmailParam && userEmail ? { params: { userEmail } } : undefined);
-      // ✅ si respondió, listo
-      console.log("✅ Milestone endpoint OK:", c.url, c.withEmailParam ? "(with userEmail)" : "(no params)");
-      return res.data;
-    } catch (e: any) {
-      lastErr = e;
-      const status = e?.response?.status;
-
-      // Si es 404, probamos el siguiente endpoint.
-      if (status === 404) {
-        console.warn("404 on milestone endpoint:", c.url, "→ trying next…");
-        continue;
-      }
-
-      // Si es 401/403, probablemente token/seguridad: no tiene sentido probar 10 rutas.
-      if (status === 401 || status === 403) {
-        throw e;
-      }
-
-      // Otros errores (500, network, etc.) — los guardamos y probamos el siguiente por si acaso,
-      // pero en general esto ya apunta a backend.
-      console.warn("Milestone endpoint error:", c.url, status, e?.message);
-      continue;
-    }
-  }
-
-  // Si ninguno sirvió, devolvemos el último error
-  throw lastErr;
-}
-
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
@@ -217,8 +168,7 @@ const DashboardPage: React.FC = () => {
 
     const loadMilestone = async () => {
       try {
-        const userEmail = user?.email?.trim();
-        if (!userEmail) {
+        if (!user?.email) {
           setMilestone(null);
           return;
         }
@@ -226,23 +176,14 @@ const DashboardPage: React.FC = () => {
         setMilestoneLoading(true);
         setMilestoneError(null);
 
-        const data = await fetchMilestoneWithFallback(userEmail);
-        setMilestone(data ?? null);
+        // ✅ ÚNICO endpoint real (backend saca el usuario del JWT)
+        const res = await axios.get("/dashboard/milestone");
+        setMilestone(res.data ?? null);
       } catch (e: any) {
         console.error("Error loading milestone", e);
-
-        const status = e?.response?.status;
-        if (status === 404) {
-          // Si ningún endpoint existe, mejor no asustar:
-          setMilestoneError("Milestone endpoint not found on server (404).");
-        } else if (status === 401 || status === 403) {
-          setMilestoneError("Not authorized to load rewards progress (auth).");
-        } else {
-          setMilestoneError(
-            e?.response?.data?.message ?? "Failed to load rewards progress"
-          );
-        }
-
+        setMilestoneError(
+          e?.response?.data?.message ?? "Failed to load rewards progress"
+        );
         setMilestone(null);
       } finally {
         setMilestoneLoading(false);
@@ -253,7 +194,8 @@ const DashboardPage: React.FC = () => {
     loadMilestone();
   }, [user?.email, user?.name]);
 
-  const { totalCustomers, pendingReviews, completedReviews, averageRating } = stats;
+  const { totalCustomers, pendingReviews, completedReviews, averageRating } =
+    stats;
 
   // ✅ DISPLAY NAME: primero nombre real, luego fallback a email
   const firstName = (user?.firstName || "").trim();
@@ -272,9 +214,12 @@ const DashboardPage: React.FC = () => {
   // ✅ Milestone derived values (safe)
   const nextRewardAt = milestone?.nextRewardAt ?? 10;
   const qualified = milestone?.qualifiedCustomers ?? 0;
-  const remaining = milestone?.remaining ?? Math.max(nextRewardAt - qualified, 0);
+  const remaining =
+    milestone?.remaining ?? Math.max(nextRewardAt - qualified, 0);
   const progressPct =
-    nextRewardAt > 0 ? Math.min(100, Math.floor((qualified * 100) / nextRewardAt)) : 0;
+    nextRewardAt > 0
+      ? Math.min(100, Math.floor((qualified * 100) / nextRewardAt))
+      : 0;
 
   return (
     <div className="page dashboard-container">
