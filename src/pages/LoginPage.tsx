@@ -33,7 +33,7 @@ const LoginPage: React.FC = () => {
       });
 
       console.log("LOGIN RESPONSE:", response.data);
-      const data = response.data;
+      const data = response.data ?? {};
 
       const apiUser = data.user ?? {
         id: data.id,
@@ -47,18 +47,27 @@ const LoginPage: React.FC = () => {
         name: apiUser?.name ?? "",
       };
 
+      // ✅ Token robusto + FAIL si falta
       const token =
         data.token ??
         data.accessToken ??
         data.jwt ??
         data.authToken ??
-        "";
+        null;
 
-      // ✅ 1) Login básico (set user + token)
+      if (!token || typeof token !== "string" || token.trim() === "") {
+        throw new Error(
+          "Login succeeded but token is missing. Backend must return { token: '...' }."
+        );
+      }
+
+      // ✅ Doble seguro: guardar token aquí
+      localStorage.setItem("token", token);
+
+      // ✅ Login: AuthContext también lo guarda y setea user
       login(safeUser, token);
 
-      // ✅ 2) Cargar perfil real desde backend (nombre + avatar Cloudinary)
-      // Esto hace que en cualquier PC salga "Hola Alberto" y la foto
+      // ✅ Cargar perfil real desde backend (nombre + avatar)
       try {
         const miniRes = await axiosClient.get<UserMini>("/users/by-email", {
           params: { email: emailTrimmed },
@@ -72,7 +81,6 @@ const LoginPage: React.FC = () => {
           avatarUrl: avatarUrl || undefined,
         });
       } catch (e2) {
-        // Si falla, no rompemos login; solo seguirá con fallback (aperez)
         console.warn("Could not load user mini profile:", e2);
       }
 
