@@ -71,9 +71,7 @@ const DashboardPage: React.FC = () => {
           return;
         }
 
-        const customerIds: number[] = customers
-          .map((c) => c?.id)
-          .filter(Boolean);
+        const customerIds: number[] = customers.map((c) => c?.id).filter(Boolean);
 
         const results = await Promise.allSettled(
           customerIds.map((id) =>
@@ -127,13 +125,16 @@ const DashboardPage: React.FC = () => {
 
     const loadMilestone = async () => {
       try {
-        if (!user?.email) {
+        setMilestoneLoading(true);
+        setMilestoneError(null);
+
+        // ✅ Evita 401 “fantasma” si aún no hay sesión/token en el cliente
+        // (asumiendo que guardas el JWT en localStorage como "token")
+        const token = localStorage.getItem("token");
+        if (!token) {
           setMilestone(null);
           return;
         }
-
-        setMilestoneLoading(true);
-        setMilestoneError(null);
 
         // ✅ ÚNICO endpoint válido (backend saca el usuario del JWT)
         const res = await axios.get("/dashboard/milestone");
@@ -149,20 +150,32 @@ const DashboardPage: React.FC = () => {
       }
     };
 
+    // ✅ IMPORTANTE: en prod a veces user/email no “cambia” y el useEffect no corre.
+    // Por eso cargamos 1 vez al montar y listo.
     loadStats();
     loadMilestone();
-  }, [user?.email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const qualified = milestone?.qualifiedCustomers ?? 0;
   const nextRewardAt = milestone?.nextRewardAt ?? 10;
   const remaining = milestone?.remaining ?? Math.max(nextRewardAt - qualified, 0);
   const progressPct =
-    nextRewardAt > 0 ? Math.min(100, Math.floor((qualified * 100) / nextRewardAt)) : 0;
+    nextRewardAt > 0
+      ? Math.min(100, Math.floor((qualified * 100) / nextRewardAt))
+      : 0;
 
   return (
     <div className="page dashboard-container">
       {/* Header simple */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          marginBottom: 16,
+        }}
+      >
         <h1 style={{ margin: 0 }}>
           Welcome, {user?.firstName?.trim() || user?.email || "User"}!
         </h1>
@@ -192,7 +205,9 @@ const DashboardPage: React.FC = () => {
 
         <div className="dashboard-card">
           <h2>Completed Reviews</h2>
-          <div className="dashboard-number">{loading ? "…" : stats.completedReviews}</div>
+          <div className="dashboard-number">
+            {loading ? "…" : stats.completedReviews}
+          </div>
           <p className="dashboard-text">Reviews you have already submitted.</p>
           <Link to="/customers" className="dashboard-link">
             See reviews
@@ -248,7 +263,14 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b7280" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 12,
+              color: "#6b7280",
+            }}
+          >
             <span>0</span>
             <span>{progressPct}%</span>
             <span>{nextRewardAt}</span>
@@ -269,9 +291,16 @@ const DashboardPage: React.FC = () => {
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
           Customers Map
         </h2>
-        <p style={{ color: "#4b5563", fontSize: 14, marginBottom: 12, maxWidth: 640 }}>
-          See all customers with a valid address on the map. Each pin represents one customer
-          based on their address, city, state and ZIP code.
+        <p
+          style={{
+            color: "#4b5563",
+            fontSize: 14,
+            marginBottom: 12,
+            maxWidth: 640,
+          }}
+        >
+          See all customers with a valid address on the map. Each pin represents
+          one customer based on their address, city, state and ZIP code.
         </p>
         <div className="card">
           <CustomerMap />
