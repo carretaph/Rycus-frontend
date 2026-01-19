@@ -9,14 +9,15 @@ const baseURL = import.meta.env.DEV
 
 const axiosClient = axios.create({ baseURL });
 
-// ✅ intenta varios keys + sessionStorage
+// ✅ Fuente de verdad: rycus_token
+// ✅ Fallback: token/authToken (por builds viejos)
 function getToken(): string | null {
   return (
-    localStorage.getItem("token") ||
     localStorage.getItem("rycus_token") ||
+    localStorage.getItem("token") ||
     localStorage.getItem("authToken") ||
-    sessionStorage.getItem("token") ||
     sessionStorage.getItem("rycus_token") ||
+    sessionStorage.getItem("token") ||
     sessionStorage.getItem("authToken")
   );
 }
@@ -26,6 +27,9 @@ axiosClient.interceptors.request.use((config) => {
   if (token) {
     config.headers = config.headers ?? {};
     (config.headers as any).Authorization = `Bearer ${token}`;
+  } else {
+    // por si quedó una cabecera vieja
+    if (config.headers) delete (config.headers as any).Authorization;
   }
   return config;
 });

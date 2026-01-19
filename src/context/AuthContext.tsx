@@ -201,6 +201,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   useEffect(() => {
     try {
+      // =========================================================
+      // ✅ MIGRACIÓN TOKEN (anti rollback)
+      // Si un build viejo guardó token en "token", lo movemos a "rycus_token"
+      // =========================================================
+      const legacyToken = localStorage.getItem("token");
+      const existing = localStorage.getItem(TOKEN_KEY);
+
+      if (legacyToken && !existing) {
+        localStorage.setItem(TOKEN_KEY, legacyToken);
+        localStorage.removeItem("token");
+      }
+
       const storedUserRaw = localStorage.getItem(USER_KEY);
       const storedToken = localStorage.getItem(TOKEN_KEY);
 
@@ -228,6 +240,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       console.error("Error parsing auth from localStorage:", err);
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem("token");
       setUser(null);
       setToken(null);
       setAxiosAuthHeader(null);
@@ -247,7 +260,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setUser(merged);
     setToken(newToken);
     persistUser(merged);
+
+    // ✅ Fuente de verdad del token
     localStorage.setItem(TOKEN_KEY, newToken);
+
+    // ✅ (por compatibilidad con builds viejos, opcional)
+    // localStorage.setItem("token", newToken);
 
     setAxiosAuthHeader(newToken);
   };
@@ -257,6 +275,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setToken(null);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("token");
     setAxiosAuthHeader(null);
   };
 
