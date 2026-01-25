@@ -1,284 +1,144 @@
 // src/App.tsx
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import axios from "./api/axiosClient";
 
 import "./App.css";
 
-// Pages
+// ===== PUBLIC PAGES =====
 import HomePage from "./HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+
+// ===== PRIVATE PAGES =====
+import FeedPage from "./pages/FeedPage";
 import DashboardPage from "./pages/DashboardPage";
 import CustomerCreatePage from "./pages/CustomerCreate";
 import CustomerListPage from "./pages/CustomerList";
 import CustomerReviewsPage from "./pages/CustomerReviewsPage";
+import CustomerEditPage from "./pages/CustomerEdit";
 import UsersSearchPage from "./pages/UsersSearchPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import UserConnectionsPage from "./pages/UserConnectionsPage";
 import ProfilePage from "./pages/ProfilePage";
-import CustomerEditPage from "./pages/CustomerEdit";
-import MessagesPage from "./pages/MessagesPage";
 import InboxPage from "./pages/InboxPage";
+import MessagesPage from "./pages/MessagesPage";
 
 import logo from "./assets/rycus-logo.png";
 
-// ============================
-// 🔐 Protected route
-// ============================
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+/* ============================
+   🔐 Protected Route
+============================ */
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, initializing } = useAuth();
 
   if (initializing) {
-    return (
-      <div className="page">
-        <main className="main">
-          <p>Loading...</p>
-        </main>
-      </div>
-    );
+    return <div className="page">Loading...</div>;
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
-};
-
-// ============================
-// Sound helper (no mp3 needed)
-// ============================
-function playSoftDing() {
-  try {
-    const AudioCtx =
-      (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-
-    const ctx = new AudioCtx();
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.value = 880;
-
-    const now = ctx.currentTime;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.2);
-
-    osc.onended = () => {
-      try {
-        ctx.close();
-      } catch {}
-    };
-  } catch {
-    // ignore
-  }
 }
 
-// ============================
-// APP
-// ============================
-const App: React.FC = () => {
+/* ============================
+   🌐 Public Only Route
+============================ */
+function PublicOnlyRoute({ children }: { children: ReactNode }) {
+  const { user, initializing } = useAuth();
+
+  if (initializing) {
+    return <div className="page">Loading...</div>;
+  }
+
+  if (user) return <Navigate to="/home" replace />;
+  return <>{children}</>;
+}
+
+/* ============================
+   APP
+============================ */
+export default function App() {
   const { user, logout } = useAuth();
   const location = useLocation();
 
-  // Display name in nav
+  // ===== Display name =====
   const navDisplayName =
-    (user?.firstName?.trim() && user.firstName.trim()) ||
-    (user?.name?.trim() && user.name.trim().split(" ")[0]) ||
-    (user?.email && user.email.split("@")[0]) ||
+    user?.firstName ||
+    user?.name?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
     "Profile";
 
-  // Avatar initial
-  const userInitial =
-    user?.firstName?.trim().charAt(0).toUpperCase() ||
-    user?.name?.trim().charAt(0).toUpperCase() ||
-    user?.email?.charAt(0).toUpperCase() ||
-    "?";
+  const userInitial = navDisplayName.charAt(0).toUpperCase();
 
-  // ============================
-  // 🔔 Sound toggle (saved) — control lives in Profile
-  // ============================
-  const SOUND_KEY = "rycus_sound_enabled";
-  const [soundEnabled] = useState<boolean>(() => {
-    const raw = localStorage.getItem(SOUND_KEY);
-    if (raw === null) return true; // default ON
-    return raw === "true";
-  });
-
-  // ============================
-  // 💬 Unread messages badge
-  // ============================
-  const [unreadCount, setUnreadCount] = useState<number>(0);
+  // ===== Badges =====
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingConnectionsCount, setPendingConnectionsCount] = useState(0);
+  const prevPendingRef = useRef(0);
 
   const loadUnread = useCallback(async () => {
+    if (!user?.email) return setUnreadCount(0);
     try {
-      const userEmail = user?.email?.trim();
-      if (!userEmail) {
-        setUnreadCount(0);
-        return;
-      }
-
       const res = await axios.get<number>("/messages/unread-count", {
-        params: { userEmail },
+        params: { userEmail: user.email },
       });
-
-      setUnreadCount(typeof res.data === "number" ? res.data : 0);
+      setUnreadCount(res.data ?? 0);
     } catch {
       setUnreadCount(0);
     }
   }, [user?.email]);
 
-  // ============================
-  // 🤝 Pending connections badge + pulse + sound
-  // ============================
-  const [pendingConnectionsCount, setPendingConnectionsCount] =
-    useState<number>(0);
-
-  const prevPendingRef = useRef<number>(0);
-  const [pulseNetwork, setPulseNetwork] = useState(false);
-
   const loadPendingConnections = useCallback(async () => {
+    if (!user?.email) return setPendingConnectionsCount(0);
     try {
-      const email = user?.email?.trim();
-      if (!email) {
-        setPendingConnectionsCount(0);
-        prevPendingRef.current = 0;
-        return;
-      }
-
       const res = await axios.get<{ count: number }>(
         "/connections/pending/count",
-        { params: { email } }
+        { params: { email: user.email } }
       );
-
-      const next = Number(res.data?.count ?? 0);
-      const safeNext = Number.isFinite(next) ? next : 0;
-
-      const prev = prevPendingRef.current;
-
-      if (safeNext > prev) {
-        setPulseNetwork(true);
-        window.setTimeout(() => setPulseNetwork(false), 1200);
-
-        if (soundEnabled) {
-          playSoftDing();
-        }
-      }
-
-      prevPendingRef.current = safeNext;
-      setPendingConnectionsCount(safeNext);
+      const next = res.data?.count ?? 0;
+      prevPendingRef.current = next;
+      setPendingConnectionsCount(next);
     } catch {
       setPendingConnectionsCount(0);
-      prevPendingRef.current = 0;
     }
-  }, [user?.email, soundEnabled]);
+  }, [user?.email]);
 
-  // ============================
-  // ✅ Polling normal (Messages + Network)
-  // ============================
   useEffect(() => {
-    let timer: number | undefined;
-
-    void loadUnread();
-    void loadPendingConnections();
-
-    timer = window.setInterval(() => {
-      void loadUnread();
-      void loadPendingConnections();
-    }, 12000);
-
-    return () => {
-      if (timer) window.clearInterval(timer);
-    };
-  }, [loadUnread, loadPendingConnections]);
-
-  // ✅ Refrescar cuando cambias de ruta
-  useEffect(() => {
-    void loadUnread();
-    void loadPendingConnections();
+    loadUnread();
+    loadPendingConnections();
   }, [location.pathname, loadUnread, loadPendingConnections]);
 
-  // ✅ Refresh instantáneo desde otras páginas
-  useEffect(() => {
-    const onRefresh = () => {
-      void loadUnread();
-      void loadPendingConnections();
-    };
-
-    window.addEventListener("rycus:refresh-badges", onRefresh);
-    return () => window.removeEventListener("rycus:refresh-badges", onRefresh);
-  }, [loadUnread, loadPendingConnections]);
-
-  // Badge component
-  const Badge: React.FC<{ value: number; pulse?: boolean }> = ({
-    value,
-    pulse,
-  }) => {
-    if (value <= 0) return null;
-    return (
-      <span className={`badge ${pulse ? "badge--pulse" : ""}`}>{value}</span>
-    );
-  };
+  const Badge = ({ value }: { value: number }) =>
+    value > 0 ? <span className="badge">{value}</span> : null;
 
   return (
     <div className="app">
+      {/* ========== HEADER ========== */}
       <header className="site-header">
-        {/* Logo */}
         <div className="site-header-logo-block">
           <img src={logo} alt="Rycus" className="site-header-logo" />
           <div className="site-header-title">Rycus</div>
           <div className="site-header-subtitle">Rate Your Customer US</div>
         </div>
 
-        {/* NAV */}
         <nav className="site-header-nav">
           {user ? (
             <>
-              {/* Profile */}
               <Link to="/profile" className="nav-profile-link">
-                <div className="nav-avatar">
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="avatar" />
-                  ) : (
-                    <span>{userInitial}</span>
-                  )}
-                </div>
+                <div className="nav-avatar">{userInitial}</div>
                 <span>{navDisplayName}</span>
               </Link>
 
-              <Link to="/">🏠 Home</Link>
+              <Link to="/home">🏠 Home</Link>
               <Link to="/dashboard">📊 Dashboard</Link>
               <Link to="/customers">👥 Customers</Link>
 
-              {/* 🤝 Network badge */}
-              <Link
-                to="/connections"
-                style={{ display: "inline-flex", alignItems: "center" }}
-              >
-                🤝 Network
-                <Badge value={pendingConnectionsCount} pulse={pulseNetwork} />
+              <Link to="/connections">
+                🤝 Network <Badge value={pendingConnectionsCount} />
               </Link>
 
-              {/* 💬 Messages badge */}
-              <Link
-                to="/inbox"
-                style={{ display: "inline-flex", alignItems: "center" }}
-              >
-                💬 Messages
-                <Badge value={unreadCount} />
+              <Link to="/inbox">
+                💬 Messages <Badge value={unreadCount} />
               </Link>
 
               <Link to="/users">🙋‍♂️ Users</Link>
@@ -289,7 +149,6 @@ const App: React.FC = () => {
             </>
           ) : (
             <>
-              {/* Public menu */}
               <Link to="/">🏠 Home</Link>
               <Link to="/login">Sign in</Link>
               <Link to="/register">Create account</Link>
@@ -298,120 +157,65 @@ const App: React.FC = () => {
         </nav>
       </header>
 
+      {/* ========== ROUTES ========== */}
       <main className="main">
         <Routes>
-          {/* Public */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-
-          {/* Private */}
+          {/* PUBLIC */}
           <Route
-            path="/dashboard"
+            path="/"
             element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
+              <PublicOnlyRoute>
+                <HomePage />
+              </PublicOnlyRoute>
             }
           />
 
           <Route
-            path="/customers"
+            path="/login"
             element={
-              <ProtectedRoute>
-                <CustomerListPage />
-              </ProtectedRoute>
+              <PublicOnlyRoute>
+                <LoginPage />
+              </PublicOnlyRoute>
             }
           />
 
           <Route
-            path="/customers/new"
+            path="/register"
             element={
-              <ProtectedRoute>
-                <CustomerCreatePage />
-              </ProtectedRoute>
+              <PublicOnlyRoute>
+                <RegisterPage />
+              </PublicOnlyRoute>
             }
           />
 
+          {/* PRIVATE */}
           <Route
-            path="/customers/:id"
+            path="/home"
             element={
               <ProtectedRoute>
-                <CustomerReviewsPage />
+                <FeedPage />
               </ProtectedRoute>
             }
           />
 
-          <Route
-            path="/customers/:id/edit"
-            element={
-              <ProtectedRoute>
-                <CustomerEditPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/customers" element={<ProtectedRoute><CustomerListPage /></ProtectedRoute>} />
+          <Route path="/customers/new" element={<ProtectedRoute><CustomerCreatePage /></ProtectedRoute>} />
+          <Route path="/customers/:id" element={<ProtectedRoute><CustomerReviewsPage /></ProtectedRoute>} />
+          <Route path="/customers/:id/edit" element={<ProtectedRoute><CustomerEditPage /></ProtectedRoute>} />
 
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute>
-                <UsersSearchPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/users" element={<ProtectedRoute><UsersSearchPage /></ProtectedRoute>} />
+          <Route path="/users/:id" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
+          <Route path="/connections" element={<ProtectedRoute><UserConnectionsPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
-          <Route
-            path="/users/:id"
-            element={
-              <ProtectedRoute>
-                <UserProfilePage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
+          <Route path="/messages/:otherEmail" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
 
-          <Route
-            path="/connections"
-            element={
-              <ProtectedRoute>
-                <UserConnectionsPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Inbox / Messages */}
-          <Route
-            path="/inbox"
-            element={
-              <ProtectedRoute>
-                <InboxPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/messages/:otherEmail"
-            element={
-              <ProtectedRoute>
-                <MessagesPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Fallback */}
+          {/* FALLBACK */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
   );
-};
-
-export default App;
+}
