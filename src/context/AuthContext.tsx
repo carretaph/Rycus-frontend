@@ -199,54 +199,99 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  useEffect(() => {
+  // ✅ Helper: rehydrate user from backend (/users/me)
+  const rehydrateUserFromBackend = async (email: string, base: User) => {
     try {
-      // =========================================================
-      // ✅ MIGRACIÓN TOKEN (anti rollback)
-      // Si un build viejo guardó token en "token", lo movemos a "rycus_token"
-      // =========================================================
-      const legacyToken = localStorage.getItem("token");
-      const existing = localStorage.getItem(TOKEN_KEY);
+      const res = await axiosClient.get("/users/me", { params: { email } });
+      const fresh = res.data as any;
 
-      if (legacyToken && !existing) {
-        localStorage.setItem(TOKEN_KEY, legacyToken);
-        localStorage.removeItem("token");
+      const patch: Partial<User> = {
+        id: typeof fresh?.id === "number" ? fresh.id : base.id,
+        email: fresh?.email ?? base.email,
+        name: fresh?.fullName ?? base.name,
+        avatarUrl: fresh?.avatarUrl ?? base.avatarUrl,
+        phone: fresh?.phone ?? base.phone,
+        businessName: fresh?.businessName ?? base.businessName,
+        city: fresh?.city ?? base.city,
+        state: fresh?.state ?? base.state,
+      };
+
+      const updated = mergeUser(base, patch);
+
+      setUser(updated);
+      persistUser(updated);
+
+      // persist extra for header fallback and profile fields
+      if (updated.email) {
+        persistExtraForEmail(updated.email, {
+          avatarUrl: updated.avatarUrl,
+          name: updated.name,
+          phone: updated.phone,
+          businessName: updated.businessName,
+          city: updated.city,
+          state: updated.state,
+        } as any);
       }
-
-      const storedUserRaw = localStorage.getItem(USER_KEY);
-      const storedToken = localStorage.getItem(TOKEN_KEY);
-
-      const parsedUser = safeParse<User>(storedUserRaw);
-
-      const parsedExtra = parsedUser?.email
-        ? readExtraForEmail(parsedUser.email)
-        : {};
-
-      const mergedUser: User | null = parsedUser
-        ? (mergeUser(parsedUser, parsedExtra ?? {}) as User)
-        : null;
-
-      if (mergedUser) setUser(mergedUser);
-
-      if (storedToken && storedToken !== "undefined" && storedToken !== "null") {
-        setToken(storedToken);
-        setAxiosAuthHeader(storedToken);
-      } else {
-        setAxiosAuthHeader(null);
-      }
-
-      if (mergedUser) persistUser(mergedUser);
-    } catch (err) {
-      console.error("Error parsing auth from localStorage:", err);
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem("token");
-      setUser(null);
-      setToken(null);
-      setAxiosAuthHeader(null);
-    } finally {
-      setInitializing(false);
+    } catch {
+      // no-op (keep local storage data if backend fails)
     }
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // =========================================================
+        // ✅ MIGRACIÓN TOKEN (anti rollback)
+        // Si un build viejo guardó token en "token", lo movemos a "rycus_token"
+        // =========================================================
+        const legacyToken = localStorage.getItem("token");
+        const existing = localStorage.getItem(TOKEN_KEY);
+
+        if (legacyToken && !existing) {
+          localStorage.setItem(TOKEN_KEY, legacyToken);
+          localStorage.removeItem("token");
+        }
+
+        const storedUserRaw = localStorage.getItem(USER_KEY);
+        const storedToken = localStorage.getItem(TOKEN_KEY);
+
+        const parsedUser = safeParse<User>(storedUserRaw);
+
+        const parsedExtra = parsedUser?.email
+          ? readExtraForEmail(parsedUser.email)
+          : {};
+
+        const mergedUser: User | null = parsedUser
+          ? (mergeUser(parsedUser, parsedExtra ?? {}) as User)
+          : null;
+
+        if (mergedUser) setUser(mergedUser);
+
+        if (storedToken && storedToken !== "undefined" && storedToken !== "null") {
+          setToken(storedToken);
+          setAxiosAuthHeader(storedToken);
+        } else {
+          setAxiosAuthHeader(null);
+        }
+
+        if (mergedUser) persistUser(mergedUser);
+
+        // ✅ Rehydrate from backend if we have token + email
+        if (storedToken && mergedUser?.email) {
+          await rehydrateUserFromBackend(mergedUser.email, mergedUser);
+        }
+      } catch (err) {
+        console.error("Error parsing auth from localStorage:", err);
+        localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem("token");
+        setUser(null);
+        setToken(null);
+        setAxiosAuthHeader(null);
+      } finally {
+        setInitializing(false);
+      }
+    })();
   }, []);
 
   const login = (userData: User, newToken: string) => {
@@ -263,11 +308,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     // ✅ Fuente de verdad del token
     localStorage.setItem(TOKEN_KEY, newToken);
-
-    // ✅ (por compatibilidad con builds viejos, opcional)
-    // localStorage.setItem("token", newToken);
-
     setAxiosAuthHeader(newToken);
+
+    // ✅ Best-effort rehydrate from backend so header avatar/name are fresh
+    if (merged?.email) {
+      void rehydrateUserFromBackend(merged.email, merged);
+    }
   };
 
   const logout = () => {
