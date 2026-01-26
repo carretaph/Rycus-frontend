@@ -7,13 +7,16 @@ import CustomerMap from "../components/CustomerMap";
 
 type Review = {
   id: number;
+  customerId?: number;
+  customerName?: string;
+
   ratingOverall?: number;
   ratingPayment?: number;
   ratingBehavior?: number;
   ratingCommunication?: number;
+
   comment?: string;
   createdAt?: string;
-  createdBy?: string;
 };
 
 interface DashboardStats {
@@ -59,6 +62,7 @@ const DashboardPage: React.FC = () => {
           return;
         }
 
+        // ✅ My Customers (DTO)
         const customersRes = await axios.get("/customers", {
           params: { userEmail: email },
         });
@@ -73,9 +77,14 @@ const DashboardPage: React.FC = () => {
 
         const customerIds: number[] = customers.map((c) => c?.id).filter(Boolean);
 
+        // ✅ Trae reviews por customer (filtrado por userEmail en backend)
         const results = await Promise.allSettled(
           customerIds.map((id) =>
-            axios.get<Review[]>(`/customers/${id}/reviews`).then((r) => r.data ?? [])
+            axios
+              .get<Review[]>(`/customers/${id}/reviews`, {
+                params: { userEmail: email },
+              })
+              .then((r) => r.data ?? [])
           )
         );
 
@@ -87,14 +96,11 @@ const DashboardPage: React.FC = () => {
           if (res.status !== "fulfilled") return;
 
           const reviews = res.value ?? [];
-          const mine = reviews.filter((r) => {
-            const createdBy = (r.createdBy ?? "").trim().toLowerCase();
-            return createdBy === email.toLowerCase();
-          });
 
-          if (mine.length > 0) {
+          // ✅ Ya vienen SOLO tus reviews desde el backend
+          if (reviews.length > 0) {
             reviewedCustomers.add(customerId);
-            myReviews.push(...mine);
+            myReviews.push(...reviews);
           }
         });
 
@@ -129,7 +135,6 @@ const DashboardPage: React.FC = () => {
         setMilestoneError(null);
 
         // ✅ Evita 401 “fantasma” si aún no hay sesión/token en el cliente
-        // (asumiendo que guardas el JWT en localStorage como "token")
         const token = localStorage.getItem("token");
         if (!token) {
           setMilestone(null);
@@ -150,8 +155,6 @@ const DashboardPage: React.FC = () => {
       }
     };
 
-    // ✅ IMPORTANTE: en prod a veces user/email no “cambia” y el useEffect no corre.
-    // Por eso cargamos 1 vez al montar y listo.
     loadStats();
     loadMilestone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
