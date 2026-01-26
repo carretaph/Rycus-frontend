@@ -14,6 +14,9 @@ interface ProfileExtra {
   city?: string;
   zipcode?: string;
   state?: string;
+
+  // ✅ NEW: también guardamos avatarUrl en el extra por email
+  avatarUrl?: string;
 }
 
 type UserMiniDto = {
@@ -72,6 +75,7 @@ const ProfilePage: React.FC = () => {
     city: "",
     zipcode: "",
     state: "",
+    avatarUrl: "",
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -94,6 +98,7 @@ const ProfilePage: React.FC = () => {
     const extraKey = getExtraKey(email);
     const visKey = getVisKey(email);
 
+    // primero: si el user ya trae avatarUrl, úsalo
     if (user?.avatarUrl) setPreview(user.avatarUrl);
 
     // load extra
@@ -101,6 +106,7 @@ const ProfilePage: React.FC = () => {
       const stored = localStorage.getItem(extraKey);
       if (stored && stored !== "undefined" && stored !== "null") {
         const parsed = JSON.parse(stored) as ProfileExtra;
+
         setExtra({
           firstName: parsed.firstName || "",
           lastName: parsed.lastName || "",
@@ -111,7 +117,13 @@ const ProfilePage: React.FC = () => {
           city: parsed.city || "",
           zipcode: parsed.zipcode || "",
           state: parsed.state || "",
+          avatarUrl: parsed.avatarUrl || "",
         });
+
+        // ✅ si el extra tiene avatarUrl, úsalo como preview también
+        if (parsed.avatarUrl && parsed.avatarUrl.trim()) {
+          setPreview(parsed.avatarUrl.trim());
+        }
       }
     } catch (err) {
       console.error("Error reading profile extra from localStorage:", err);
@@ -132,6 +144,19 @@ const ProfilePage: React.FC = () => {
       console.error("Error reading visibility from localStorage:", err);
     }
   }, [user?.email, user?.avatarUrl]);
+
+  // ✅ cuando preview cambia, sincroniza AuthContext para que el header lo tenga siempre
+  useEffect(() => {
+    if (!preview) return;
+    if (!user?.email) return;
+
+    const current = (user.avatarUrl || "").trim();
+    const next = preview.trim();
+
+    if (next && next !== current) {
+      updateAvatar(next); // persiste en localStorage + actualiza user (header)
+    }
+  }, [preview, user?.email]); // no ponemos user.avatarUrl para evitar loops
 
   useEffect(() => {
     if (!isEditing) setDraft(extra);
@@ -202,17 +227,30 @@ const ProfilePage: React.FC = () => {
 
       setPreview(url);
 
+      // ✅ actualizar AuthContext (header) + persistencia
       updateAvatar(url);
       updateUser({ avatarUrl: url });
+
+      // ✅ guardar también en extra local por email
+      try {
+        const extraKey = getExtraKey(email);
+        const stored = localStorage.getItem(extraKey);
+        const parsed = stored ? (JSON.parse(stored) as ProfileExtra) : {};
+        localStorage.setItem(extraKey, JSON.stringify({ ...parsed, avatarUrl: url }));
+      } catch {}
 
       setSavedMsg("Photo updated ✅");
       setTimeout(() => setSavedMsg(""), 2500);
     } catch (err: any) {
       console.error("Avatar upload failed:", err);
+
       const msg =
-        err?.response?.data?.message ||
-        err?.response?.data ||
+        err?.response?.data?.message ??
+        err?.response?.data?.error ??
+        err?.response?.data ??
+        err?.message ??
         "Avatar upload failed. Please try again.";
+
       setSavedMsg(String(msg));
     } finally {
       setUploadingAvatar(false);
@@ -257,6 +295,7 @@ const ProfilePage: React.FC = () => {
       city: (draft.city || "").trim(),
       zipcode: (draft.zipcode || "").trim(),
       state: (draft.state || "").trim(),
+      avatarUrl: (preview || user?.avatarUrl || "").trim(),
     };
 
     const email = user?.email ?? undefined;
@@ -282,7 +321,7 @@ const ProfilePage: React.FC = () => {
       const body = {
         fullName: fullNameToSave || null,
         phone: cleaned.phone || null,
-        avatarUrl: (preview || user?.avatarUrl || "").trim() || null,
+        avatarUrl: cleaned.avatarUrl || null,
         businessName: cleaned.businessName || null,
         industry: cleaned.industry || null,
         city: cleaned.city || null,
@@ -302,7 +341,7 @@ const ProfilePage: React.FC = () => {
         state: updated?.state ?? cleaned.state,
         zipcode: cleaned.zipcode,
         address: cleaned.address,
-        avatarUrl: (updated?.avatarUrl ?? preview ?? user?.avatarUrl ?? undefined) || undefined,
+        avatarUrl: (updated?.avatarUrl ?? cleaned.avatarUrl ?? undefined) || undefined,
         name: updated?.fullName || fullNameToSave || (user as any)?.name,
         firstName: cleaned.firstName,
         lastName: cleaned.lastName,
@@ -324,7 +363,7 @@ const ProfilePage: React.FC = () => {
         state: cleaned.state,
         zipcode: cleaned.zipcode,
         address: cleaned.address,
-        avatarUrl: preview ?? user?.avatarUrl,
+        avatarUrl: cleaned.avatarUrl || user?.avatarUrl,
         name: fullNameToSave || (user as any)?.name,
         firstName: cleaned.firstName,
         lastName: cleaned.lastName,

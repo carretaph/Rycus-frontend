@@ -4,10 +4,15 @@ import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 
-type UserMini = {
+type SafeUserFromApi = {
+  id?: number | null;
   email?: string | null;
   fullName?: string | null;
   avatarUrl?: string | null;
+  phone?: string | null;
+  businessName?: string | null;
+  city?: string | null;
+  state?: string | null;
 };
 
 const LoginPage: React.FC = () => {
@@ -17,14 +22,14 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { login, updateUser } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const emailTrimmed = email.trim();
+    const emailTrimmed = email.trim().toLowerCase();
 
     try {
       const response = await axiosClient.post("/auth/login", {
@@ -32,20 +37,7 @@ const LoginPage: React.FC = () => {
         password,
       });
 
-      console.log("LOGIN RESPONSE:", response.data);
       const data = response.data ?? {};
-
-      const apiUser = data.user ?? {
-        id: data.id,
-        email: data.email,
-        name: data.name,
-      };
-
-      const safeUser = {
-        id: apiUser?.id ?? 0,
-        email: apiUser?.email ?? emailTrimmed,
-        name: apiUser?.name ?? "",
-      };
 
       // ✅ Token robusto + FAIL si falta
       const token =
@@ -61,30 +53,33 @@ const LoginPage: React.FC = () => {
         );
       }
 
-      // ✅ Doble seguro: guardar token aquí
-      localStorage.setItem("token", token);
+      // ✅ user seguro desde backend (AuthResponse.user)
+      const u: SafeUserFromApi | null = data.user ?? null;
 
-      // ✅ Login: AuthContext también lo guarda y setea user
+      const fullName = (u?.fullName || "").trim();
+      const avatarUrl = (u?.avatarUrl || "").trim();
+
+      // ✅ Construye user para AuthContext
+      const safeUser = {
+        id: Number(u?.id ?? 0),
+        email: (u?.email || emailTrimmed).trim(),
+        name: fullName || emailTrimmed.split("@")[0], // ✅ Welcome Sandra
+        avatarUrl: avatarUrl || undefined,            // ✅ Header avatar
+        phone: (u?.phone || "").trim() || undefined,
+        businessName: (u?.businessName || "").trim() || undefined,
+        city: (u?.city || "").trim() || undefined,
+        state: (u?.state || "").trim() || undefined,
+      };
+
+      // ✅ NO guardes "token" legacy aquí (tu AuthContext ya migra). 
+      // Si quieres compatibilidad, está bien, pero no es necesario.
+      // localStorage.setItem("token", token);
+
+      // ✅ Login: AuthContext guarda token y user
       login(safeUser, token);
 
-      // ✅ Cargar perfil real desde backend (nombre + avatar)
-      try {
-        const miniRes = await axiosClient.get<UserMini>("/users/by-email", {
-          params: { email: emailTrimmed },
-        });
-
-        const fullName = (miniRes.data?.fullName || "").trim();
-        const avatarUrl = (miniRes.data?.avatarUrl || "").trim();
-
-        updateUser({
-          name: fullName || safeUser.name || emailTrimmed,
-          avatarUrl: avatarUrl || undefined,
-        });
-      } catch (e2) {
-        console.warn("Could not load user mini profile:", e2);
-      }
-
-      navigate("/dashboard");
+      // ✅ ve al home (tu app usa FeedPage en /home)
+      navigate("/home");
     } catch (err: any) {
       console.error("Login error:", err);
 

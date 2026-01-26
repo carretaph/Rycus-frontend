@@ -56,6 +56,23 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
 }
 
 /* ============================
+   Avatar fallback (localStorage extra)
+============================ */
+function readStoredAvatar(email?: string | null): string | null {
+  try {
+    if (!email) return null;
+    const key = `rycus_profile_extra_${email.toLowerCase()}`;
+    const raw = localStorage.getItem(key);
+    if (!raw || raw === "undefined" || raw === "null") return null;
+    const parsed = JSON.parse(raw);
+    const url = typeof parsed?.avatarUrl === "string" ? parsed.avatarUrl.trim() : "";
+    return url ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/* ============================
    APP
 ============================ */
 export default function App() {
@@ -70,6 +87,13 @@ export default function App() {
     "Profile";
 
   const userInitial = navDisplayName.charAt(0).toUpperCase();
+
+  // ✅ Avatar to show (user first, fallback to localStorage extra)
+  const avatarFromStorage = readStoredAvatar(user?.email ?? null);
+  const avatarToShow =
+    (user?.avatarUrl && user.avatarUrl.trim()) ||
+    avatarFromStorage ||
+    "";
 
   // ===== Badges =====
   const [unreadCount, setUnreadCount] = useState(0);
@@ -125,7 +149,13 @@ export default function App() {
           {user ? (
             <>
               <Link to="/profile" className="nav-profile-link">
-                <div className="nav-avatar">{userInitial}</div>
+                <div className="nav-avatar">
+                  {avatarToShow ? (
+                    <img src={avatarToShow} alt="avatar" />
+                  ) : (
+                    <span>{userInitial}</span>
+                  )}
+                </div>
                 <span>{navDisplayName}</span>
               </Link>
 
