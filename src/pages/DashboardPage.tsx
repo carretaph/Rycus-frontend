@@ -41,6 +41,18 @@ const EMPTY_STATS: DashboardStats = {
   averageRating: 0,
 };
 
+// ✅ mismo criterio que axiosClient (prod/local)
+function getAuthToken(): string | null {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("rycus_token") ||
+    localStorage.getItem("authToken") ||
+    sessionStorage.getItem("token") ||
+    sessionStorage.getItem("rycus_token") ||
+    sessionStorage.getItem("authToken")
+  );
+}
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
@@ -135,7 +147,8 @@ const DashboardPage: React.FC = () => {
         setMilestoneError(null);
 
         // ✅ Evita 401 “fantasma” si aún no hay sesión/token en el cliente
-        const token = localStorage.getItem("token");
+        // (en prod puede guardarse como rycus_token/authToken)
+        const token = getAuthToken();
         if (!token) {
           setMilestone(null);
           return;
@@ -155,6 +168,8 @@ const DashboardPage: React.FC = () => {
       }
     };
 
+    // ✅ IMPORTANTE: en prod a veces user/email no “cambia” y el useEffect no corre.
+    // Por eso cargamos 1 vez al montar y listo.
     loadStats();
     loadMilestone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
