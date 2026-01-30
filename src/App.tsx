@@ -30,14 +30,22 @@ import logo from "./assets/rycus-logo.png";
 /* ============================
    🔐 Protected Route
 ============================ */
-function ProtectedRoute({ children }: { children: ReactNode }) {
+function ProtectedRoute({
+  children,
+  requireAccess = true,
+}: {
+  children: ReactNode;
+  requireAccess?: boolean;
+}) {
   const { user, initializing } = useAuth();
 
-  if (initializing) {
-    return <div className="page">Loading...</div>;
+  if (initializing) return <div className="page">Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (requireAccess && user.hasAccess === false) {
+    return <Navigate to="/dashboard" replace />;
   }
 
-  if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
@@ -47,10 +55,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, initializing } = useAuth();
 
-  if (initializing) {
-    return <div className="page">Loading...</div>;
-  }
-
+  if (initializing) return <div className="page">Loading...</div>;
   if (user) return <Navigate to="/home" replace />;
   return <>{children}</>;
 }
@@ -65,8 +70,9 @@ function readStoredAvatar(email?: string | null): string | null {
     const raw = localStorage.getItem(key);
     if (!raw || raw === "undefined" || raw === "null") return null;
     const parsed = JSON.parse(raw);
-    const url = typeof parsed?.avatarUrl === "string" ? parsed.avatarUrl.trim() : "";
-    return url ? url : null;
+    const url =
+      typeof parsed?.avatarUrl === "string" ? parsed.avatarUrl.trim() : "";
+    return url || null;
   } catch {
     return null;
   }
@@ -76,10 +82,45 @@ function readStoredAvatar(email?: string | null): string | null {
    APP
 ============================ */
 export default function App() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const location = useLocation();
 
-  // ===== Display name =====
+  // ============================
+  // BILLING STATUS
+  // ============================
+  const [billingChecked, setBillingChecked] = useState(false);
+
+  const loadBillingStatus = useCallback(async () => {
+    if (!user?.email) {
+      setBillingChecked(true);
+      return;
+    }
+
+    try {
+      const res = await axios.get("/billing/status");
+      updateUser({
+        ...user,
+        hasAccess: res.data?.hasAccess ?? false,
+        planType: res.data?.planType,
+      });
+    } catch {
+      updateUser({ ...user, hasAccess: false });
+    } finally {
+      setBillingChecked(true);
+    }
+  }, [user, updateUser]);
+
+  useEffect(() => {
+    loadBillingStatus();
+  }, [loadBillingStatus]);
+
+  if (user && !billingChecked) {
+    return <div className="page">Checking subscription…</div>;
+  }
+
+  // ============================
+  // NAV INFO
+  // ============================
   const navDisplayName =
     user?.firstName ||
     user?.name?.split(" ")[0] ||
@@ -88,14 +129,13 @@ export default function App() {
 
   const userInitial = navDisplayName.charAt(0).toUpperCase();
 
-  // ✅ Avatar to show (user first, fallback to localStorage extra)
   const avatarFromStorage = readStoredAvatar(user?.email ?? null);
   const avatarToShow =
-    (user?.avatarUrl && user.avatarUrl.trim()) ||
-    avatarFromStorage ||
-    "";
+    (user?.avatarUrl && user.avatarUrl.trim()) || avatarFromStorage || "";
 
-  // ===== Badges =====
+  // ============================
+  // BADGES
+  // ============================
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingConnectionsCount, setPendingConnectionsCount] = useState(0);
   const prevPendingRef = useRef(0);
@@ -135,9 +175,12 @@ export default function App() {
   const Badge = ({ value }: { value: number }) =>
     value > 0 ? <span className="badge">{value}</span> : null;
 
+  // ============================
+  // UI
+  // ============================
   return (
     <div className="app">
-      {/* ========== HEADER ========== */}
+      {/* HEADER */}
       <header className="site-header">
         <div className="site-header-logo-block">
           <img src={logo} alt="Rycus" className="site-header-logo" />
@@ -150,28 +193,26 @@ export default function App() {
             <>
               <Link to="/profile" className="nav-profile-link">
                 <div className="nav-avatar">
-                  {avatarToShow ? (
-                    <img src={avatarToShow} alt="avatar" />
-                  ) : (
-                    <span>{userInitial}</span>
-                  )}
+                  {avatarToShow ? <img src={avatarToShow} /> : <span>{userInitial}</span>}
                 </div>
                 <span>{navDisplayName}</span>
               </Link>
 
               <Link to="/home">🏠 Home</Link>
               <Link to="/dashboard">📊 Dashboard</Link>
-              <Link to="/customers">👥 Customers</Link>
 
-              <Link to="/connections">
-                🤝 Network <Badge value={pendingConnectionsCount} />
-              </Link>
-
-              <Link to="/inbox">
-                💬 Messages <Badge value={unreadCount} />
-              </Link>
-
-              <Link to="/users">🙋‍♂️ Users</Link>
+              {user.hasAccess && (
+                <>
+                  <Link to="/customers">👥 Customers</Link>
+                  <Link to="/connections">
+                    🤝 Network <Badge value={pendingConnectionsCount} />
+                  </Link>
+                  <Link to="/inbox">
+                    💬 Messages <Badge value={unreadCount} />
+                  </Link>
+                  <Link to="/users">🙋‍♂️ Users</Link>
+                </>
+              )}
 
               <button className="logoutBtn" onClick={logout}>
                 Logout
@@ -187,48 +228,18 @@ export default function App() {
         </nav>
       </header>
 
-      {/* ========== ROUTES ========== */}
+      {/* ROUTES */}
       <main className="main">
         <Routes>
           {/* PUBLIC */}
-          <Route
-            path="/"
-            element={
-              <PublicOnlyRoute>
-                <HomePage />
-              </PublicOnlyRoute>
-            }
-          />
-
-          <Route
-            path="/login"
-            element={
-              <PublicOnlyRoute>
-                <LoginPage />
-              </PublicOnlyRoute>
-            }
-          />
-
-          <Route
-            path="/register"
-            element={
-              <PublicOnlyRoute>
-                <RegisterPage />
-              </PublicOnlyRoute>
-            }
-          />
+          <Route path="/" element={<PublicOnlyRoute><HomePage /></PublicOnlyRoute>} />
+          <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+          <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
 
           {/* PRIVATE */}
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <FeedPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/home" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute requireAccess={false}><DashboardPage /></ProtectedRoute>} />
 
-          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route path="/customers" element={<ProtectedRoute><CustomerListPage /></ProtectedRoute>} />
           <Route path="/customers/new" element={<ProtectedRoute><CustomerCreatePage /></ProtectedRoute>} />
           <Route path="/customers/:id" element={<ProtectedRoute><CustomerReviewsPage /></ProtectedRoute>} />
@@ -242,7 +253,6 @@ export default function App() {
           <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
           <Route path="/messages/:otherEmail" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
 
-          {/* FALLBACK */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
