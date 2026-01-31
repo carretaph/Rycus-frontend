@@ -12,7 +12,7 @@ export interface User {
   id: number;
   email: string;
 
-  // display
+  // display (tu app usa esto para "Hola X")
   name?: string;
 
   // profile fields
@@ -35,11 +35,9 @@ interface AuthContextType {
   login: (userData: User, token: string) => void;
   logout: () => void;
 
-  // local updates
   updateAvatar: (avatarUrl: string) => void;
   updateUser: (patch: Partial<User>) => void;
 
-  // ✅ NEW: move profile extras from old email -> new email
   moveExtrasToNewEmail: (oldEmail: string, newEmail: string) => void;
 
   initializing: boolean;
@@ -50,10 +48,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const USER_KEY = "rycus_user";
 const TOKEN_KEY = "rycus_token";
 
-// ✅ extra POR EMAIL (evita mezclar usuarios)
 const EXTRA_KEY_PREFIX = "rycus_profile_extra_";
-
-// 🔻 legacy global (migración)
 const LEGACY_EXTRA_KEY = "rycus_profile_extra";
 
 type ProfileExtra = Partial<
@@ -73,9 +68,7 @@ type ProfileExtra = Partial<
 >;
 
 const getExtraKey = (email?: string | null) =>
-  email
-    ? `${EXTRA_KEY_PREFIX}${email.toLowerCase()}`
-    : `${EXTRA_KEY_PREFIX}guest`;
+  email ? `${EXTRA_KEY_PREFIX}${email.toLowerCase()}` : `${EXTRA_KEY_PREFIX}guest`;
 
 function setAxiosAuthHeader(token: string | null) {
   if (token) {
@@ -119,6 +112,18 @@ function sanitizePatch(patch: Partial<User>): Partial<User> {
     else (next as any).name = cleaned;
   }
 
+  if ("firstName" in next) {
+    const cleaned = cleanString((next as any).firstName);
+    if (!cleaned) delete (next as any).firstName;
+    else (next as any).firstName = cleaned;
+  }
+
+  if ("lastName" in next) {
+    const cleaned = cleanString((next as any).lastName);
+    if (!cleaned) delete (next as any).lastName;
+    else (next as any).lastName = cleaned;
+  }
+
   return next;
 }
 
@@ -128,9 +133,24 @@ function mergeUser(prev: User, patch: Partial<User>): User {
   return { ...prev, ...safe };
 }
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+// ✅ Construye nombre display de forma robusta
+function buildDisplayName(u: Partial<User>): string | undefined {
+  const fromName = cleanString((u as any).name);
+  if (fromName) return fromName;
+
+  const fn = cleanString((u as any).firstName);
+  const ln = cleanString((u as any).lastName);
+  const combo = [fn, ln].filter(Boolean).join(" ").trim();
+  if (combo) return combo;
+
+  // fallback: email prefix
+  const email = cleanString((u as any).email);
+  if (email && email.includes("@")) return email.split("@")[0];
+
+  return undefined;
+}
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
@@ -161,9 +181,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   // ✅ Migración del legacy EXTRA_KEY (global) al extra por email
   const migrateLegacyExtraIfNeeded = (email: string) => {
     try {
-      const legacy = safeParse<ProfileExtra>(
-        localStorage.getItem(LEGACY_EXTRA_KEY)
-      );
+      const legacy = safeParse<ProfileExtra>(localStorage.getItem(LEGACY_EXTRA_KEY));
       if (!legacy) return;
 
       const emailKey = getExtraKey(email);
@@ -180,7 +198,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  // ✅ NEW: move extras old -> new (useful after change email)
+  // ✅ move extras old -> new (useful after change email)
   const moveExtrasToNewEmail = (oldEmail: string, newEmail: string) => {
     try {
       const oldKey = getExtraKey(oldEmail);
@@ -205,16 +223,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       const res = await axiosClient.get("/users/me", { params: { email } });
       const fresh = res.data as any;
 
+      // 👇 Soporta camelCase + snake_case + name
+      const fullNameCandidate =
+        cleanString(fresh?.fullName) ||
+        cleanString(fresh?.full_name) ||
+        cleanString(fresh?.name);
+
+      const freshFirst =
+        cleanString(fresh?.firstName) || cleanString(fresh?.first_name);
+      const freshLast =
+        cleanString(fresh?.lastName) || cleanString(fresh?.last_name);
+
+      // Si no viene first/last pero sí fullName, derivamos
+      let derivedFirst = freshFirst;
+      let derivedLast = freshLast;
+
+      if ((!derivedFirst || !derivedLast) && fullNameCandidate) {
+        const parts = fullNameCandidate.split(" ").filter(Boolean);
+        if (!derivedFirst && parts.length >= 1) derivedFirst = parts[0];
+        if (!derivedLast && parts.length >= 2) derivedLast = parts.slice(1).join(" ");
+      }
+
       const patch: Partial<User> = {
         id: typeof fresh?.id === "number" ? fresh.id : base.id,
-        email: fresh?.email ?? base.email,
-        name: fresh?.fullName ?? base.name,
-        avatarUrl: fresh?.avatarUrl ?? base.avatarUrl,
-        phone: fresh?.phone ?? base.phone,
-        businessName: fresh?.businessName ?? base.businessName,
-        city: fresh?.city ?? base.city,
-        state: fresh?.state ?? base.state,
+        email: cleanString(fresh?.email) ?? base.email,
+
+        // ✅ Source of truth: use fullName if present, else keep base
+        name: fullNameCandidate ?? base.name,
+
+        // also keep first/last for UI that uses firstName
+        firstName: derivedFirst ?? base.firstName,
+        lastName: derivedLast ?? base.lastName,
+
+        avatarUrl: cleanString(fresh?.avatarUrl) ?? base.avatarUrl,
+        phone: cleanString(fresh?.phone) ?? base.phone,
+        businessName: cleanString(fresh?.businessName) ?? base.businessName,
+        city: cleanString(fresh?.city) ?? base.city,
+        state: cleanString(fresh?.state) ?? base.state,
+        zipcode: cleanString(fresh?.zipcode) ?? base.zipcode,
+        address: cleanString(fresh?.address) ?? base.address,
       };
+
+      // ✅ si todavía no hay name, construirlo
+      if (!patch.name) {
+        patch.name = buildDisplayName({ ...base, ...patch });
+      }
 
       const updated = mergeUser(base, patch);
 
@@ -226,24 +279,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         persistExtraForEmail(updated.email, {
           avatarUrl: updated.avatarUrl,
           name: updated.name,
+          firstName: updated.firstName,
+          lastName: updated.lastName,
           phone: updated.phone,
           businessName: updated.businessName,
+          address: updated.address,
           city: updated.city,
           state: updated.state,
-        } as any);
+          zipcode: updated.zipcode,
+        });
       }
     } catch {
-      // no-op (keep local storage data if backend fails)
+      // keep local storage data if backend fails
     }
   };
 
   useEffect(() => {
     (async () => {
       try {
-        // =========================================================
-        // ✅ MIGRACIÓN TOKEN (anti rollback)
-        // Si un build viejo guardó token en "token", lo movemos a "rycus_token"
-        // =========================================================
         const legacyToken = localStorage.getItem("token");
         const existing = localStorage.getItem(TOKEN_KEY);
 
@@ -257,13 +310,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
         const parsedUser = safeParse<User>(storedUserRaw);
 
-        const parsedExtra = parsedUser?.email
-          ? readExtraForEmail(parsedUser.email)
-          : {};
+        const parsedExtra = parsedUser?.email ? readExtraForEmail(parsedUser.email) : {};
 
         const mergedUser: User | null = parsedUser
           ? (mergeUser(parsedUser, parsedExtra ?? {}) as User)
           : null;
+
+        // ✅ ensure name exists
+        if (mergedUser && !mergedUser.name) {
+          mergedUser.name = buildDisplayName(mergedUser);
+        }
 
         if (mergedUser) setUser(mergedUser);
 
@@ -295,22 +351,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   const login = (userData: User, newToken: string) => {
-    if (userData?.email) {
-      migrateLegacyExtraIfNeeded(userData.email);
+    const base: User = {
+      ...userData,
+      // ✅ garantizamos que name no quede vacío
+      name: buildDisplayName(userData),
+    };
+
+    if (base?.email) {
+      migrateLegacyExtraIfNeeded(base.email);
     }
 
-    const extra = userData?.email ? readExtraForEmail(userData.email) : {};
-    const merged: User = mergeUser(userData, extra);
+    const extra = base?.email ? readExtraForEmail(base.email) : {};
+    const merged: User = mergeUser(base, extra);
+
+    // ✅ si aún queda sin name, construye fallback final
+    if (!merged.name) merged.name = buildDisplayName(merged);
 
     setUser(merged);
     setToken(newToken);
     persistUser(merged);
 
-    // ✅ Fuente de verdad del token
     localStorage.setItem(TOKEN_KEY, newToken);
     setAxiosAuthHeader(newToken);
 
-    // ✅ Best-effort rehydrate from backend so header avatar/name are fresh
+    // ✅ Best-effort rehydrate from backend so header/avatar/name are fresh
     if (merged?.email) {
       void rehydrateUserFromBackend(merged.email, merged);
     }
@@ -348,6 +412,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       if (!prev) return prev;
 
       const updated: User = mergeUser(prev, patch);
+
+      // ✅ si name quedó vacío, intenta reconstruirlo
+      if (!updated.name) updated.name = buildDisplayName(updated);
+
       persistUser(updated);
 
       if (prev.email) {
