@@ -12,6 +12,10 @@ export interface User {
   id: number;
   email: string;
 
+  // ✅ billing / access gate (needed by App.tsx)
+  hasAccess?: boolean;
+  planType?: string;
+
   // display (tu app usa esto para "Hola X")
   name?: string;
 
@@ -64,6 +68,8 @@ type ProfileExtra = Partial<
     | "zipcode"
     | "avatarUrl"
     | "name"
+    | "hasAccess"
+    | "planType"
   >
 >;
 
@@ -124,6 +130,7 @@ function sanitizePatch(patch: Partial<User>): Partial<User> {
     else (next as any).lastName = cleaned;
   }
 
+  // hasAccess/planType no requieren sanitize (opcionales)
   return next;
 }
 
@@ -223,7 +230,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const res = await axiosClient.get("/users/me", { params: { email } });
       const fresh = res.data as any;
 
-      // 👇 Soporta camelCase + snake_case + name
       const fullNameCandidate =
         cleanString(fresh?.fullName) ||
         cleanString(fresh?.full_name) ||
@@ -234,7 +240,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const freshLast =
         cleanString(fresh?.lastName) || cleanString(fresh?.last_name);
 
-      // Si no viene first/last pero sí fullName, derivamos
       let derivedFirst = freshFirst;
       let derivedLast = freshLast;
 
@@ -247,14 +252,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const patch: Partial<User> = {
         id: typeof fresh?.id === "number" ? fresh.id : base.id,
         email: cleanString(fresh?.email) ?? base.email,
-
-        // ✅ Source of truth: use fullName if present, else keep base
         name: fullNameCandidate ?? base.name,
-
-        // also keep first/last for UI that uses firstName
         firstName: derivedFirst ?? base.firstName,
         lastName: derivedLast ?? base.lastName,
-
         avatarUrl: cleanString(fresh?.avatarUrl) ?? base.avatarUrl,
         phone: cleanString(fresh?.phone) ?? base.phone,
         businessName: cleanString(fresh?.businessName) ?? base.businessName,
@@ -262,9 +262,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         state: cleanString(fresh?.state) ?? base.state,
         zipcode: cleanString(fresh?.zipcode) ?? base.zipcode,
         address: cleanString(fresh?.address) ?? base.address,
+        // billing (if backend ever returns it)
+        hasAccess: typeof fresh?.hasAccess === "boolean" ? fresh.hasAccess : base.hasAccess,
+        planType: cleanString(fresh?.planType) ?? base.planType,
       };
 
-      // ✅ si todavía no hay name, construirlo
       if (!patch.name) {
         patch.name = buildDisplayName({ ...base, ...patch });
       }
@@ -274,7 +276,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(updated);
       persistUser(updated);
 
-      // persist extra for header fallback and profile fields
       if (updated.email) {
         persistExtraForEmail(updated.email, {
           avatarUrl: updated.avatarUrl,
@@ -287,6 +288,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           city: updated.city,
           state: updated.state,
           zipcode: updated.zipcode,
+          hasAccess: updated.hasAccess,
+          planType: updated.planType,
         });
       }
     } catch {
@@ -316,7 +319,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           ? (mergeUser(parsedUser, parsedExtra ?? {}) as User)
           : null;
 
-        // ✅ ensure name exists
         if (mergedUser && !mergedUser.name) {
           mergedUser.name = buildDisplayName(mergedUser);
         }
@@ -332,7 +334,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (mergedUser) persistUser(mergedUser);
 
-        // ✅ Rehydrate from backend if we have token + email
         if (storedToken && mergedUser?.email) {
           await rehydrateUserFromBackend(mergedUser.email, mergedUser);
         }
@@ -353,7 +354,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = (userData: User, newToken: string) => {
     const base: User = {
       ...userData,
-      // ✅ garantizamos que name no quede vacío
       name: buildDisplayName(userData),
     };
 
@@ -364,7 +364,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const extra = base?.email ? readExtraForEmail(base.email) : {};
     const merged: User = mergeUser(base, extra);
 
-    // ✅ si aún queda sin name, construye fallback final
     if (!merged.name) merged.name = buildDisplayName(merged);
 
     setUser(merged);
@@ -374,7 +373,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem(TOKEN_KEY, newToken);
     setAxiosAuthHeader(newToken);
 
-    // ✅ Best-effort rehydrate from backend so header/avatar/name are fresh
     if (merged?.email) {
       void rehydrateUserFromBackend(merged.email, merged);
     }
@@ -413,7 +411,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const updated: User = mergeUser(prev, patch);
 
-      // ✅ si name quedó vacío, intenta reconstruirlo
       if (!updated.name) updated.name = buildDisplayName(updated);
 
       persistUser(updated);
