@@ -92,12 +92,20 @@ export default function App() {
   const location = useLocation();
 
   // ============================
-  // BILLING STATUS (robusto)
+  // BILLING STATUS (robusto + DEV safe)
   // ============================
   const [billingChecked, setBillingChecked] = useState(false);
 
   const loadBillingStatus = useCallback(async () => {
     if (!user?.email) {
+      setBillingChecked(true);
+      return;
+    }
+
+    // ✅ En LOCAL no tenemos backend billing corriendo en :8080,
+    // así que evitamos spamear 404 y dejamos acceso abierto.
+    if (import.meta.env.DEV) {
+      updateUser({ hasAccess: true });
       setBillingChecked(true);
       return;
     }
