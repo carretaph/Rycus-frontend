@@ -42,6 +42,7 @@ function ProtectedRoute({
   if (initializing) return <div className="page">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
 
+  // ✅ Solo bloquea si hasAccess es EXPLICITAMENTE false
   if (requireAccess && user.hasAccess === false) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -98,17 +99,28 @@ export default function App() {
 
     try {
       const res = await axios.get("/billing/status");
+
+      // ✅ Soporta ambos formatos:
+      // - { hasAccess: true/false } (si lo implementas así)
+      // - { active: true/false } (como venía antes)
+      const serverHasAccess =
+        typeof res.data?.hasAccess === "boolean"
+          ? res.data.hasAccess
+          : typeof res.data?.active === "boolean"
+          ? res.data.active
+          : true; // fallback seguro
+
       updateUser({
-        ...user,
-        hasAccess: res.data?.hasAccess ?? false,
+        hasAccess: serverHasAccess,
         planType: res.data?.planType,
       });
     } catch {
-      updateUser({ ...user, hasAccess: false });
+      // ✅ fallback seguro: si el endpoint falla, NO mates el menú
+      updateUser({ hasAccess: true });
     } finally {
       setBillingChecked(true);
     }
-  }, [user, updateUser]);
+  }, [user?.email, updateUser]);
 
   useEffect(() => {
     loadBillingStatus();
@@ -132,6 +144,9 @@ export default function App() {
   const avatarFromStorage = readStoredAvatar(user?.email ?? null);
   const avatarToShow =
     (user?.avatarUrl && user.avatarUrl.trim()) || avatarFromStorage || "";
+
+  // ✅ Solo ocultamos cosas si hasAccess === false
+  const hasAccess = user?.hasAccess !== false;
 
   // ============================
   // BADGES
@@ -193,7 +208,11 @@ export default function App() {
             <>
               <Link to="/profile" className="nav-profile-link">
                 <div className="nav-avatar">
-                  {avatarToShow ? <img src={avatarToShow} /> : <span>{userInitial}</span>}
+                  {avatarToShow ? (
+                    <img src={avatarToShow} alt="avatar" />
+                  ) : (
+                    <span>{userInitial}</span>
+                  )}
                 </div>
                 <span>{navDisplayName}</span>
               </Link>
@@ -201,7 +220,7 @@ export default function App() {
               <Link to="/home">🏠 Home</Link>
               <Link to="/dashboard">📊 Dashboard</Link>
 
-              {user.hasAccess && (
+              {hasAccess && (
                 <>
                   <Link to="/customers">👥 Customers</Link>
                   <Link to="/connections">
