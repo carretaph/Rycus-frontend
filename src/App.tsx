@@ -25,6 +25,11 @@ import ProfilePage from "./pages/ProfilePage";
 import InboxPage from "./pages/InboxPage";
 import MessagesPage from "./pages/MessagesPage";
 
+// ✅ BILLING / PAYMENT PAGES
+import ActivatePage from "./pages/ActivatePage";
+import BillingSuccessPage from "./pages/BillingSuccessPage";
+import BillingCancelPage from "./pages/BillingCancelPage";
+
 import logo from "./assets/rycus-logo.png";
 
 /* ============================
@@ -87,7 +92,7 @@ export default function App() {
   const location = useLocation();
 
   // ============================
-  // BILLING STATUS
+  // BILLING STATUS (robusto)
   // ============================
   const [billingChecked, setBillingChecked] = useState(false);
 
@@ -100,9 +105,9 @@ export default function App() {
     try {
       const res = await axios.get("/billing/status");
 
-      // ✅ Soporta ambos formatos:
-      // - { hasAccess: true/false } (si lo implementas así)
-      // - { active: true/false } (como venía antes)
+      // ✅ soporta:
+      // - { hasAccess: boolean }
+      // - { active: boolean }
       const serverHasAccess =
         typeof res.data?.hasAccess === "boolean"
           ? res.data.hasAccess
@@ -130,6 +135,9 @@ export default function App() {
     return <div className="page">Checking subscription…</div>;
   }
 
+  // ✅ Solo ocultamos cosas si hasAccess === false
+  const hasAccess = user?.hasAccess !== false;
+
   // ============================
   // NAV INFO
   // ============================
@@ -144,9 +152,6 @@ export default function App() {
   const avatarFromStorage = readStoredAvatar(user?.email ?? null);
   const avatarToShow =
     (user?.avatarUrl && user.avatarUrl.trim()) || avatarFromStorage || "";
-
-  // ✅ Solo ocultamos cosas si hasAccess === false
-  const hasAccess = user?.hasAccess !== false;
 
   // ============================
   // BADGES
@@ -195,7 +200,7 @@ export default function App() {
   // ============================
   return (
     <div className="app">
-      {/* HEADER */}
+      {/* ========== HEADER ========== */}
       <header className="site-header">
         <div className="site-header-logo-block">
           <img src={logo} alt="Rycus" className="site-header-logo" />
@@ -223,14 +228,23 @@ export default function App() {
               {hasAccess && (
                 <>
                   <Link to="/customers">👥 Customers</Link>
+
                   <Link to="/connections">
                     🤝 Network <Badge value={pendingConnectionsCount} />
                   </Link>
+
                   <Link to="/inbox">
                     💬 Messages <Badge value={unreadCount} />
                   </Link>
+
                   <Link to="/users">🙋‍♂️ Users</Link>
                 </>
+              )}
+
+              {!hasAccess && (
+                <Link to="/activate" style={{ fontWeight: 700 }}>
+                  🔒 Activate
+                </Link>
               )}
 
               <button className="logoutBtn" onClick={logout}>
@@ -247,31 +261,166 @@ export default function App() {
         </nav>
       </header>
 
-      {/* ROUTES */}
+      {/* ========== ROUTES ========== */}
       <main className="main">
         <Routes>
           {/* PUBLIC */}
-          <Route path="/" element={<PublicOnlyRoute><HomePage /></PublicOnlyRoute>} />
-          <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
-          <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+          <Route
+            path="/"
+            element={
+              <PublicOnlyRoute>
+                <HomePage />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <LoginPage />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicOnlyRoute>
+                <RegisterPage />
+              </PublicOnlyRoute>
+            }
+          />
 
           {/* PRIVATE */}
-          <Route path="/home" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute requireAccess={false}><DashboardPage /></ProtectedRoute>} />
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <FeedPage />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/customers" element={<ProtectedRoute><CustomerListPage /></ProtectedRoute>} />
-          <Route path="/customers/new" element={<ProtectedRoute><CustomerCreatePage /></ProtectedRoute>} />
-          <Route path="/customers/:id" element={<ProtectedRoute><CustomerReviewsPage /></ProtectedRoute>} />
-          <Route path="/customers/:id/edit" element={<ProtectedRoute><CustomerEditPage /></ProtectedRoute>} />
+          {/* ✅ Dashboard siempre accesible (aunque no pague) */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute requireAccess={false}>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/users" element={<ProtectedRoute><UsersSearchPage /></ProtectedRoute>} />
-          <Route path="/users/:id" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
-          <Route path="/connections" element={<ProtectedRoute><UserConnectionsPage /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          {/* ✅ Activate / Billing routes (no requieren acceso) */}
+          <Route
+            path="/activate"
+            element={
+              <ProtectedRoute requireAccess={false}>
+                <ActivatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/billing/success"
+            element={
+              <ProtectedRoute requireAccess={false}>
+                <BillingSuccessPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/billing/cancel"
+            element={
+              <ProtectedRoute requireAccess={false}>
+                <BillingCancelPage />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
-          <Route path="/messages/:otherEmail" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+          {/* gated routes */}
+          <Route
+            path="/customers"
+            element={
+              <ProtectedRoute>
+                <CustomerListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers/new"
+            element={
+              <ProtectedRoute>
+                <CustomerCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers/:id"
+            element={
+              <ProtectedRoute>
+                <CustomerReviewsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers/:id/edit"
+            element={
+              <ProtectedRoute>
+                <CustomerEditPage />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <UsersSearchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users/:id"
+            element={
+              <ProtectedRoute>
+                <UserProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/connections"
+            element={
+              <ProtectedRoute>
+                <UserConnectionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/inbox"
+            element={
+              <ProtectedRoute>
+                <InboxPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages/:otherEmail"
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* FALLBACK */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
