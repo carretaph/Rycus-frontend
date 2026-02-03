@@ -20,13 +20,13 @@ const RegisterPage: React.FC = () => {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState(""); // opcional
+  const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [zipcode, setZipcode] = useState("");
   const [stateValue, setStateValue] = useState("");
-  const [accountType, setAccountType] = useState(""); // industria seleccionada
+  const [accountType, setAccountType] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +44,7 @@ const RegisterPage: React.FC = () => {
       `${firstName.trim()} ${lastName.trim()}`.trim() || emailTrimmed;
 
     try {
-      // 1) Registrar usuario en el backend
+      // 1) Register
       const response = await axiosClient.post("/auth/register", {
         fullName,
         email: emailTrimmed,
@@ -55,12 +55,12 @@ const RegisterPage: React.FC = () => {
       const data = response.data;
       const apiUser = data?.user ?? null;
 
-      const safeUser = {
+      const safeUser: any = {
         id: apiUser?.id ?? data?.id ?? 0,
         email: apiUser?.email ?? data?.email ?? emailTrimmed,
         name: apiUser?.fullName ?? apiUser?.name ?? data?.fullName ?? fullName,
         phone: apiUser?.phone ?? data?.phone ?? (phone.trim() || undefined),
-        // ✅ IMPORTANT: card required -> empieza sin acceso
+        // ✅ card required: empieza bloqueado
         hasAccess: false,
       };
 
@@ -71,10 +71,10 @@ const RegisterPage: React.FC = () => {
         data?.authToken ??
         "";
 
-      // 2) Login en AuthContext (aunque token venga vacío, mantenemos flow)
-      login(safeUser as any, token);
+      // 2) Login (aunque token venga vacío, guardamos usuario y seguimos)
+      login(safeUser, token);
 
-      // 3) Guardar datos extra en localStorage
+      // 3) Save extra profile
       const extraProfile = {
         firstName,
         lastName,
@@ -86,11 +86,10 @@ const RegisterPage: React.FC = () => {
         state: stateValue,
         industry: accountType,
       };
-
       const extraKey = `${EXTRA_KEY_PREFIX}${emailTrimmed}`;
       localStorage.setItem(extraKey, JSON.stringify(extraProfile));
 
-      // 4) Traer perfil mini del backend (nombre+avatar)
+      // 4) Fetch mini profile (best effort)
       try {
         const miniRes = await axiosClient.get<UserMini>("/users/by-email", {
           params: { email: emailTrimmed },
@@ -99,19 +98,18 @@ const RegisterPage: React.FC = () => {
         const fetchedFullName = (miniRes.data?.fullName || "").trim();
         const fetchedAvatarUrl = (miniRes.data?.avatarUrl || "").trim();
 
-        // ✅ mantenemos hasAccess=false pase lo que pase
         updateUser({
           name: fetchedFullName || safeUser.name || fullName,
           avatarUrl: fetchedAvatarUrl || undefined,
-          hasAccess: false,
+          hasAccess: false, // ✅ siempre bloqueado hasta pagar
         });
       } catch (e2) {
-        // si falla, igual seguimos a activate
-        console.warn("Could not load user mini profile after register:", e2);
+        console.warn("Could not load mini profile after register:", e2);
         updateUser({ hasAccess: false });
       }
 
-      // ✅ 5) Pago inmediato
+      // ✅ 5) Payment immediately
+      updateUser({ hasAccess: false });
       navigate("/activate", { replace: true });
     } catch (err: any) {
       console.error("Register error:", err);
@@ -144,7 +142,6 @@ const RegisterPage: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            {/* First name */}
             <div>
               <label htmlFor="firstName">First name</label>
               <input
@@ -157,7 +154,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* Last name */}
             <div>
               <label htmlFor="lastName">Last name</label>
               <input
@@ -170,7 +166,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* Phone */}
             <div className="form-grid-full">
               <label htmlFor="phone">
                 Phone <span style={{ color: "#9ca3af" }}>(optional)</span>
@@ -185,7 +180,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* Business name */}
             <div className="form-grid-full">
               <label htmlFor="businessName">
                 Business name{" "}
@@ -200,7 +194,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* Address */}
             <div className="form-grid-full">
               <label htmlFor="address">
                 Address <span style={{ color: "#9ca3af" }}>(optional)</span>
@@ -214,7 +207,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* City */}
             <div>
               <label htmlFor="city">City</label>
               <input
@@ -227,7 +219,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* ZIP */}
             <div>
               <label htmlFor="zipcode">ZIP code</label>
               <input
@@ -240,7 +231,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* State */}
             <div>
               <label htmlFor="state">State</label>
               <select
@@ -259,7 +249,6 @@ const RegisterPage: React.FC = () => {
               </select>
             </div>
 
-            {/* Industry */}
             <div>
               <label htmlFor="accountType">Industry</label>
               <select
@@ -278,7 +267,6 @@ const RegisterPage: React.FC = () => {
               </select>
             </div>
 
-            {/* Email */}
             <div className="form-grid-full">
               <label htmlFor="email">Email</label>
               <input
@@ -292,7 +280,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* Password */}
             <div className="form-grid-full">
               <label htmlFor="password">Password</label>
               <input

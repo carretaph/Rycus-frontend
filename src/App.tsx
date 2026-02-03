@@ -35,8 +35,7 @@ import logo from "./assets/rycus-logo.png";
 /* ============================
    🔐 Protected Route (AUTH + optional BILLING)
    - requireAccess=false => solo login
-   - requireAccess=true  => login + billing (hasAccess === true)
-   IMPORTANT: Si hasAccess es false o it's unknown, tratamos como NO access.
+   - requireAccess=true  => login + billing (hasAccess MUST be true)
 ============================ */
 function ProtectedRoute({
   children,
@@ -51,8 +50,7 @@ function ProtectedRoute({
   if (initializing) return <div className="page">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
 
-  // ✅ Pago primero: cualquier cosa distinta de true se considera NO access
-  // (false o undefined => redirect a /activate)
+  // ✅ CARD REQUIRED: si requiere acceso, solo pasa cuando hasAccess === true
   if (requireAccess && user.hasAccess !== true) {
     return (
       <Navigate to="/activate" replace state={{ from: location.pathname }} />
@@ -64,12 +62,13 @@ function ProtectedRoute({
 
 /* ============================
    🌐 Public Only Route
+   - si ya está logueado => manda a /activate (pago primero)
 ============================ */
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, initializing } = useAuth();
 
   if (initializing) return <div className="page">Loading...</div>;
-  if (user) return <Navigate to="/activate" replace />; // ✅ si está logueado, va a activar
+  if (user) return <Navigate to="/activate" replace />;
   return <>{children}</>;
 }
 
@@ -104,35 +103,26 @@ export default function App() {
   const [billingChecked, setBillingChecked] = useState(false);
 
   const loadBillingStatus = useCallback(async () => {
-    // ✅ si no hay user, marcamos como checked y salimos
     if (!user?.email) {
       setBillingChecked(true);
       return;
     }
 
-    // ✅ evita loops si por alguna razón se llama otra vez
     if (billingChecked) return;
 
-    // ✅ En DEV: por defecto permitimos para que puedas desarrollar sin pagar
-    // Si quieres que incluso en DEV exija tarjeta, dime y lo cambiamos.
-    if (import.meta.env.DEV) {
-      if (user.hasAccess !== true) updateUser({ hasAccess: true });
-      setBillingChecked(true);
-      return;
-    }
-
+    // ✅ CARD REQUIRED EVEN IN DEV:
+    // No “auto-access” en dev. Si quieres dev libre, dímelo y lo hacemos por env var.
     try {
       const res = await axios.get("/billing/status");
 
-      // ✅ Pago primero: default es false si no viene explícitamente true
       const serverHasAccess =
         typeof res.data?.hasAccess === "boolean"
           ? res.data.hasAccess
           : typeof res.data?.active === "boolean"
           ? res.data.active
-          : false;
+          : false; // ✅ default: NO access
 
-      // ✅ solo update si cambia o si falta
+      // ✅ solo actualiza si cambia
       if (user.hasAccess !== serverHasAccess) {
         updateUser({
           hasAccess: serverHasAccess,
@@ -141,12 +131,9 @@ export default function App() {
       } else if (typeof res.data?.planType !== "undefined") {
         updateUser({ planType: res.data?.planType });
       }
-    } catch (err: any) {
-      // ✅ CLAVE para tu regla: si billing falla => NO access
-      // Así nadie entra sin tarjeta si el endpoint falla.
-      if (user.hasAccess !== false) {
-        updateUser({ hasAccess: false });
-      }
+    } catch (err) {
+      // ✅ Si falla billing/status, NO damos acceso.
+      // Solo dejamos hasAccess como esté (o undefined) => ProtectedRoute bloquea igual.
     } finally {
       setBillingChecked(true);
     }
@@ -156,12 +143,11 @@ export default function App() {
     if (!billingChecked) loadBillingStatus();
   }, [billingChecked, loadBillingStatus]);
 
-  // Mientras chequea billing, mostramos loader (solo cuando hay user)
   if (user && !billingChecked) {
     return <div className="page">Checking subscription…</div>;
   }
 
-  // ✅ Con tu regla: SOLO true es acceso
+  // ✅ SOLO true = acceso
   const hasAccess = user?.hasAccess === true;
 
   // ============================
@@ -180,7 +166,7 @@ export default function App() {
     (user?.avatarUrl && user.avatarUrl.trim()) || avatarFromStorage || "";
 
   // ============================
-  // BADGES (solo si tiene acceso)
+  // BADGES (solo con acceso)
   // ============================
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingConnectionsCount, setPendingConnectionsCount] = useState(0);
@@ -214,7 +200,6 @@ export default function App() {
   }, [user?.email]);
 
   useEffect(() => {
-    // ✅ Solo cargamos badges si tiene acceso (si no, ni pegamos al backend)
     if (!hasAccess) {
       setUnreadCount(0);
       setPendingConnectionsCount(0);
@@ -227,9 +212,6 @@ export default function App() {
   const Badge = ({ value }: { value: number }) =>
     value > 0 ? <span className="badge">{value}</span> : null;
 
-  // ============================
-  // UI
-  // ============================
   return (
     <div className="app">
       {/* ========== HEADER ========== */}
@@ -254,7 +236,6 @@ export default function App() {
                 <span>{navDisplayName}</span>
               </Link>
 
-              {/* ✅ Si NO tiene acceso, solo mostramos Activate */}
               {!hasAccess ? (
                 <Link to="/activate" style={{ fontWeight: 700 }}>
                   🔒 Activate
@@ -321,7 +302,7 @@ export default function App() {
             }
           />
 
-          {/* ✅ BILLING / ACTIVATE (solo login, NO requiere billing) */}
+          {/* ✅ ACTIVATE / BILLING (solo login) */}
           <Route
             path="/activate"
             element={
@@ -364,7 +345,6 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/customers"
             element={
@@ -441,7 +421,7 @@ export default function App() {
             }
           />
 
-          {/* ✅ Incluso Profile requiere billing (cero acceso sin tarjeta) */}
+          {/* ✅ CERO acceso sin tarjeta: profile también requiere billing */}
           <Route
             path="/profile"
             element={
