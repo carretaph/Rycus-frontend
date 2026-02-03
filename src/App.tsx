@@ -33,7 +33,9 @@ import BillingCancelPage from "./pages/BillingCancelPage";
 import logo from "./assets/rycus-logo.png";
 
 /* ============================
-   🔐 Protected Route
+   🔐 Protected Route (AUTH + optional BILLING)
+   - requireAccess=false => solo login
+   - requireAccess=true  => login + billing (hasAccess !== false)
 ============================ */
 function ProtectedRoute({
   children,
@@ -43,13 +45,17 @@ function ProtectedRoute({
   requireAccess?: boolean;
 }) {
   const { user, initializing } = useAuth();
+  const location = useLocation();
 
   if (initializing) return <div className="page">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
 
-  // ✅ Solo bloquea si hasAccess es EXPLICITAMENTE false
+  // ✅ Si requiere acceso y el servidor marcó hasAccess explícitamente false,
+  // redirige a Activate (pago primero).
   if (requireAccess && user.hasAccess === false) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <Navigate to="/activate" replace state={{ from: location.pathname }} />
+    );
   }
 
   return <>{children}</>;
@@ -103,12 +109,11 @@ export default function App() {
       return;
     }
 
-    // ✅ IMPORTANT: evita loops si por alguna razón se llama otra vez
+    // ✅ evita loops si por alguna razón se llama otra vez
     if (billingChecked) return;
 
-    // ✅ En DEV no queremos llamar /billing/status (para no spamear 404)
+    // ✅ En DEV no queremos llamar /billing/status
     if (import.meta.env.DEV) {
-      // setea una sola vez: no lo hagas en cada render
       if (user.hasAccess === false) updateUser({ hasAccess: true });
       setBillingChecked(true);
       return;
@@ -124,25 +129,18 @@ export default function App() {
           ? res.data.active
           : true;
 
-      // ✅ evita re-render innecesario: solo actualiza si cambió
       if (user.hasAccess !== serverHasAccess) {
         updateUser({
           hasAccess: serverHasAccess,
           planType: res.data?.planType,
         });
       } else if (typeof res.data?.planType !== "undefined") {
-        // por si solo quieres guardar planType
         updateUser({ planType: res.data?.planType });
       }
     } catch (err: any) {
-      // ✅ CLAVE: si /billing/status da 404 o falla, NO mutamos user (eso causaba loop)
-      // Solo marcamos billingChecked=true y dejamos el UI estable.
-      //
-      // Si quieres permitir acceso por defecto cuando billing no está listo:
-      //   - puedes setear hasAccess true SOLO si está explicitamente false
-      //     (pero OJO: eso puede volver a causar loops si algo resetea hasAccess).
+      // ✅ CLAVE: si /billing/status falla, NO loops
+      // Mantén UI estable. (Dejo tu fallback conservador)
       if (user.hasAccess === false) {
-        // fallback conservador: evita matar el menú si estaba false por error
         updateUser({ hasAccess: true });
       }
     } finally {
@@ -150,7 +148,6 @@ export default function App() {
     }
   }, [user?.email, user?.hasAccess, billingChecked, updateUser]);
 
-  // ✅ SOLO corre una vez por login (y no re-dispara si billingChecked ya es true)
   useEffect(() => {
     if (!billingChecked) loadBillingStatus();
   }, [billingChecked, loadBillingStatus]);
@@ -314,27 +311,27 @@ export default function App() {
             }
           />
 
-          {/* PRIVATE */}
+          {/* PRIVATE (login only) */}
           <Route
             path="/home"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={false}>
                 <FeedPage />
               </ProtectedRoute>
             }
           />
 
-          {/* ✅ Dashboard siempre accesible (aunque no pague) */}
+          {/* ✅ Dashboard AHORA requiere billing */}
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute requireAccess={false}>
+              <ProtectedRoute requireAccess={true}>
                 <DashboardPage />
               </ProtectedRoute>
             }
           />
 
-          {/* ✅ Activate / Billing routes (no requieren acceso) */}
+          {/* ✅ Activate / Billing routes (solo login, NO requieren billing) */}
           <Route
             path="/activate"
             element={
@@ -360,11 +357,11 @@ export default function App() {
             }
           />
 
-          {/* gated routes */}
+          {/* ✅ GATED ROUTES (billing required) */}
           <Route
             path="/customers"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <CustomerListPage />
               </ProtectedRoute>
             }
@@ -372,7 +369,7 @@ export default function App() {
           <Route
             path="/customers/new"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <CustomerCreatePage />
               </ProtectedRoute>
             }
@@ -380,7 +377,7 @@ export default function App() {
           <Route
             path="/customers/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <CustomerReviewsPage />
               </ProtectedRoute>
             }
@@ -388,7 +385,7 @@ export default function App() {
           <Route
             path="/customers/:id/edit"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <CustomerEditPage />
               </ProtectedRoute>
             }
@@ -397,7 +394,7 @@ export default function App() {
           <Route
             path="/users"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <UsersSearchPage />
               </ProtectedRoute>
             }
@@ -405,23 +402,26 @@ export default function App() {
           <Route
             path="/users/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <UserProfilePage />
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/connections"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <UserConnectionsPage />
               </ProtectedRoute>
             }
           />
+
+          {/* Profile (solo login) */}
           <Route
             path="/profile"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={false}>
                 <ProfilePage />
               </ProtectedRoute>
             }
@@ -430,7 +430,7 @@ export default function App() {
           <Route
             path="/inbox"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <InboxPage />
               </ProtectedRoute>
             }
@@ -438,7 +438,7 @@ export default function App() {
           <Route
             path="/messages/:otherEmail"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAccess={true}>
                 <MessagesPage />
               </ProtectedRoute>
             }
