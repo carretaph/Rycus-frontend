@@ -92,20 +92,24 @@ export default function App() {
   const location = useLocation();
 
   // ============================
-  // BILLING STATUS (robusto + DEV safe)
+  // BILLING STATUS (anti-loop)
   // ============================
   const [billingChecked, setBillingChecked] = useState(false);
 
   const loadBillingStatus = useCallback(async () => {
+    // ✅ si no hay user, marcamos como checked y salimos
     if (!user?.email) {
       setBillingChecked(true);
       return;
     }
 
-    // ✅ En LOCAL no tenemos backend billing corriendo en :8080,
-    // así que evitamos spamear 404 y dejamos acceso abierto.
+    // ✅ IMPORTANT: evita loops si por alguna razón se llama otra vez
+    if (billingChecked) return;
+
+    // ✅ En DEV no queremos llamar /billing/status (para no spamear 404)
     if (import.meta.env.DEV) {
-      updateUser({ hasAccess: true });
+      // setea una sola vez: no lo hagas en cada render
+      if (user.hasAccess === false) updateUser({ hasAccess: true });
       setBillingChecked(true);
       return;
     }
@@ -113,31 +117,43 @@ export default function App() {
     try {
       const res = await axios.get("/billing/status");
 
-      // ✅ soporta:
-      // - { hasAccess: boolean }
-      // - { active: boolean }
       const serverHasAccess =
         typeof res.data?.hasAccess === "boolean"
           ? res.data.hasAccess
           : typeof res.data?.active === "boolean"
           ? res.data.active
-          : true; // fallback seguro
+          : true;
 
-      updateUser({
-        hasAccess: serverHasAccess,
-        planType: res.data?.planType,
-      });
-    } catch {
-      // ✅ fallback seguro: si el endpoint falla, NO mates el menú
-      updateUser({ hasAccess: true });
+      // ✅ evita re-render innecesario: solo actualiza si cambió
+      if (user.hasAccess !== serverHasAccess) {
+        updateUser({
+          hasAccess: serverHasAccess,
+          planType: res.data?.planType,
+        });
+      } else if (typeof res.data?.planType !== "undefined") {
+        // por si solo quieres guardar planType
+        updateUser({ planType: res.data?.planType });
+      }
+    } catch (err: any) {
+      // ✅ CLAVE: si /billing/status da 404 o falla, NO mutamos user (eso causaba loop)
+      // Solo marcamos billingChecked=true y dejamos el UI estable.
+      //
+      // Si quieres permitir acceso por defecto cuando billing no está listo:
+      //   - puedes setear hasAccess true SOLO si está explicitamente false
+      //     (pero OJO: eso puede volver a causar loops si algo resetea hasAccess).
+      if (user.hasAccess === false) {
+        // fallback conservador: evita matar el menú si estaba false por error
+        updateUser({ hasAccess: true });
+      }
     } finally {
       setBillingChecked(true);
     }
-  }, [user?.email, updateUser]);
+  }, [user?.email, user?.hasAccess, billingChecked, updateUser]);
 
+  // ✅ SOLO corre una vez por login (y no re-dispara si billingChecked ya es true)
   useEffect(() => {
-    loadBillingStatus();
-  }, [loadBillingStatus]);
+    if (!billingChecked) loadBillingStatus();
+  }, [billingChecked, loadBillingStatus]);
 
   if (user && !billingChecked) {
     return <div className="page">Checking subscription…</div>;
