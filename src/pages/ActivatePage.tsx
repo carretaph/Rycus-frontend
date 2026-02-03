@@ -4,7 +4,7 @@ import axiosClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 
 const ActivatePage: React.FC = () => {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
