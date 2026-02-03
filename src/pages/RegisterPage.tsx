@@ -39,7 +39,7 @@ const RegisterPage: React.FC = () => {
     setError("");
     setLoading(true);
 
-    const emailTrimmed = email.trim();
+    const emailTrimmed = email.trim().toLowerCase();
     const fullName =
       `${firstName.trim()} ${lastName.trim()}`.trim() || emailTrimmed;
 
@@ -52,10 +52,7 @@ const RegisterPage: React.FC = () => {
         phone: phone.trim() || null,
       });
 
-      console.log("REGISTER RESPONSE:", response.data);
       const data = response.data;
-
-      // backend hoy devuelve: { message, user: null } => creamos safeUser
       const apiUser = data?.user ?? null;
 
       const safeUser = {
@@ -63,6 +60,8 @@ const RegisterPage: React.FC = () => {
         email: apiUser?.email ?? data?.email ?? emailTrimmed,
         name: apiUser?.fullName ?? apiUser?.name ?? data?.fullName ?? fullName,
         phone: apiUser?.phone ?? data?.phone ?? (phone.trim() || undefined),
+        // ✅ IMPORTANT: card required -> empieza sin acceso
+        hasAccess: false,
       };
 
       const token =
@@ -72,10 +71,10 @@ const RegisterPage: React.FC = () => {
         data?.authToken ??
         "";
 
-      // 2) Login en AuthContext
-      login(safeUser, token);
+      // 2) Login en AuthContext (aunque token venga vacío, mantenemos flow)
+      login(safeUser as any, token);
 
-      // ✅ 3) Guardar datos extra EN LOCALSTORAGE (compat)
+      // 3) Guardar datos extra en localStorage
       const extraProfile = {
         firstName,
         lastName,
@@ -88,10 +87,10 @@ const RegisterPage: React.FC = () => {
         industry: accountType,
       };
 
-      const extraKey = `${EXTRA_KEY_PREFIX}${emailTrimmed.toLowerCase()}`;
+      const extraKey = `${EXTRA_KEY_PREFIX}${emailTrimmed}`;
       localStorage.setItem(extraKey, JSON.stringify(extraProfile));
 
-      // ✅ 4) Traer perfil real del backend (para nombre+avatar consistentes en cualquier PC)
+      // 4) Traer perfil mini del backend (nombre+avatar)
       try {
         const miniRes = await axiosClient.get<UserMini>("/users/by-email", {
           params: { email: emailTrimmed },
@@ -100,16 +99,20 @@ const RegisterPage: React.FC = () => {
         const fetchedFullName = (miniRes.data?.fullName || "").trim();
         const fetchedAvatarUrl = (miniRes.data?.avatarUrl || "").trim();
 
+        // ✅ mantenemos hasAccess=false pase lo que pase
         updateUser({
           name: fetchedFullName || safeUser.name || fullName,
           avatarUrl: fetchedAvatarUrl || undefined,
+          hasAccess: false,
         });
       } catch (e2) {
+        // si falla, igual seguimos a activate
         console.warn("Could not load user mini profile after register:", e2);
+        updateUser({ hasAccess: false });
       }
 
-      // 5) Ir al dashboard
-      navigate("/dashboard");
+      // ✅ 5) Pago inmediato
+      navigate("/activate", { replace: true });
     } catch (err: any) {
       console.error("Register error:", err);
 

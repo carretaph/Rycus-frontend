@@ -35,7 +35,8 @@ import logo from "./assets/rycus-logo.png";
 /* ============================
    🔐 Protected Route (AUTH + optional BILLING)
    - requireAccess=false => solo login
-   - requireAccess=true  => login + billing (hasAccess !== false)
+   - requireAccess=true  => login + billing (hasAccess === true)
+   IMPORTANT: Si hasAccess es false o it's unknown, tratamos como NO access.
 ============================ */
 function ProtectedRoute({
   children,
@@ -50,9 +51,9 @@ function ProtectedRoute({
   if (initializing) return <div className="page">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
 
-  // ✅ Si requiere acceso y el servidor marcó hasAccess explícitamente false,
-  // redirige a Activate (pago primero).
-  if (requireAccess && user.hasAccess === false) {
+  // ✅ Pago primero: cualquier cosa distinta de true se considera NO access
+  // (false o undefined => redirect a /activate)
+  if (requireAccess && user.hasAccess !== true) {
     return (
       <Navigate to="/activate" replace state={{ from: location.pathname }} />
     );
@@ -68,7 +69,7 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, initializing } = useAuth();
 
   if (initializing) return <div className="page">Loading...</div>;
-  if (user) return <Navigate to="/home" replace />;
+  if (user) return <Navigate to="/activate" replace />; // ✅ si está logueado, va a activar
   return <>{children}</>;
 }
 
@@ -112,9 +113,10 @@ export default function App() {
     // ✅ evita loops si por alguna razón se llama otra vez
     if (billingChecked) return;
 
-    // ✅ En DEV no queremos llamar /billing/status
+    // ✅ En DEV: por defecto permitimos para que puedas desarrollar sin pagar
+    // Si quieres que incluso en DEV exija tarjeta, dime y lo cambiamos.
     if (import.meta.env.DEV) {
-      if (user.hasAccess === false) updateUser({ hasAccess: true });
+      if (user.hasAccess !== true) updateUser({ hasAccess: true });
       setBillingChecked(true);
       return;
     }
@@ -122,13 +124,15 @@ export default function App() {
     try {
       const res = await axios.get("/billing/status");
 
+      // ✅ Pago primero: default es false si no viene explícitamente true
       const serverHasAccess =
         typeof res.data?.hasAccess === "boolean"
           ? res.data.hasAccess
           : typeof res.data?.active === "boolean"
           ? res.data.active
-          : true;
+          : false;
 
+      // ✅ solo update si cambia o si falta
       if (user.hasAccess !== serverHasAccess) {
         updateUser({
           hasAccess: serverHasAccess,
@@ -138,10 +142,10 @@ export default function App() {
         updateUser({ planType: res.data?.planType });
       }
     } catch (err: any) {
-      // ✅ CLAVE: si /billing/status falla, NO loops
-      // Mantén UI estable. (Dejo tu fallback conservador)
-      if (user.hasAccess === false) {
-        updateUser({ hasAccess: true });
+      // ✅ CLAVE para tu regla: si billing falla => NO access
+      // Así nadie entra sin tarjeta si el endpoint falla.
+      if (user.hasAccess !== false) {
+        updateUser({ hasAccess: false });
       }
     } finally {
       setBillingChecked(true);
@@ -152,12 +156,13 @@ export default function App() {
     if (!billingChecked) loadBillingStatus();
   }, [billingChecked, loadBillingStatus]);
 
+  // Mientras chequea billing, mostramos loader (solo cuando hay user)
   if (user && !billingChecked) {
     return <div className="page">Checking subscription…</div>;
   }
 
-  // ✅ Solo ocultamos cosas si hasAccess === false
-  const hasAccess = user?.hasAccess !== false;
+  // ✅ Con tu regla: SOLO true es acceso
+  const hasAccess = user?.hasAccess === true;
 
   // ============================
   // NAV INFO
@@ -175,7 +180,7 @@ export default function App() {
     (user?.avatarUrl && user.avatarUrl.trim()) || avatarFromStorage || "";
 
   // ============================
-  // BADGES
+  // BADGES (solo si tiene acceso)
   // ============================
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingConnectionsCount, setPendingConnectionsCount] = useState(0);
@@ -209,9 +214,15 @@ export default function App() {
   }, [user?.email]);
 
   useEffect(() => {
+    // ✅ Solo cargamos badges si tiene acceso (si no, ni pegamos al backend)
+    if (!hasAccess) {
+      setUnreadCount(0);
+      setPendingConnectionsCount(0);
+      return;
+    }
     loadUnread();
     loadPendingConnections();
-  }, [location.pathname, loadUnread, loadPendingConnections]);
+  }, [location.pathname, loadUnread, loadPendingConnections, hasAccess]);
 
   const Badge = ({ value }: { value: number }) =>
     value > 0 ? <span className="badge">{value}</span> : null;
@@ -243,11 +254,16 @@ export default function App() {
                 <span>{navDisplayName}</span>
               </Link>
 
-              <Link to="/home">🏠 Home</Link>
-              <Link to="/dashboard">📊 Dashboard</Link>
-
-              {hasAccess && (
+              {/* ✅ Si NO tiene acceso, solo mostramos Activate */}
+              {!hasAccess ? (
+                <Link to="/activate" style={{ fontWeight: 700 }}>
+                  🔒 Activate
+                </Link>
+              ) : (
                 <>
+                  <Link to="/home">🏠 Home</Link>
+                  <Link to="/dashboard">📊 Dashboard</Link>
+
                   <Link to="/customers">👥 Customers</Link>
 
                   <Link to="/connections">
@@ -260,12 +276,6 @@ export default function App() {
 
                   <Link to="/users">🙋‍♂️ Users</Link>
                 </>
-              )}
-
-              {!hasAccess && (
-                <Link to="/activate" style={{ fontWeight: 700 }}>
-                  🔒 Activate
-                </Link>
               )}
 
               <button className="logoutBtn" onClick={logout}>
@@ -311,27 +321,7 @@ export default function App() {
             }
           />
 
-          {/* PRIVATE (login only) */}
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute requireAccess={false}>
-                <FeedPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* ✅ Dashboard AHORA requiere billing */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute requireAccess={true}>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* ✅ Activate / Billing routes (solo login, NO requieren billing) */}
+          {/* ✅ BILLING / ACTIVATE (solo login, NO requiere billing) */}
           <Route
             path="/activate"
             element={
@@ -357,7 +347,24 @@ export default function App() {
             }
           />
 
-          {/* ✅ GATED ROUTES (billing required) */}
+          {/* ✅ TODO lo demás requiere billing */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute requireAccess={true}>
+                <FeedPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute requireAccess={true}>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/customers"
             element={
@@ -417,16 +424,6 @@ export default function App() {
             }
           />
 
-          {/* Profile (solo login) */}
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute requireAccess={false}>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-
           <Route
             path="/inbox"
             element={
@@ -444,8 +441,18 @@ export default function App() {
             }
           />
 
+          {/* ✅ Incluso Profile requiere billing (cero acceso sin tarjeta) */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute requireAccess={true}>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* FALLBACK */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/activate" replace />} />
         </Routes>
       </main>
     </div>
