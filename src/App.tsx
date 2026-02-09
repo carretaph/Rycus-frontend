@@ -6,6 +6,8 @@ import axios from "./api/axiosClient";
 
 import "./App.css";
 
+import { OWNER_EMAILS } from "./config/owners";
+
 // ===== PUBLIC PAGES =====
 import HomePage from "./HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -32,10 +34,30 @@ import BillingCancelPage from "./pages/BillingCancelPage";
 
 import logo from "./assets/rycus-logo.png";
 
+function isOwnerEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  return OWNER_EMAILS.map((x) => x.trim().toLowerCase()).includes(e);
+}
+
+function isFreeLifetimePlan(planType?: string | null): boolean {
+  if (!planType) return false;
+  return String(planType).trim().toUpperCase() === "FREE_LIFETIME";
+}
+
+function isVipUser(user: any): boolean {
+  // VIP = Owner email OR planType FREE_LIFETIME OR internal owner marker
+  return (
+    isOwnerEmail(user?.email ?? null) ||
+    isFreeLifetimePlan(user?.planType ?? null) ||
+    String(user?.planType ?? "").toLowerCase() === "owner"
+  );
+}
+
 /* ============================
    🔐 Protected Route (AUTH + optional BILLING)
    - requireAccess=false => solo login
-   - requireAccess=true  => login + billing (hasAccess MUST be true)
+   - requireAccess=true  => login + billing (unless VIP)
 ============================ */
 function ProtectedRoute({
   children,
@@ -50,8 +72,10 @@ function ProtectedRoute({
   if (initializing) return <div className="page">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
 
-  // ✅ CARD REQUIRED: si requiere acceso, solo pasa cuando hasAccess === true
-  if (requireAccess && user.hasAccess !== true) {
+  const vip = isVipUser(user);
+
+  // ✅ Si requiere billing y NO es VIP, y hasAccess es false => Activate
+  if (requireAccess && !vip && user.hasAccess === false) {
     return (
       <Navigate to="/activate" replace state={{ from: location.pathname }} />
     );
@@ -62,13 +86,12 @@ function ProtectedRoute({
 
 /* ============================
    🌐 Public Only Route
-   - si ya está logueado => manda a /activate (pago primero)
 ============================ */
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, initializing } = useAuth();
 
   if (initializing) return <div className="page">Loading...</div>;
-  if (user) return <Navigate to="/activate" replace />;
+  if (user) return <Navigate to="/home" replace />;
   return <>{children}</>;
 }
 
@@ -97,6 +120,8 @@ export default function App() {
   const { user, logout, updateUser } = useAuth();
   const location = useLocation();
 
+  const vip = isVipUser(user);
+
   // ============================
   // BILLING STATUS (anti-loop)
   // ============================
@@ -108,10 +133,50 @@ export default function App() {
       return;
     }
 
+    // ✅ VIP (OWNER o FREE_LIFETIME): acceso total, sin Stripe
+    if (vip) {
+      // marca hasAccess true siempre
+      if (user.hasAccess === false) {
+        updateUser({ hasAccess: true });
+      }
+      // si es owner email, opcionalmente marca planType="owner"
+      if (isOwnerEmail(user.email) && user.planType !== "owner") {
+        updateUser({ planType: "owner" });
+      }
+      setBillingChecked(true);
+      return;
+    }
+
     if (billingChecked) return;
 
-    // ✅ CARD REQUIRED EVEN IN DEV:
-    // No “auto-access” en dev. Si quieres dev libre, dímelo y lo hacemos por env var.
+    // ✅ En DEV no llamamos /billing/status
+    if (import.meta.env.DEV) {
+      if (user.hasAccess === false) updateUser({ hasAccess: true });
+      setBillingChecked(true);
+      return;
+    }
+
+    // ✅ PRODUCCIÓN:
+    // 1) primero intenta refrescar planType desde /users/me (usa token por interceptor)
+    //    así si el backend dice FREE_LIFETIME, lo tratamos como acceso total.
+    try {
+      const me = await axios.get("/users/me", { params: { email: user.email } });
+      const pt = me.data?.planType;
+
+      if (pt && user.planType !== pt) {
+        updateUser({ planType: pt });
+      }
+
+      if (isFreeLifetimePlan(pt)) {
+        updateUser({ hasAccess: true, planType: pt });
+        setBillingChecked(true);
+        return;
+      }
+    } catch {
+      // si falla /users/me, seguimos a billing/status (no rompemos)
+    }
+
+    // 2) luego chequea billing/status para usuarios normales
     try {
       const res = await axios.get("/billing/status");
 
@@ -120,24 +185,39 @@ export default function App() {
           ? res.data.hasAccess
           : typeof res.data?.active === "boolean"
           ? res.data.active
-          : false; // ✅ default: NO access
+          : true;
 
-      // ✅ solo actualiza si cambia
-      if (user.hasAccess !== serverHasAccess) {
-        updateUser({
-          hasAccess: serverHasAccess,
-          planType: res.data?.planType,
-        });
-      } else if (typeof res.data?.planType !== "undefined") {
-        updateUser({ planType: res.data?.planType });
+      const planTypeFromServer = res.data?.planType;
+
+      // Si el servidor reporta FREE_LIFETIME, forzamos acceso.
+      if (isFreeLifetimePlan(planTypeFromServer)) {
+        updateUser({ hasAccess: true, planType: planTypeFromServer });
+      } else {
+        if (user.hasAccess !== serverHasAccess) {
+          updateUser({
+            hasAccess: serverHasAccess,
+            planType: planTypeFromServer,
+          });
+        } else if (typeof planTypeFromServer !== "undefined") {
+          updateUser({ planType: planTypeFromServer });
+        }
       }
-    } catch (err) {
-      // ✅ Si falla billing/status, NO damos acceso.
-      // Solo dejamos hasAccess como esté (o undefined) => ProtectedRoute bloquea igual.
+    } catch (err: any) {
+      // ⚠️ Si falla billing/status en producción, NO bypass
+      if (user.hasAccess !== false) {
+        updateUser({ hasAccess: false });
+      }
     } finally {
       setBillingChecked(true);
     }
-  }, [user?.email, user?.hasAccess, billingChecked, updateUser]);
+  }, [
+    user?.email,
+    user?.hasAccess,
+    user?.planType,
+    vip,
+    billingChecked,
+    updateUser,
+  ]);
 
   useEffect(() => {
     if (!billingChecked) loadBillingStatus();
@@ -147,8 +227,8 @@ export default function App() {
     return <div className="page">Checking subscription…</div>;
   }
 
-  // ✅ SOLO true = acceso
-  const hasAccess = user?.hasAccess === true;
+  // ✅ VIP siempre tiene acceso
+  const hasAccess = vip ? true : user?.hasAccess !== false;
 
   // ============================
   // NAV INFO
@@ -166,7 +246,7 @@ export default function App() {
     (user?.avatarUrl && user.avatarUrl.trim()) || avatarFromStorage || "";
 
   // ============================
-  // BADGES (solo con acceso)
+  // BADGES
   // ============================
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingConnectionsCount, setPendingConnectionsCount] = useState(0);
@@ -200,18 +280,16 @@ export default function App() {
   }, [user?.email]);
 
   useEffect(() => {
-    if (!hasAccess) {
-      setUnreadCount(0);
-      setPendingConnectionsCount(0);
-      return;
-    }
     loadUnread();
     loadPendingConnections();
-  }, [location.pathname, loadUnread, loadPendingConnections, hasAccess]);
+  }, [location.pathname, loadUnread, loadPendingConnections]);
 
   const Badge = ({ value }: { value: number }) =>
     value > 0 ? <span className="badge">{value}</span> : null;
 
+  // ============================
+  // UI
+  // ============================
   return (
     <div className="app">
       {/* ========== HEADER ========== */}
@@ -233,18 +311,18 @@ export default function App() {
                     <span>{userInitial}</span>
                   )}
                 </div>
-                <span>{navDisplayName}</span>
+                <span>
+                  {navDisplayName}
+                  {isOwnerEmail(user.email) ? " 👑" : ""}
+                  {isFreeLifetimePlan(user.planType) ? " ✅" : ""}
+                </span>
               </Link>
 
-              {!hasAccess ? (
-                <Link to="/activate" style={{ fontWeight: 700 }}>
-                  🔒 Activate
-                </Link>
-              ) : (
-                <>
-                  <Link to="/home">🏠 Home</Link>
-                  <Link to="/dashboard">📊 Dashboard</Link>
+              <Link to="/home">🏠 Home</Link>
+              <Link to="/dashboard">📊 Dashboard</Link>
 
+              {hasAccess && (
+                <>
                   <Link to="/customers">👥 Customers</Link>
 
                   <Link to="/connections">
@@ -257,6 +335,12 @@ export default function App() {
 
                   <Link to="/users">🙋‍♂️ Users</Link>
                 </>
+              )}
+
+              {!hasAccess && !vip && (
+                <Link to="/activate" style={{ fontWeight: 700 }}>
+                  🔒 Activate
+                </Link>
               )}
 
               <button className="logoutBtn" onClick={logout}>
@@ -302,7 +386,27 @@ export default function App() {
             }
           />
 
-          {/* ✅ ACTIVATE / BILLING (solo login) */}
+          {/* PRIVATE (login only) */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute requireAccess={false}>
+                <FeedPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ Dashboard requiere billing (o VIP) */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute requireAccess={true}>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ Activate / Billing routes (solo login) */}
           <Route
             path="/activate"
             element={
@@ -328,23 +432,7 @@ export default function App() {
             }
           />
 
-          {/* ✅ TODO lo demás requiere billing */}
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute requireAccess={true}>
-                <FeedPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute requireAccess={true}>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* ✅ GATED ROUTES */}
           <Route
             path="/customers"
             element={
@@ -404,6 +492,16 @@ export default function App() {
             }
           />
 
+          {/* Profile (solo login) */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute requireAccess={false}>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/inbox"
             element={
@@ -421,18 +519,8 @@ export default function App() {
             }
           />
 
-          {/* ✅ CERO acceso sin tarjeta: profile también requiere billing */}
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute requireAccess={true}>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-
           {/* FALLBACK */}
-          <Route path="*" element={<Navigate to="/activate" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
