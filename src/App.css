@@ -1151,7 +1151,7 @@ textarea:focus {
   text-decoration: none;
 }
 
-/* Botón/link del autor del review */
+/* Botón/link del autor del review (duplicado original; lo dejamos igual) */
 .review-author-btn {
   background: none;
   border: none;
@@ -1168,17 +1168,17 @@ textarea:focus {
 }
 
 /* ===========================================
-   SIDEBAR LAYOUT (IG STYLE)
-   Pegar al FINAL del App.css
+   SIDEBAR LAYOUT (IG STYLE) — FINAL
+   - FIX avatar gigante
+   - FIX: texto aparece SOLO al pasar mouse (como IG)
 =========================================== */
 
-/* El layout nuevo solo aplica cuando hay user (App.tsx pone appShell) */
 .app.appShell {
   display: flex;
   min-height: 100vh;
+  background: #ffffff;
 }
 
-/* Tu .main actual centra max-width 900, pero ahora usamos .appMain cuando hay sidebar */
 .appMain {
   flex: 1;
   padding: 24px 16px 40px;
@@ -1186,9 +1186,9 @@ textarea:focus {
   margin: 0 auto;
 }
 
-/* Sidebar */
+/* Sidebar base (compacta) */
 .side {
-  width: 86px; /* compacto estilo IG */
+  width: 86px; /* solo íconos */
   border-right: 1px solid #e5e7eb;
   padding: 14px 10px;
   position: sticky;
@@ -1198,6 +1198,13 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  transition: width 160ms ease;
+  overflow: hidden; /* para que no se salga nada al animar */
+}
+
+/* ✅ Cuando pasas el mouse por el sidebar: se expande y aparecen textos */
+.side:hover {
+  width: 250px;
 }
 
 /* Brand */
@@ -1221,6 +1228,14 @@ textarea:focus {
   display: none;
 }
 
+.side:hover .sideBrand {
+  justify-content: flex-start;
+}
+
+.side:hover .sideBrandText {
+  display: inline;
+}
+
 /* Perfil mini */
 .sideMe {
   display: flex;
@@ -1241,6 +1256,14 @@ textarea:focus {
   display: none;
 }
 
+.side:hover .sideMe {
+  justify-content: flex-start;
+}
+
+.side:hover .sideMeText {
+  display: block;
+}
+
 .sideMeName {
   font-weight: 700;
   color: #111827;
@@ -1253,20 +1276,23 @@ textarea:focus {
   font-size: 12px;
 }
 
-/* Avatar moderno */
+/* ✅ Avatar moderno + FIX gigante */
 .sideAvatarRing {
   width: 44px;
   height: 44px;
   border-radius: 999px;
   padding: 2px;
   background: linear-gradient(135deg, #ff3d77, #7c3aed, #2563eb);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* IMPORTANTÍSIMO */
 }
 
+.sideAvatarRing img,
 .sideAvatar {
-  width: 40px;
-  height: 40px;
+  width: 40px !important;
+  height: 40px !important;
   border-radius: 999px;
   object-fit: cover;
   background: #f3f4f6;
@@ -1275,10 +1301,15 @@ textarea:focus {
 }
 
 .sideAvatarFallback {
-  display: grid;
-  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 800;
   color: #111827;
+  background: #f3f4f6;
 }
 
 /* Nav items */
@@ -1289,6 +1320,7 @@ textarea:focus {
   gap: 8px;
 }
 
+/* item compacto */
 .sideItem {
   height: 48px;
   border-radius: 14px;
@@ -1327,7 +1359,7 @@ textarea:focus {
   border-color: #ffe4e6;
 }
 
-/* Tooltip (hover) */
+/* ✅ Tooltip SOLO cuando el sidebar está compacto */
 .tip {
   position: absolute;
   left: 76px;
@@ -1350,6 +1382,22 @@ textarea:focus {
   transform: translateY(-50%) translateX(6px);
 }
 
+/* ✅ Cuando el sidebar está expandido por hover, mostramos texto y ocultamos tooltips */
+.side:hover .tip {
+  display: none;
+}
+
+.side:hover .sideItem {
+  grid-template-columns: 28px 1fr;
+  justify-content: flex-start;
+  place-items: center start;
+  padding: 0 12px;
+}
+
+.side:hover .sideLabel {
+  display: inline;
+}
+
 /* Badges */
 .sideBadge {
   display: inline-grid;
@@ -1362,50 +1410,4 @@ textarea:focus {
   background: #111827;
   color: #ffffff;
   margin-left: 6px;
-}
-
-/* Protege el sidebar de reglas globales tipo .site-header img { width: 180px } */
-.side img {
-  width: auto;
-  height: auto;
-  max-width: none;
-}
-
-/* Desktop expand (opcional, se ve pro) */
-@media (min-width: 1100px) {
-  .side {
-    width: 250px;
-    padding: 18px 14px;
-  }
-
-  .sideBrand {
-    justify-content: flex-start;
-  }
-
-  .sideBrandText {
-    display: inline;
-  }
-
-  .sideMe {
-    justify-content: flex-start;
-  }
-
-  .sideMeText {
-    display: block;
-  }
-
-  .sideItem {
-    grid-template-columns: 28px 1fr;
-    justify-content: flex-start;
-    place-items: center start;
-    padding: 0 12px;
-  }
-
-  .sideLabel {
-    display: inline;
-  }
-
-  .tip {
-    display: none; /* ya no hace falta */
-  }
 }
