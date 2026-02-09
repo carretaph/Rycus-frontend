@@ -32,7 +32,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 40px;   /* más aire arriba */
+  padding-top: 40px; /* más aire arriba */
   padding-bottom: 28px; /* más aire abajo */
 }
 
@@ -63,20 +63,20 @@ body {
 /* NAV – centrado y con buena separación */
 .site-header nav,
 .site-nav {
-  margin-top: 16px;        /* espacio entre logo y menú */
-  margin-bottom: 32px;     /* espacio entre menú y contenido */
+  margin-top: 16px; /* espacio entre logo y menú */
+  margin-bottom: 32px; /* espacio entre menú y contenido */
   display: flex;
-  flex-wrap: wrap;         /* permite varias líneas si no entra */
+  flex-wrap: wrap; /* permite varias líneas si no entra */
   justify-content: center; /* centrado horizontal */
   align-items: center;
-  gap: 28px;               /* separación entre links */
+  gap: 28px; /* separación entre links */
 }
 
 .site-header nav a,
 .site-nav a {
-  display: flex;           /* emoji + texto alineados */
+  display: flex; /* emoji + texto alineados */
   align-items: center;
-  gap: 6px;                /* espacio entre emoji y texto */
+  gap: 6px; /* espacio entre emoji y texto */
   font-size: 14px;
   color: #1d4ed8;
   font-weight: 500;
@@ -937,7 +937,6 @@ textarea:focus {
   align-items: center;
 }
 
-/* input usado en ProfilePage */
 .input {
   width: 100%;
   padding: 10px 12px;
@@ -952,7 +951,6 @@ textarea:focus {
   border-color: #111827;
 }
 
-/* toggles */
 .profile-toggle-group {
   margin-top: 10px;
   display: flex;
@@ -1087,7 +1085,6 @@ textarea:focus {
   color: #111827;
 }
 
-/* Botones en pendientes, más suaves */
 .connection-actions {
   display: flex;
   gap: 8px;
@@ -1109,25 +1106,23 @@ textarea:focus {
 .nav-profile-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;              /* espacio entre "Profile" y el círculo */
+  gap: 6px;
 }
 
-/* Avatar pequeño redondo en el menú */
 .nav-avatar {
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: #2563eb;   /* azul Rycus */
+  background: #2563eb;
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;      /* recorta la foto dentro del círculo */
+  overflow: hidden;
 }
 
-/* Si hay foto del usuario, se adapta al círculo */
 .nav-avatar img {
   width: 100%;
   height: 100%;
@@ -1151,26 +1146,8 @@ textarea:focus {
   text-decoration: none;
 }
 
-/* Botón/link del autor del review (duplicado original; lo dejamos igual) */
-.review-author-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  font-size: 13px;
-  color: #1d4ed8;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.review-author-btn:hover {
-  text-decoration: none;
-}
-
 /* ===========================================
    SIDEBAR LAYOUT (IG STYLE) — FINAL
-   - FIX avatar gigante
-   - FIX: texto aparece SOLO al pasar mouse (como IG)
 =========================================== */
 
 .app.appShell {
@@ -1188,7 +1165,7 @@ textarea:focus {
 
 /* Sidebar base (compacta) */
 .side {
-  width: 86px; /* solo íconos */
+  width: 86px;
   border-right: 1px solid #e5e7eb;
   padding: 14px 10px;
   position: sticky;
@@ -1199,10 +1176,9 @@ textarea:focus {
   flex-direction: column;
   gap: 14px;
   transition: width 160ms ease;
-  overflow: hidden; /* para que no se salga nada al animar */
+  overflow: hidden;
 }
 
-/* ✅ Cuando pasas el mouse por el sidebar: se expande y aparecen textos */
 .side:hover {
   width: 250px;
 }
@@ -1276,7 +1252,7 @@ textarea:focus {
   font-size: 12px;
 }
 
-/* ✅ Avatar moderno + FIX gigante */
+/* Avatar moderno + FIX */
 .sideAvatarRing {
   width: 44px;
   height: 44px;
@@ -1286,7 +1262,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden; /* IMPORTANTÍSIMO */
+  overflow: hidden;
 }
 
 .sideAvatarRing img,
@@ -1345,13 +1321,17 @@ textarea:focus {
   border-color: #dbe4ff;
 }
 
+/* Si usas lucide svg, esta clase la aplica tu SidebarNav */
 .sideIcon {
-  font-size: 20px;
-  line-height: 1;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  stroke: #111827;
+  stroke-width: 1.8;
 }
 
 .sideLabel {
-  display: none; /* oculto en compacto */
+  display: none;
 }
 
 .sideItem.danger:hover {
@@ -1359,7 +1339,7 @@ textarea:focus {
   border-color: #ffe4e6;
 }
 
-/* ✅ Tooltip SOLO cuando el sidebar está compacto */
+/* Tooltip SOLO cuando el sidebar está compacto */
 .tip {
   position: absolute;
   left: 76px;
@@ -1382,7 +1362,6 @@ textarea:focus {
   transform: translateY(-50%) translateX(6px);
 }
 
-/* ✅ Cuando el sidebar está expandido por hover, mostramos texto y ocultamos tooltips */
 .side:hover .tip {
   display: none;
 }
@@ -1410,4 +1389,11 @@ textarea:focus {
   background: #111827;
   color: #ffffff;
   margin-left: 6px;
+}
+
+/* Protege el sidebar de reglas globales tipo .site-header img { width: 180px } */
+.side img {
+  width: auto;
+  height: auto;
+  max-width: none;
 }

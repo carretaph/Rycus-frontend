@@ -21,20 +21,29 @@ export default function SidebarNav() {
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
+  const initial = (user?.firstName?.[0] ||
+    user?.name?.[0] ||
+    user?.email?.[0] ||
+    "U"
+  ).toUpperCase();
+
   return (
     <aside className="side">
-      {/* BRAND */}
-      <Link to="/home" className="sideBrand" aria-label="Rycus">
-        {/* ✅ Compact: check */}
-        <img src={logoIcon} alt="Rycus" className="sideLogoIcon" />
-        {/* ✅ Expanded: full logo */}
-        <img src={logoFull} alt="Rycus" className="sideLogoFull" />
+      {/* BRAND / LOGO */}
+      <Link to="/home" className="sideBrand" aria-label="Rycus Home">
+        {/* ✅ Compacto: check */}
+        <img className="sideLogoIcon" src={logoIcon} alt="Rycus" />
+        {/* ✅ Expandido: full */}
+        <img className="sideLogoFull" src={logoFull} alt="Rycus" />
       </Link>
 
       {/* NAV */}
       <nav className="sideNav">
-        <Link to="/home" className={`sideItem ${isActive("/home") ? "active" : ""}`}>
-          <Home className="sideIcon" />
+        <Link
+          to="/home"
+          className={`sideItem ${isActive("/home") ? "active" : ""}`}
+        >
+          <Home size={22} className="sideSvg" />
           <span className="sideLabel">Home</span>
           <span className="tip">Home</span>
         </Link>
@@ -43,7 +52,7 @@ export default function SidebarNav() {
           to="/dashboard"
           className={`sideItem ${isActive("/dashboard") ? "active" : ""}`}
         >
-          <BarChart3 className="sideIcon" />
+          <BarChart3 size={22} className="sideSvg" />
           <span className="sideLabel">Dashboard</span>
           <span className="tip">Dashboard</span>
         </Link>
@@ -52,7 +61,7 @@ export default function SidebarNav() {
           to="/customers"
           className={`sideItem ${isActive("/customers") ? "active" : ""}`}
         >
-          <Users className="sideIcon" />
+          <Users size={22} className="sideSvg" />
           <span className="sideLabel">Customers</span>
           <span className="tip">Customers</span>
         </Link>
@@ -61,7 +70,7 @@ export default function SidebarNav() {
           to="/connections"
           className={`sideItem ${isActive("/connections") ? "active" : ""}`}
         >
-          <Handshake className="sideIcon" />
+          <Handshake size={22} className="sideSvg" />
           <span className="sideLabel">Network</span>
           <span className="tip">Network</span>
         </Link>
@@ -70,38 +79,45 @@ export default function SidebarNav() {
           to="/inbox"
           className={`sideItem ${isActive("/inbox") ? "active" : ""}`}
         >
-          <MessageCircle className="sideIcon" />
+          <MessageCircle size={22} className="sideSvg" />
           <span className="sideLabel">Messages</span>
           <span className="tip">Messages</span>
         </Link>
 
-        <Link to="/users" className={`sideItem ${isActive("/users") ? "active" : ""}`}>
-          <UserSearch className="sideIcon" />
+        <Link
+          to="/users"
+          className={`sideItem ${isActive("/users") ? "active" : ""}`}
+        >
+          <UserSearch size={22} className="sideSvg" />
           <span className="sideLabel">Users</span>
           <span className="tip">Users</span>
         </Link>
 
         <Link to="/customers/new" className="sideItem">
-          <PlusSquare className="sideIcon" />
+          <PlusSquare size={22} className="sideSvg" />
           <span className="sideLabel">Add Customer</span>
           <span className="tip">Add Customer</span>
         </Link>
       </nav>
 
-      {/* PROFILE */}
+      {/* PROFILE abajo */}
       <Link to="/profile" className="sideMe" aria-label="Profile">
         <div className="sideAvatarRing">
           {user?.avatarUrl ? (
-            <img src={user.avatarUrl} alt="avatar" />
+            <img className="sideAvatarImg" src={user.avatarUrl} alt="Profile" />
           ) : (
-            <div className="sideAvatarFallback">
-              {user?.email?.[0]?.toUpperCase() || "U"}
-            </div>
+            <div className="sideAvatarFallback">{initial}</div>
           )}
         </div>
 
-        {/* ✅ solo expandido */}
-        <span className="sideProfileLabel">Profile</span>
+        {/* ✅ solo aparece al expandir */}
+        <div className="sideMeText">
+          <div className="sideMeName">Profile</div>
+          <div className="sideMeSub">{user?.email ?? ""}</div>
+        </div>
+
+        {/* tooltip compacto */}
+        <span className="tip">Profile</span>
       </Link>
     </aside>
   );

@@ -1,225 +1,251 @@
-/* ================================
-   SIDEBAR BASE
-================================ */
+/* ===========================
+   IG SIDEBAR — FINAL CLEAN
+=========================== */
+
 .side {
-    position: fixed;
+    width: 86px; /* compacto */
+    border-right: 1px solid #e5e7eb;
+    padding: 14px 10px;
+    position: sticky;
     top: 0;
-    left: 0;
-    width: 72px;
     height: 100vh;
     background: #ffffff;
-    border-right: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    transition: width 0.22s ease;
-    z-index: 50;
+    gap: 14px;
+    transition: width 160ms ease;
     overflow: hidden;
   }
   
+  /* Expand hover */
   .side:hover {
-    width: 220px;
+    width: 250px;
   }
   
-  /* ================================
-     BRAND / LOGO  ✅ CORRECTO
-     - Compact: check
-     - Expanded: full logo
-  ================================ */
+  /* ===========================
+     BRAND / LOGO
+  =========================== */
+  
   .sideBrand {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px 10px;
-    margin: 10px;
-    border-radius: 12px;
     text-decoration: none;
+    border-radius: 14px;
+    padding: 10px 12px;
+    background: transparent;
   }
   
   .sideBrand:hover {
-    background: #f3f4f6;
+    background: #f9fafb;
   }
   
-  /* ✅ Compact default: show icon */
+  /* Blindaje contra reglas globales */
+  .sideBrand img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* ✅ Compacto → SOLO check */
   .sideLogoIcon {
-    width: 36px;
-    height: 36px;
+    display: block !important;
+    width: 34px !important;
+    height: 34px !important;
     object-fit: contain;
-    display: block;
   }
   
-  /* ✅ Compact default: hide full logo */
+  /* ✅ Compacto → full oculto */
   .sideLogoFull {
-    display: none;
-    width: 150px;
-    height: auto;
+    display: none !important;
+    height: 38px;
+    width: auto;
+    object-fit: contain;
   }
   
-  /* ✅ Expanded: hide icon */
+  /* ✅ Expandido → swap */
   .side:hover .sideLogoIcon {
-    display: none;
+    display: none !important;
   }
-  
-  /* ✅ Expanded: show full logo */
   .side:hover .sideLogoFull {
-    display: block;
+    display: block !important;
   }
   
-  /* Align brand left on expand */
-  .side:hover .sideBrand {
-    justify-content: flex-start;
-    padding-left: 14px;
-  }
-  
-  /* ================================
+  /* ===========================
      NAV
-  ================================ */
+  =========================== */
+  
   .sideNav {
+    margin-top: 6px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 6px 10px;
+    gap: 8px;
   }
   
   .sideItem {
-    height: 46px;
-    border-radius: 12px;
+    height: 48px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: transparent;
+    display: grid;
+    place-items: center;
     text-decoration: none;
     color: #111827;
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 12px;
-    transition: background 0.15s ease;
-  }
-  
-  .side:hover .sideItem {
-    justify-content: flex-start;
-    gap: 14px;
-  }
-  
-  .sideIcon {
-    width: 22px;
-    height: 22px;
-    flex: 0 0 auto;
-    stroke: #111827;
-    stroke-width: 1.8;
-    transition: 0.15s ease;
+    cursor: pointer;
+    padding: 0;
   }
   
   .sideItem:hover {
     background: #f3f4f6;
-  }
-  
-  .sideItem:hover .sideIcon {
-    stroke: #6b7280;
-    transform: scale(1.05);
+    border-color: #e5e7eb;
   }
   
   .sideItem.active {
     background: #eef2ff;
+    border-color: #dbe4ff;
   }
   
-  .sideItem.active .sideIcon {
-    stroke-width: 2.4;
+  .sideSvg {
+    flex: 0 0 auto;
   }
   
-  /* Labels */
   .sideLabel {
     display: none;
     font-size: 14px;
-    white-space: nowrap;
+    font-weight: 500;
+  }
+  
+  /* Expand grid */
+  .side:hover .sideItem {
+    grid-template-columns: 28px 1fr;
+    justify-content: flex-start;
+    place-items: center start;
+    padding: 0 12px;
+    column-gap: 10px;
   }
   
   .side:hover .sideLabel {
     display: inline;
   }
   
-  /* Tooltip compacto */
+  /* ===========================
+     TOOLTIP (solo compacto)
+  =========================== */
+  
   .tip {
     position: absolute;
-    left: 72px;
+    left: 76px;
     top: 50%;
     transform: translateY(-50%);
     background: #111827;
     color: #ffffff;
-    font-size: 12px;
-    padding: 6px 10px;
-    border-radius: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    white-space: nowrap;
     opacity: 0;
     pointer-events: none;
-    white-space: nowrap;
-    transition: 0.12s ease;
+    transition: opacity 120ms ease, transform 120ms ease;
+    z-index: 50;
   }
   
-  .sideItem:hover .tip {
+  .sideItem:hover .tip,
+  .sideMe:hover .tip {
     opacity: 1;
+    transform: translateY(-50%) translateX(6px);
   }
   
+  /* ocultar tooltip expandido */
   .side:hover .tip {
     display: none;
   }
   
-  /* ================================
-     PROFILE
-  ================================ */
+  /* ===========================
+     PROFILE (BOTTOM)
+  =========================== */
+  
   .sideMe {
+    margin-top: auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 14px;
-    padding: 12px;
-    margin: 10px;
-    border-radius: 14px;
+    gap: 10px;
     text-decoration: none;
+    color: inherit;
+    padding: 10px 12px;
+    border-radius: 14px;
+    position: relative;
   }
   
   .sideMe:hover {
-    background: #f3f4f6;
+    background: #f9fafb;
+  }
+  
+  /* texto oculto compacto */
+  .sideMeText {
+    display: none;
+    min-width: 0;
   }
   
   .side:hover .sideMe {
     justify-content: flex-start;
   }
   
-  .sideAvatarRing {
-    width: 42px;
-    height: 42px;
-    border-radius: 999px;
-    overflow: hidden;
-    border: 2px solid #e5e7eb;
-    flex: 0 0 auto;
+  .side:hover .sideMeText {
+    display: block;
   }
   
-  /* evita que CSS global de imgs lo rompa */
-  .sideAvatarRing img {
-    width: 100% !important;
-    height: 100% !important;
+  .sideMeName {
+    font-weight: 700;
+    color: #111827;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+  
+  .sideMeSub {
+    color: #6b7280;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+  }
+  
+  /* ===========================
+     AVATAR
+  =========================== */
+  
+  .sideAvatarRing {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    padding: 2px;
+    background: linear-gradient(135deg, #ff3d77, #7c3aed, #2563eb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  
+  .sideAvatarImg {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 999px;
     object-fit: cover;
+    background: #f3f4f6;
+    border: 2px solid #ffffff;
     display: block;
   }
   
   .sideAvatarFallback {
-    width: 100%;
-    height: 100%;
-    background: #2563eb;
-    color: #ffffff;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
-  }
-  
-  /* ✅ Profile label (solo expandido) */
-  .sideProfileLabel {
-    display: none;
-    font-size: 14px;
     color: #111827;
-    font-weight: 500;
-  }
-  
-  .side:hover .sideProfileLabel {
-    display: inline;
+    background: #f3f4f6;
   }
   
