@@ -1134,6 +1134,7 @@ textarea:focus {
   object-fit: cover;
   display: block;
 }
+
 /* Autor del review clickeable (link al perfil) */
 .review-author-btn {
   background: none;
@@ -1149,6 +1150,7 @@ textarea:focus {
 .review-author-btn:hover {
   text-decoration: none;
 }
+
 /* Botón/link del autor del review */
 .review-author-btn {
   background: none;
@@ -1163,4 +1165,247 @@ textarea:focus {
 
 .review-author-btn:hover {
   text-decoration: none;
+}
+
+/* ===========================================
+   SIDEBAR LAYOUT (IG STYLE)
+   Pegar al FINAL del App.css
+=========================================== */
+
+/* El layout nuevo solo aplica cuando hay user (App.tsx pone appShell) */
+.app.appShell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Tu .main actual centra max-width 900, pero ahora usamos .appMain cuando hay sidebar */
+.appMain {
+  flex: 1;
+  padding: 24px 16px 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Sidebar */
+.side {
+  width: 86px; /* compacto estilo IG */
+  border-right: 1px solid #e5e7eb;
+  padding: 14px 10px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Brand */
+.sideBrand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #111827;
+  font-weight: 800;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.sideBrand:hover {
+  background: #f9fafb;
+}
+
+.sideBrandText {
+  display: none;
+}
+
+/* Perfil mini */
+.sideMe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.sideMe:hover {
+  background: #f9fafb;
+}
+
+.sideMeText {
+  display: none;
+}
+
+.sideMeName {
+  font-weight: 700;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.sideMeSub {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Avatar moderno */
+.sideAvatarRing {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  padding: 2px;
+  background: linear-gradient(135deg, #ff3d77, #7c3aed, #2563eb);
+  display: grid;
+  place-items: center;
+}
+
+.sideAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #f3f4f6;
+  border: 2px solid #ffffff;
+  display: block;
+}
+
+.sideAvatarFallback {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* Nav items */
+.sideNav {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sideItem {
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+  color: #111827;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sideItem:hover {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.sideItem.active {
+  background: #eef2ff;
+  border-color: #dbe4ff;
+}
+
+.sideIcon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.sideLabel {
+  display: none; /* oculto en compacto */
+}
+
+.sideItem.danger:hover {
+  background: #fff1f2;
+  border-color: #ffe4e6;
+}
+
+/* Tooltip (hover) */
+.tip {
+  position: absolute;
+  left: 76px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #111827;
+  color: #ffffff;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 50;
+}
+
+.sideItem:hover .tip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(6px);
+}
+
+/* Badges */
+.sideBadge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  margin-left: 6px;
+}
+
+/* Protege el sidebar de reglas globales tipo .site-header img { width: 180px } */
+.side img {
+  width: auto;
+  height: auto;
+  max-width: none;
+}
+
+/* Desktop expand (opcional, se ve pro) */
+@media (min-width: 1100px) {
+  .side {
+    width: 250px;
+    padding: 18px 14px;
+  }
+
+  .sideBrand {
+    justify-content: flex-start;
+  }
+
+  .sideBrandText {
+    display: inline;
+  }
+
+  .sideMe {
+    justify-content: flex-start;
+  }
+
+  .sideMeText {
+    display: block;
+  }
+
+  .sideItem {
+    grid-template-columns: 28px 1fr;
+    justify-content: flex-start;
+    place-items: center start;
+    padding: 0 12px;
+  }
+
+  .sideLabel {
+    display: inline;
+  }
+
+  .tip {
+    display: none; /* ya no hace falta */
+  }
 }

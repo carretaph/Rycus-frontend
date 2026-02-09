@@ -8,6 +8,9 @@ import "./App.css";
 
 import { OWNER_EMAILS } from "./config/owners";
 
+// ✅ NEW: Sidebar
+import SidebarNav from "./components/SidebarNav";
+
 // ===== PUBLIC PAGES =====
 import HomePage from "./HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -284,81 +287,43 @@ export default function App() {
     loadPendingConnections();
   }, [location.pathname, loadUnread, loadPendingConnections]);
 
-  const Badge = ({ value }: { value: number }) =>
-    value > 0 ? <span className="badge">{value}</span> : null;
-
   // ============================
   // UI
   // ============================
   return (
-    <div className="app">
-      {/* ========== HEADER ========== */}
-      <header className="site-header">
-        <div className="site-header-logo-block">
-          <img src={logo} alt="Rycus" className="site-header-logo" />
-          <div className="site-header-title">Rycus</div>
-          <div className="site-header-subtitle">Rate Your Customer US</div>
-        </div>
+    <div className={`app ${user ? "appShell" : ""}`}>
+      {/* ✅ PRIVATE: Sidebar */}
+      {user ? (
+        <SidebarNav
+          user={user}
+          hasAccess={hasAccess}
+          vip={vip}
+          navDisplayName={navDisplayName}
+          userInitial={userInitial}
+          avatarToShow={avatarToShow}
+          unreadCount={unreadCount}
+          pendingConnectionsCount={pendingConnectionsCount}
+          logout={logout}
+        />
+      ) : (
+        /* ✅ PUBLIC: keep your existing header */
+        <header className="site-header">
+          <div className="site-header-logo-block">
+            <img src={logo} alt="Rycus" className="site-header-logo" />
+            <div className="site-header-title">Rycus</div>
+            <div className="site-header-subtitle">Rate Your Customer US</div>
+          </div>
 
-        <nav className="site-header-nav">
-          {user ? (
-            <>
-              <Link to="/profile" className="nav-profile-link">
-                <div className="nav-avatar">
-                  {avatarToShow ? (
-                    <img src={avatarToShow} alt="avatar" />
-                  ) : (
-                    <span>{userInitial}</span>
-                  )}
-                </div>
-                <span>
-                  {navDisplayName}
-                  {isOwnerEmail(user.email) ? " 👑" : ""}
-                  {isFreeLifetimePlan(user.planType) ? " ✅" : ""}
-                </span>
-              </Link>
-
-              <Link to="/home">🏠 Home</Link>
-              <Link to="/dashboard">📊 Dashboard</Link>
-
-              {hasAccess && (
-                <>
-                  <Link to="/customers">👥 Customers</Link>
-
-                  <Link to="/connections">
-                    🤝 Network <Badge value={pendingConnectionsCount} />
-                  </Link>
-
-                  <Link to="/inbox">
-                    💬 Messages <Badge value={unreadCount} />
-                  </Link>
-
-                  <Link to="/users">🙋‍♂️ Users</Link>
-                </>
-              )}
-
-              {!hasAccess && !vip && (
-                <Link to="/activate" style={{ fontWeight: 700 }}>
-                  🔒 Activate
-                </Link>
-              )}
-
-              <button className="logoutBtn" onClick={logout}>
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/">🏠 Home</Link>
-              <Link to="/login">Sign in</Link>
-              <Link to="/register">Create account</Link>
-            </>
-          )}
-        </nav>
-      </header>
+          <nav className="site-header-nav">
+            <Link to="/">🏠 Home</Link>
+            <Link to="/login">Sign in</Link>
+            <Link to="/register">Create account</Link>
+          </nav>
+        </header>
+      )}
 
       {/* ========== ROUTES ========== */}
-      <main className="main">
+      <main className={user ? "appMain" : "main"}>
         <Routes>
           {/* PUBLIC */}
           <Route
