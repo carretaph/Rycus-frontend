@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import axios from "./api/axiosClient";
@@ -8,7 +8,7 @@ import "./App.css";
 
 import { OWNER_EMAILS } from "./config/owners";
 
-// ✅ NEW: Sidebar
+// ✅ Sidebar (sin props)
 import SidebarNav from "./components/SidebarNav";
 
 // ===== PUBLIC PAGES =====
@@ -99,28 +99,10 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
 }
 
 /* ============================
-   Avatar fallback (localStorage extra)
-============================ */
-function readStoredAvatar(email?: string | null): string | null {
-  try {
-    if (!email) return null;
-    const key = `rycus_profile_extra_${email.toLowerCase()}`;
-    const raw = localStorage.getItem(key);
-    if (!raw || raw === "undefined" || raw === "null") return null;
-    const parsed = JSON.parse(raw);
-    const url =
-      typeof parsed?.avatarUrl === "string" ? parsed.avatarUrl.trim() : "";
-    return url || null;
-  } catch {
-    return null;
-  }
-}
-
-/* ============================
    APP
 ============================ */
 export default function App() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const location = useLocation();
 
   const vip = isVipUser(user);
@@ -138,11 +120,9 @@ export default function App() {
 
     // ✅ VIP (OWNER o FREE_LIFETIME): acceso total, sin Stripe
     if (vip) {
-      // marca hasAccess true siempre
       if (user.hasAccess === false) {
         updateUser({ hasAccess: true });
       }
-      // si es owner email, opcionalmente marca planType="owner"
       if (isOwnerEmail(user.email) && user.planType !== "owner") {
         updateUser({ planType: "owner" });
       }
@@ -160,8 +140,7 @@ export default function App() {
     }
 
     // ✅ PRODUCCIÓN:
-    // 1) primero intenta refrescar planType desde /users/me (usa token por interceptor)
-    //    así si el backend dice FREE_LIFETIME, lo tratamos como acceso total.
+    // 1) intenta refrescar planType desde /users/me
     try {
       const me = await axios.get("/users/me", { params: { email: user.email } });
       const pt = me.data?.planType;
@@ -176,10 +155,10 @@ export default function App() {
         return;
       }
     } catch {
-      // si falla /users/me, seguimos a billing/status (no rompemos)
+      // seguimos a billing/status
     }
 
-    // 2) luego chequea billing/status para usuarios normales
+    // 2) chequea billing/status para usuarios normales
     try {
       const res = await axios.get("/billing/status");
 
@@ -192,7 +171,6 @@ export default function App() {
 
       const planTypeFromServer = res.data?.planType;
 
-      // Si el servidor reporta FREE_LIFETIME, forzamos acceso.
       if (isFreeLifetimePlan(planTypeFromServer)) {
         updateUser({ hasAccess: true, planType: planTypeFromServer });
       } else {
@@ -230,63 +208,6 @@ export default function App() {
     return <div className="page">Checking subscription…</div>;
   }
 
-  // ✅ VIP siempre tiene acceso
-  const hasAccess = vip ? true : user?.hasAccess !== false;
-
-  // ============================
-  // NAV INFO
-  // ============================
-  const navDisplayName =
-    user?.firstName ||
-    user?.name?.split(" ")[0] ||
-    user?.email?.split("@")[0] ||
-    "Profile";
-
-  const userInitial = navDisplayName.charAt(0).toUpperCase();
-
-  const avatarFromStorage = readStoredAvatar(user?.email ?? null);
-  const avatarToShow =
-    (user?.avatarUrl && user.avatarUrl.trim()) || avatarFromStorage || "";
-
-  // ============================
-  // BADGES
-  // ============================
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [pendingConnectionsCount, setPendingConnectionsCount] = useState(0);
-  const prevPendingRef = useRef(0);
-
-  const loadUnread = useCallback(async () => {
-    if (!user?.email) return setUnreadCount(0);
-    try {
-      const res = await axios.get<number>("/messages/unread-count", {
-        params: { userEmail: user.email },
-      });
-      setUnreadCount(res.data ?? 0);
-    } catch {
-      setUnreadCount(0);
-    }
-  }, [user?.email]);
-
-  const loadPendingConnections = useCallback(async () => {
-    if (!user?.email) return setPendingConnectionsCount(0);
-    try {
-      const res = await axios.get<{ count: number }>(
-        "/connections/pending/count",
-        { params: { email: user.email } }
-      );
-      const next = res.data?.count ?? 0;
-      prevPendingRef.current = next;
-      setPendingConnectionsCount(next);
-    } catch {
-      setPendingConnectionsCount(0);
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    loadUnread();
-    loadPendingConnections();
-  }, [location.pathname, loadUnread, loadPendingConnections]);
-
   // ============================
   // UI
   // ============================
@@ -294,17 +215,7 @@ export default function App() {
     <div className={`app ${user ? "appShell" : ""}`}>
       {/* ✅ PRIVATE: Sidebar */}
       {user ? (
-        <SidebarNav
-          user={user}
-          hasAccess={hasAccess}
-          vip={vip}
-          navDisplayName={navDisplayName}
-          userInitial={userInitial}
-          avatarToShow={avatarToShow}
-          unreadCount={unreadCount}
-          pendingConnectionsCount={pendingConnectionsCount}
-          logout={logout}
-        />
+        <SidebarNav />
       ) : (
         /* ✅ PUBLIC: keep your existing header */
         <header className="site-header">
