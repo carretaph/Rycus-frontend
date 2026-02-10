@@ -103,7 +103,6 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
 ============================ */
 export default function App() {
   const { user, updateUser } = useAuth();
-  const location = useLocation();
 
   const vip = isVipUser(user);
 
