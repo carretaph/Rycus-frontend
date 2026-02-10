@@ -14,7 +14,10 @@
     flex-direction: column;
     gap: 14px;
     transition: width 160ms ease;
-    overflow: hidden;
+  
+    /* ✅ FIX: no cortar el bottom (Logout) */
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   
   /* Expand hover */
@@ -165,7 +168,6 @@
   =========================== */
   
   .sideMe {
-    margin-top: auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -247,5 +249,38 @@
     font-weight: 800;
     color: #111827;
     background: #f3f4f6;
+  }
+  
+  /* ===========================
+     ✅ NEW: Bottom group + Logout
+  =========================== */
+  
+  .sideBottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  
+    /* ✅ pequeño “aire” para que nunca quede pegado al borde */
+    padding-bottom: 10px;
+  }
+  
+  /* el logout es un button, pero queremos que se vea igual que los links */
+  .sideLogout {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid transparent;
+    outline: none;
+    font: inherit;
+    background: transparent; /* ✅ para que no se vea como botón nativo */
+  }
+  
+  /* en modo expandido, que el botón se comporte igual */
+  .side:hover .sideLogout {
+    grid-template-columns: 28px 1fr;
+    justify-content: flex-start;
+    place-items: center start;
+    padding: 0 12px;
+    column-gap: 10px;
   }
   

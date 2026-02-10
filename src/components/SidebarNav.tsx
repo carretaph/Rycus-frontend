@@ -1,3 +1,4 @@
+// src/components/SidebarNav.tsx
 import { Link, useLocation } from "react-router-dom";
 import {
   Home,
@@ -7,6 +8,7 @@ import {
   MessageCircle,
   UserSearch,
   PlusSquare,
+  LogOut,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -16,24 +18,43 @@ import logoFull from "../assets/rycus-logo.png";
 import logoIcon from "../assets/rycus-logo-check.png";
 
 export default function SidebarNav() {
-  const { user } = useAuth();
-  const location = useLocation();
+  // ✅ agarramos logout si existe; si no, hacemos fallback seguro
+  const auth: any = useAuth();
+  const user = auth?.user;
+  const logoutFn = auth?.logout;
 
+  const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  const initial = (user?.firstName?.[0] ||
+  const initial = (
+    user?.firstName?.[0] ||
     user?.name?.[0] ||
     user?.email?.[0] ||
     "U"
   ).toUpperCase();
 
+  const handleLogout = () => {
+    try {
+      // 1) si tu AuthContext ya tiene logout(), úsalo
+      if (typeof logoutFn === "function") {
+        logoutFn();
+        return;
+      }
+    } catch {
+      // seguimos con fallback
+    }
+
+    // 2) fallback: limpiar y mandar al login
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+  };
+
   return (
     <aside className="side">
       {/* BRAND / LOGO */}
       <Link to="/home" className="sideBrand" aria-label="Rycus Home">
-        {/* ✅ Compacto: check */}
         <img className="sideLogoIcon" src={logoIcon} alt="Rycus" />
-        {/* ✅ Expandido: full */}
         <img className="sideLogoFull" src={logoFull} alt="Rycus" />
       </Link>
 
@@ -100,25 +121,42 @@ export default function SidebarNav() {
         </Link>
       </nav>
 
-      {/* PROFILE abajo */}
-      <Link to="/profile" className="sideMe" aria-label="Profile">
-        <div className="sideAvatarRing">
-          {user?.avatarUrl ? (
-            <img className="sideAvatarImg" src={user.avatarUrl} alt="Profile" />
-          ) : (
-            <div className="sideAvatarFallback">{initial}</div>
-          )}
-        </div>
+      {/* BOTTOM AREA */}
+      <div className="sideBottom">
+        {/* PROFILE */}
+        <Link to="/profile" className="sideMe" aria-label="Profile">
+          <div className="sideAvatarRing">
+            {user?.avatarUrl ? (
+              <img
+                className="sideAvatarImg"
+                src={user.avatarUrl}
+                alt="Profile"
+              />
+            ) : (
+              <div className="sideAvatarFallback">{initial}</div>
+            )}
+          </div>
 
-        {/* ✅ solo aparece al expandir */}
-        <div className="sideMeText">
-          <div className="sideMeName">Profile</div>
-          <div className="sideMeSub">{user?.email ?? ""}</div>
-        </div>
+          <div className="sideMeText">
+            <div className="sideMeName">Profile</div>
+            <div className="sideMeSub">{user?.email ?? ""}</div>
+          </div>
 
-        {/* tooltip compacto */}
-        <span className="tip">Profile</span>
-      </Link>
+          <span className="tip">Profile</span>
+        </Link>
+
+        {/* LOGOUT */}
+        <button
+          type="button"
+          className="sideItem sideLogout"
+          onClick={handleLogout}
+          aria-label="Log out"
+        >
+          <LogOut size={22} className="sideSvg" />
+          <span className="sideLabel">Log out</span>
+          <span className="tip">Log out</span>
+        </button>
+      </div>
     </aside>
   );
 }
