@@ -18,11 +18,14 @@ type Coordinates = {
   lng: number;
 };
 
-const containerStyle = {
+/**
+ * IMPORTANT:
+ * El borde + radius del mapa lo maneja el wrapper del dashboard (.dashboard-map-card).
+ * Aquí solo definimos tamaño del contenedor del mapa.
+ */
+const containerStyle: React.CSSProperties = {
   width: "100%",
-  height: "450px",
-  borderRadius: "12px",
-  border: "1px solid #ddd",
+  height: "300px", // ✅ PROD height
 };
 
 const centerDefault = {
@@ -32,31 +35,23 @@ const centerDefault = {
 
 const CustomersMap: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [locations, setLocations] = useState<{ [key: number]: Coordinates }>(
-    {}
-  );
+  const [locations, setLocations] = useState<Record<number, Coordinates>>({});
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
 
-  // SOLO UNA variable de entorno
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  console.log("MAPS KEY FRONTEND =>", apiKey);
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || "",
   });
 
-  // ============================
-  // Navegar al detalle del cliente
-  // ============================
   const handleMarkerClick = (id: number) => {
-    // 👇 coincide con la ruta de App.tsx: /customers/:id
     navigate(`/customers/${id}`);
   };
 
   // ============================
-  // Cargar clientes globales
+  // Cargar clientes
   // ============================
   useEffect(() => {
     const loadCustomers = async () => {
@@ -96,7 +91,7 @@ const CustomersMap: React.FC = () => {
             lng: results[0].geometry.location.lng(),
           });
         } else {
-          console.warn("Geocode failed:", fullAddress, status);
+          // warning normal si hay direcciones incompletas
           resolve(null);
         }
       });
@@ -107,7 +102,7 @@ const CustomersMap: React.FC = () => {
     const loadLocations = async () => {
       if (!isLoaded || customers.length === 0) return;
 
-      const newLocations: { [key: number]: Coordinates } = {};
+      const newLocations: Record<number, Coordinates> = {};
 
       for (const c of customers) {
         const coord = await geocodeAddress(c);
@@ -123,40 +118,37 @@ const CustomersMap: React.FC = () => {
   // ============================
   // Render
   // ============================
-  if (!apiKey) {
-    return <p>Map unavailable: missing Google Maps API key.</p>;
-  }
-
-  if (loadError) {
-    console.error("Error loading Google Maps script", loadError);
-    return <p>Map failed to load.</p>;
-  }
-
+  if (!apiKey) return <p>Map unavailable: missing Google Maps API key.</p>;
+  if (loadError) return <p>Map failed to load.</p>;
   if (!isLoaded) return <p>Loading map…</p>;
   if (loading) return <p>Loading customers…</p>;
 
   return (
-    <div style={{ marginTop: "10px" }}>
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={centerDefault}
-        zoom={5}
-      >
-        {customers.map((c) => {
-          const loc = locations[c.id];
-          if (!loc) return null;
+    <GoogleMap
+      mapContainerStyle={containerStyle}
+      center={centerDefault}
+      zoom={4} // ✅ un poco más “prod”
+      options={{
+        fullscreenControl: true,
+        streetViewControl: false,
+        mapTypeControl: true,
+        clickableIcons: false,
+      }}
+    >
+      {customers.map((c) => {
+        const loc = locations[c.id];
+        if (!loc) return null;
 
-          return (
-            <MarkerF
-              key={c.id}
-              position={loc}
-              title={c.fullName || "Customer"}
-              onClick={() => handleMarkerClick(c.id)}
-            />
-          );
-        })}
-      </GoogleMap>
-    </div>
+        return (
+          <MarkerF
+            key={c.id}
+            position={loc}
+            title={c.fullName || "Customer"}
+            onClick={() => handleMarkerClick(c.id)}
+          />
+        );
+      })}
+    </GoogleMap>
   );
 };
 

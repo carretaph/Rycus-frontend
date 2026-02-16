@@ -1,167 +1,214 @@
 // src/pages/UsersSearchPage.tsx
-import React, { useEffect, useState } from "react";
-import axios from "../api/axiosClient";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "../api/axiosClient";
+import { useAuth } from "../context/AuthContext";
 
 type UserSummary = {
   id: number;
-  fullName: string;
-  email: string;
-  totalReviews: number;
-  averageRating: number;
+  fullName?: string | null;
+  email?: string | null;
 };
 
+type UserProfile = {
+  id: number;
+  fullName?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+  totalReviews?: number;
+  averageRating?: number;
+};
+
+function initials(name?: string | null, email?: string | null) {
+  const n = (name || "").trim();
+  if (n) return n.charAt(0).toUpperCase();
+  const e = (email || "").trim();
+  if (e) return e.charAt(0).toUpperCase();
+  return "?";
+}
+
+function formatAvg(avg?: number | null) {
+  if (avg == null) return "—";
+  const n = Number(avg);
+  if (Number.isNaN(n)) return "—";
+  return n.toFixed(1);
+}
+
 const UsersSearchPage: React.FC = () => {
+  const { user } = useAuth();
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
 
-  // ================================
-  // 🔍 AUTO SEARCH (debounce)
-  // ================================
+  // cache user profile mini (para mostrar avatar + reviews)
+  const [profileMap, setProfileMap] = useState<Record<number, UserProfile>>({});
+
+  const q = useMemo(() => query.trim(), [query]);
+  const canSearch = q.length >= 2;
+
   useEffect(() => {
-    const q = query.trim();
+    const run = async () => {
+      if (!canSearch) {
+        setResults([]);
+        setError(null);
+        return;
+      }
 
-    if (!q || q.length < 2) {
-      setResults([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
       try {
         setLoading(true);
         setError(null);
 
         const res = await axios.get<UserSummary[]>("/users/search", {
-          params: { q },
+          params: { query: q },
         });
 
-        setResults(res.data || []);
-      } catch (err) {
-        console.error("Error searching users", err);
-        setError("There was an error searching users. Please try again.");
+        setResults(Array.isArray(res.data) ? res.data : []);
+      } catch (e) {
+        console.error("search users error", e);
         setResults([]);
+        setError("Could not search users. Please try again.");
       } finally {
         setLoading(false);
       }
-    }, 300); // debounce
+    };
 
-    return () => clearTimeout(timer);
-  }, [query]);
+    const t = setTimeout(run, 250);
+    return () => clearTimeout(t);
+  }, [q, canSearch]);
+
+  // cargar perfiles (avatar + stats) para resultados, caché por id
+  useEffect(() => {
+    const loadProfiles = async () => {
+      const missingIds = results
+        .map((r) => r.id)
+        .filter((id) => typeof id === "number" && !profileMap[id]);
+
+      for (const id of missingIds) {
+        try {
+          const res = await axios.get<UserProfile>(`/users/${id}`);
+          setProfileMap((prev) => ({ ...prev, [id]: res.data }));
+        } catch {
+          // si falla, al menos cacheamos algo mínimo para no reintentar infinito
+          const fallback: UserProfile = {
+            id,
+            fullName: results.find((x) => x.id === id)?.fullName || null,
+            email: results.find((x) => x.id === id)?.email || null,
+          };
+          setProfileMap((prev) => ({ ...prev, [id]: fallback }));
+        }
+      }
+    };
+
+    void loadProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results]);
 
   return (
     <div className="page">
-      <h1>Search Users</h1>
-
-      <p className="dashboard-text" style={{ maxWidth: 640 }}>
-        Find other Rycus users and see how many customer reviews they've
-        submitted. Type at least <strong>2 letters</strong> to start searching
-        automatically.
-      </p>
-
-      <div
-        style={{
-          marginTop: 16,
-          marginBottom: 24,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
-          alignItems: "center",
-        }}
-      >
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setTouched(true);
-            setQuery(e.target.value);
-          }}
-          placeholder="Search by name or email..."
-          className="input"
-          style={{ maxWidth: 420, flex: "1 1 240px" }}
-        />
-      </div>
-
-      {loading && <p>Searching users...</p>}
-
-      {error && <p style={{ color: "#b91c1c", marginBottom: 16 }}>{error}</p>}
-
-      {!loading &&
-        !error &&
-        results.length === 0 &&
-        touched &&
-        query.trim().length >= 2 && <p>No users found for "{query.trim()}".</p>}
-
-      {!loading && !error && !touched && (
-        <p style={{ color: "#6b7280" }}>
-          Start typing a name or email to find users.
-        </p>
-      )}
-
-      {/* ================================
-          RESULT CARDS
-      ================================= */}
-      <div className="dashboard-grid">
-        {results.map((u) => (
-          <div
-            key={u.id}
-            className="dashboard-card"
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <h2>{u.fullName}</h2>
-            <p className="dashboard-text">{u.email}</p>
-
-            <p className="dashboard-text">
-              Reviews written: <strong>{u.totalReviews}</strong>
-              <br />
-              Average rating:{" "}
-              <strong>
-                {u.totalReviews > 0
-                  ? u.averageRating.toFixed(1)
-                  : "No reviews yet"}
-              </strong>
+      <div className="users-container">
+        <div className="users-header">
+          <div>
+            <h1>Search Users</h1>
+            <p>
+              Find other Rycus users and see how many customer reviews they've submitted.
+              Type at least <b>2 letters</b> to start searching automatically.
             </p>
-
-            {/* ACTIONS */}
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                marginTop: 12,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              <Link to={`/users/${u.id}`} className="dashboard-link">
-                View user profile →
-              </Link>
-
-              <Link
-                to={`/messages/${encodeURIComponent(u.email)}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #e5e7eb",
-                  textDecoration: "none",
-                  fontWeight: 700,
-                }}
-              >
-                💬 Message
-              </Link>
-            </div>
           </div>
-        ))}
-      </div>
 
-      <div style={{ marginTop: 32 }}>
-        <Link to="/dashboard" className="dashboard-link">
-          ← Back to Dashboard
-        </Link>
+          <div className="users-top-actions">
+            <Link to="/dashboard" className="dashboard-link">
+              ← Back to Dashboard
+            </Link>
+          </div>
+        </div>
+
+        <div className="users-search-row">
+          <input
+            className="users-search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or email..."
+            autoComplete="off"
+          />
+        </div>
+
+        {!canSearch && (
+          <div className="users-hint">Start typing a name or email to find users.</div>
+        )}
+
+        {loading && <div className="users-hint">Searching…</div>}
+        {error && <div className="users-error">{error}</div>}
+
+        {!loading && !error && canSearch && results.length === 0 && (
+          <div className="users-hint">No users found.</div>
+        )}
+
+        <div className="users-results">
+          {results.map((r) => {
+            const prof = profileMap[r.id];
+            const fullName = (prof?.fullName ?? r.fullName ?? "").toString().trim();
+            const email = (prof?.email ?? r.email ?? "").toString().trim();
+            const avatarUrl = (prof?.avatarUrl ?? "").toString().trim() || null;
+
+            const reviews = prof?.totalReviews ?? 0;
+            const avg = prof?.averageRating ?? null;
+
+            return (
+              <div key={r.id} className="users-card">
+                <div className="users-card-left">
+                  <div className="users-avatar" title={fullName || email || ""}>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={fullName || email || "avatar"} />
+                    ) : (
+                      <span>{initials(fullName, email)}</span>
+                    )}
+                  </div>
+
+                  <div className="users-meta">
+                    <div className="users-name">{fullName || "Unknown"}</div>
+                    <div className="users-email">{email || "—"}</div>
+
+                    <div className="users-stats">
+                      <div>
+                        <span className="users-stat-label">Reviews written:</span>{" "}
+                        <b>{reviews}</b>
+                      </div>
+                      <div>
+                        <span className="users-stat-label">Average rating:</span>{" "}
+                        <b>{reviews > 0 ? formatAvg(avg) : "No reviews yet"}</b>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="users-actions">
+                  <Link to={`/users/${r.id}`} className="btn-secondary">
+                    View profile →
+                  </Link>
+
+                  {/* message sólo si hay sesión */}
+                  {user?.email && email && (
+                    <Link
+                      to={`/messages/${encodeURIComponent(email)}`}
+                      className="btn-secondary"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+                    >
+                      💬 Message
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 18 }}>
+          <Link to="/dashboard" className="dashboard-link">
+            ← Back to Dashboard
+          </Link>
+        </div>
       </div>
     </div>
   );

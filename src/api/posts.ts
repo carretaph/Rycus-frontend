@@ -1,12 +1,19 @@
 import axiosClient from "./axiosClient";
 
-/* ========= DTOs ========= */
+/* =========================================================
+   DTOs
+   ========================================================= */
 
 export type PostDto = {
   id: number;
   text: string;
+
   authorEmail: string;
   authorName: string;
+
+  // 👇 AQUI estaba el bug
+  authorAvatarUrl?: string | null;
+
   createdAt: string;
 
   likeCount: number;
@@ -19,71 +26,140 @@ export type CreatePostRequest = {
   authorName: string;
 };
 
-export type LikeStatusDto = {
-  postId: number;
-  liked: boolean;
+export type LikeResponse = {
   likeCount: number;
+  liked: boolean;
 };
 
-/* ========= API ========= */
+/* =========================================================
+   FETCH FEED
+   ========================================================= */
 
 export async function fetchFeed(
   limit: number = 50,
   viewerEmail?: string
 ): Promise<PostDto[]> {
-  const res = await axiosClient.get<PostDto[]>("/posts/feed", {
-    params: { limit, viewerEmail },
-  });
+  const params: Record<string, any> = { limit };
 
-  return Array.isArray(res.data) ? res.data : [];
-}
+  if (viewerEmail) {
+    params.viewerEmail = viewerEmail;
+  }
 
-export async function createPost(req: CreatePostRequest): Promise<PostDto> {
-  const res = await axiosClient.post<PostDto>("/posts", req);
-  return res.data;
-}
-
-export async function likePost(
-  postId: number,
-  email: string
-): Promise<LikeStatusDto> {
-  const res = await axiosClient.post<LikeStatusDto>(
-    `/posts/${postId}/like`,
-    null,
-    { params: { email } }
+  const res = await axiosClient.get<PostDto[]>(
+    "/posts/feed",
+    { params }
   );
-  return res.data;
+
+  console.log("FEED RAW →", res.data);
+
+  // 👇 FIX CLAVE
+  return Array.isArray(res.data)
+    ? res.data.map((p) => ({
+        ...p,
+        authorAvatarUrl:
+          p.authorAvatarUrl ||
+          (p as any).author_avatar_url ||
+          null,
+      }))
+    : [];
 }
 
-export async function unlikePost(
-  postId: number,
-  email: string
-): Promise<LikeStatusDto> {
-  const res = await axiosClient.delete<LikeStatusDto>(
-    `/posts/${postId}/like`,
-    { params: { email } }
+/* =========================================================
+   CREATE POST
+   ========================================================= */
+
+export async function createPost(
+  body: CreatePostRequest
+): Promise<PostDto> {
+  const res = await axiosClient.post<PostDto>(
+    "/posts",
+    body
   );
-  return res.data;
+
+  return {
+    ...res.data,
+    authorAvatarUrl:
+      res.data.authorAvatarUrl ||
+      (res.data as any).author_avatar_url ||
+      null,
+  };
 }
 
-// ✅ HARD DELETE (only author)
-// DELETE /posts/{postId}?email=...
-export async function deletePost(postId: number, email: string): Promise<void> {
-  await axiosClient.delete(`/posts/${postId}`, { params: { email } });
-}
+/* =========================================================
+   UPDATE POST
+   ========================================================= */
 
-// ✅ EDIT (only author)
-// PUT /posts/{postId}?email=...
-// Body: { "text": "..." }
 export async function updatePost(
   postId: number,
-  email: string,
+  viewerEmail: string,
   text: string
 ): Promise<PostDto> {
   const res = await axiosClient.put<PostDto>(
     `/posts/${postId}`,
     { text },
-    { params: { email } }
+    {
+      params: { viewerEmail },
+    }
   );
+
+  return {
+    ...res.data,
+    authorAvatarUrl:
+      res.data.authorAvatarUrl ||
+      (res.data as any).author_avatar_url ||
+      null,
+  };
+}
+
+/* =========================================================
+   DELETE POST
+   ========================================================= */
+
+export async function deletePost(
+  postId: number,
+  viewerEmail: string
+): Promise<void> {
+  await axiosClient.delete(
+    `/posts/${postId}`,
+    {
+      params: { viewerEmail },
+    }
+  );
+}
+
+/* =========================================================
+   LIKE
+   ========================================================= */
+
+export async function likePost(
+  postId: number,
+  viewerEmail: string
+): Promise<LikeResponse> {
+  const res = await axiosClient.post<LikeResponse>(
+    `/posts/${postId}/like`,
+    null,
+    {
+      params: { viewerEmail },
+    }
+  );
+
+  return res.data;
+}
+
+/* =========================================================
+   UNLIKE
+   ========================================================= */
+
+export async function unlikePost(
+  postId: number,
+  viewerEmail: string
+): Promise<LikeResponse> {
+  const res = await axiosClient.delete<LikeResponse>(
+    `/posts/${postId}/like`,
+    {
+      params: { viewerEmail },
+    }
+  );
+
   return res.data;
 }

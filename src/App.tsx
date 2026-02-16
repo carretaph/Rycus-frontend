@@ -8,7 +8,7 @@ import "./App.css";
 
 import { OWNER_EMAILS } from "./config/owners";
 
-// ✅ Sidebar (sin props)
+// ✅ Sidebar
 import SidebarNav from "./components/SidebarNav";
 
 // ===== PUBLIC PAGES =====
@@ -30,12 +30,16 @@ import ProfilePage from "./pages/ProfilePage";
 import InboxPage from "./pages/InboxPage";
 import MessagesPage from "./pages/MessagesPage";
 
-// ✅ BILLING / PAYMENT PAGES
+// ===== BILLING =====
 import ActivatePage from "./pages/ActivatePage";
 import BillingSuccessPage from "./pages/BillingSuccessPage";
 import BillingCancelPage from "./pages/BillingCancelPage";
 
 import logo from "./assets/rycus-logo.png";
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function isOwnerEmail(email?: string | null): boolean {
   if (!email) return false;
@@ -49,7 +53,6 @@ function isFreeLifetimePlan(planType?: string | null): boolean {
 }
 
 function isVipUser(user: any): boolean {
-  // VIP = Owner email OR planType FREE_LIFETIME OR internal owner marker
   return (
     isOwnerEmail(user?.email ?? null) ||
     isFreeLifetimePlan(user?.planType ?? null) ||
@@ -57,11 +60,10 @@ function isVipUser(user: any): boolean {
   );
 }
 
-/* ============================
-   🔐 Protected Route (AUTH + optional BILLING)
-   - requireAccess=false => solo login
-   - requireAccess=true  => login + billing (unless VIP)
-============================ */
+/* =========================================================
+   🔐 Protected Route
+========================================================= */
+
 function ProtectedRoute({
   children,
   requireAccess = true,
@@ -77,39 +79,43 @@ function ProtectedRoute({
 
   const vip = isVipUser(user);
 
-  // ✅ Si requiere billing y NO es VIP, y hasAccess es false => Activate
   if (requireAccess && !vip && user.hasAccess === false) {
     return (
-      <Navigate to="/activate" replace state={{ from: location.pathname }} />
+      <Navigate
+        to="/activate"
+        replace
+        state={{ from: location.pathname }}
+      />
     );
   }
 
   return <>{children}</>;
 }
 
-/* ============================
+/* =========================================================
    🌐 Public Only Route
-============================ */
+========================================================= */
+
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, initializing } = useAuth();
 
   if (initializing) return <div className="page">Loading...</div>;
   if (user) return <Navigate to="/home" replace />;
+
   return <>{children}</>;
 }
 
-/* ============================
+/* =========================================================
    APP
-============================ */
+========================================================= */
+
 export default function App() {
   const { user, updateUser } = useAuth();
-
   const vip = isVipUser(user);
 
-  // ============================
-  // BILLING STATUS (anti-loop)
-  // ============================
   const [billingChecked, setBillingChecked] = useState(false);
+
+  /* ================= BILLING STATUS ================= */
 
   const loadBillingStatus = useCallback(async () => {
     if (!user?.email) {
@@ -117,31 +123,34 @@ export default function App() {
       return;
     }
 
-    // ✅ VIP (OWNER o FREE_LIFETIME): acceso total, sin Stripe
+    // ✅ VIP bypass
     if (vip) {
-      if (user.hasAccess === false) {
-        updateUser({ hasAccess: true });
-      }
+      if (user.hasAccess === false) updateUser({ hasAccess: true });
+
       if (isOwnerEmail(user.email) && user.planType !== "owner") {
         updateUser({ planType: "owner" });
       }
+
       setBillingChecked(true);
       return;
     }
 
     if (billingChecked) return;
 
-    // ✅ En DEV no llamamos /billing/status
+    // ✅ DEV bypass
     if (import.meta.env.DEV) {
       if (user.hasAccess === false) updateUser({ hasAccess: true });
       setBillingChecked(true);
       return;
     }
 
-    // ✅ PRODUCCIÓN:
-    // 1) intenta refrescar planType desde /users/me
+    // ===== PROD =====
+
     try {
-      const me = await axios.get("/users/me", { params: { email: user.email } });
+      const me = await axios.get("/users/me", {
+        params: { email: user.email },
+      });
+
       const pt = me.data?.planType;
 
       if (pt && user.planType !== pt) {
@@ -154,10 +163,9 @@ export default function App() {
         return;
       }
     } catch {
-      // seguimos a billing/status
+      // fallback billing/status
     }
 
-    // 2) chequea billing/status para usuarios normales
     try {
       const res = await axios.get("/billing/status");
 
@@ -171,7 +179,10 @@ export default function App() {
       const planTypeFromServer = res.data?.planType;
 
       if (isFreeLifetimePlan(planTypeFromServer)) {
-        updateUser({ hasAccess: true, planType: planTypeFromServer });
+        updateUser({
+          hasAccess: true,
+          planType: planTypeFromServer,
+        });
       } else {
         if (user.hasAccess !== serverHasAccess) {
           updateUser({
@@ -182,8 +193,7 @@ export default function App() {
           updateUser({ planType: planTypeFromServer });
         }
       }
-    } catch (err: any) {
-      // ⚠️ Si falla billing/status en producción, NO bypass
+    } catch {
       if (user.hasAccess !== false) {
         updateUser({ hasAccess: false });
       }
@@ -207,21 +217,22 @@ export default function App() {
     return <div className="page">Checking subscription…</div>;
   }
 
-  // ============================
-  // UI
-  // ============================
+  /* ================= UI ================= */
+
   return (
     <div className={`app ${user ? "appShell" : ""}`}>
-      {/* ✅ PRIVATE: Sidebar */}
+      
+      {/* ===== SIDEBAR ===== */}
       {user ? (
         <SidebarNav />
       ) : (
-        /* ✅ PUBLIC: keep your existing header */
         <header className="site-header">
           <div className="site-header-logo-block">
             <img src={logo} alt="Rycus" className="site-header-logo" />
             <div className="site-header-title">Rycus</div>
-            <div className="site-header-subtitle">Rate Your Customer US</div>
+            <div className="site-header-subtitle">
+              Rate Your Customer US
+            </div>
           </div>
 
           <nav className="site-header-nav">
@@ -232,10 +243,12 @@ export default function App() {
         </header>
       )}
 
-      {/* ========== ROUTES ========== */}
-      <main className={user ? "appMain" : "main"}>
+      {/* ===== MAIN ===== */}
+      {/* 🔥 IMPORTANTE: main + appMain */}
+      <main className={user ? "main appMain" : "main"}>
         <Routes>
-          {/* PUBLIC */}
+
+          {/* ===== PUBLIC ===== */}
           <Route
             path="/"
             element={
@@ -244,6 +257,7 @@ export default function App() {
               </PublicOnlyRoute>
             }
           />
+
           <Route
             path="/login"
             element={
@@ -252,6 +266,7 @@ export default function App() {
               </PublicOnlyRoute>
             }
           />
+
           <Route
             path="/register"
             element={
@@ -261,7 +276,8 @@ export default function App() {
             }
           />
 
-          {/* PRIVATE (login only) */}
+          {/* ===== PRIVATE ===== */}
+
           <Route
             path="/home"
             element={
@@ -271,7 +287,6 @@ export default function App() {
             }
           />
 
-          {/* ✅ Dashboard requiere billing (o VIP) */}
           <Route
             path="/dashboard"
             element={
@@ -281,7 +296,8 @@ export default function App() {
             }
           />
 
-          {/* ✅ Activate / Billing routes (solo login) */}
+          {/* ===== BILLING ===== */}
+
           <Route
             path="/activate"
             element={
@@ -290,6 +306,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/billing/success"
             element={
@@ -298,6 +315,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/billing/cancel"
             element={
@@ -307,52 +325,59 @@ export default function App() {
             }
           />
 
-          {/* ✅ GATED ROUTES */}
+          {/* ===== CUSTOMERS ===== */}
+
           <Route
             path="/customers"
             element={
-              <ProtectedRoute requireAccess={true}>
+              <ProtectedRoute>
                 <CustomerListPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/customers/new"
-            element={
-              <ProtectedRoute requireAccess={true}>
-                <CustomerCreatePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/customers/:id"
-            element={
-              <ProtectedRoute requireAccess={true}>
-                <CustomerReviewsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/customers/:id/edit"
-            element={
-              <ProtectedRoute requireAccess={true}>
-                <CustomerEditPage />
               </ProtectedRoute>
             }
           />
 
           <Route
+            path="/customers/new"
+            element={
+              <ProtectedRoute>
+                <CustomerCreatePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/customers/:id"
+            element={
+              <ProtectedRoute>
+                <CustomerReviewsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/customers/:id/edit"
+            element={
+              <ProtectedRoute>
+                <CustomerEditPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ===== USERS ===== */}
+
+          <Route
             path="/users"
             element={
-              <ProtectedRoute requireAccess={true}>
+              <ProtectedRoute>
                 <UsersSearchPage />
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/users/:id"
             element={
-              <ProtectedRoute requireAccess={true}>
+              <ProtectedRoute>
                 <UserProfilePage />
               </ProtectedRoute>
             }
@@ -361,13 +386,14 @@ export default function App() {
           <Route
             path="/connections"
             element={
-              <ProtectedRoute requireAccess={true}>
+              <ProtectedRoute>
                 <UserConnectionsPage />
               </ProtectedRoute>
             }
           />
 
-          {/* Profile (solo login) */}
+          {/* ===== PROFILE ===== */}
+
           <Route
             path="/profile"
             element={
@@ -377,25 +403,30 @@ export default function App() {
             }
           />
 
+          {/* ===== MESSAGES ===== */}
+
           <Route
             path="/inbox"
             element={
-              <ProtectedRoute requireAccess={true}>
+              <ProtectedRoute>
                 <InboxPage />
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/messages/:otherEmail"
             element={
-              <ProtectedRoute requireAccess={true}>
+              <ProtectedRoute>
                 <MessagesPage />
               </ProtectedRoute>
             }
           />
 
-          {/* FALLBACK */}
+          {/* ===== FALLBACK ===== */}
+
           <Route path="*" element={<Navigate to="/" replace />} />
+
         </Routes>
       </main>
     </div>

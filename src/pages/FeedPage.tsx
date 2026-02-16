@@ -1,3 +1,4 @@
+// src/pages/FeedPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -10,6 +11,8 @@ import {
   type PostDto,
 } from "../api/posts";
 
+import "./FeedPage.css";
+
 type FeedFilter = "ALL" | "POST" | "NEWS" | "AD";
 
 type FeedItem =
@@ -20,6 +23,7 @@ type FeedItem =
       createdAt: string;
       authorName: string;
       authorEmail: string;
+      authorAvatarUrl?: string;
       text: string;
       likeCount: number;
       likedByViewer: boolean;
@@ -46,17 +50,8 @@ const STATIC_ITEMS: FeedItem[] = [
     kind: "NEWS",
     id: "news-1",
     createdAt: "2026-01-18T20:00:00Z",
-    title: "Welcome to the Rycus Wall",
-    text: "This wall is connected to the backend. Next: edit posts, comments, and moderation tools.",
-  },
-  {
-    kind: "AD",
-    id: "ad-1",
-    createdAt: "2026-01-18T20:10:00Z",
-    title: "Sponsored",
-    text: "Want to promote your business inside Rycus?",
-    ctaText: "Advertise on Rycus",
-    ctaUrl: "/profile",
+    title: "Welcome to Rycus",
+    text: "Your professional customer intelligence network.",
   },
 ];
 
@@ -68,7 +63,65 @@ function formatTime(iso: string) {
   }
 }
 
+function initials(name: string) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] ?? "U";
+  const b = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (a + b).toUpperCase();
+}
+
+function AvatarBubble({
+  name,
+  url,
+  label,
+}: {
+  name: string;
+  url?: string;
+  label?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  const cleanUrl =
+    typeof url === "string" && url.trim().length > 0 ? url.trim() : undefined;
+
+  const showImg = !!cleanUrl && !failed;
+
+  // cache-buster (solo para evitar caching raro mientras debug)
+  const src = showImg
+    ? cleanUrl!.includes("?")
+      ? `${cleanUrl!}&v=${Date.now()}`
+      : `${cleanUrl!}?v=${Date.now()}`
+    : undefined;
+
+  return (
+    <div
+      className={`feed-avatar ${showImg ? "feed-avatarHasImg" : ""}`}
+      aria-label={label ?? `${name} avatar`}
+    >
+      {showImg ? (
+        <img
+          src={src}
+          alt={name}
+          onError={() => setFailed(true)}
+          referrerPolicy="no-referrer"
+        />
+      ) : null}
+
+      <span>{initials(name)}</span>
+    </div>
+  );
+}
+
 function mapPost(p: PostDto): FeedItem {
+  const avatar =
+    typeof p.authorAvatarUrl === "string" && p.authorAvatarUrl.trim()
+      ? p.authorAvatarUrl.trim()
+      : undefined;
+
   return {
     kind: "POST",
     id: `post-${p.id}`,
@@ -76,6 +129,7 @@ function mapPost(p: PostDto): FeedItem {
     createdAt: p.createdAt,
     authorName: p.authorName,
     authorEmail: p.authorEmail,
+    authorAvatarUrl: avatar,
     text: p.text,
     likeCount: p.likeCount ?? 0,
     likedByViewer: !!p.likedByViewer,
@@ -92,7 +146,6 @@ export default function FeedPage() {
 
   const [posts, setPosts] = useState<FeedItem[]>([]);
 
-  // ✅ Edit state
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
 
@@ -103,7 +156,7 @@ export default function FeedPage() {
     try {
       const viewerEmail = user?.email ?? undefined;
       const data = await fetchFeed(50, viewerEmail);
-      setPosts(data.map(mapPost));
+      setPosts(Array.isArray(data) ? data.map(mapPost) : []);
     } catch {
       setError("Could not load the wall. Check backend URL / CORS.");
       setPosts([]);
@@ -123,7 +176,6 @@ export default function FeedPage() {
       setError("Write something before posting 🙂");
       return;
     }
-
     if (!user?.email) {
       setError("You must be logged in.");
       return;
@@ -148,7 +200,7 @@ export default function FeedPage() {
       setPostText("");
       setFilter("ALL");
     } catch {
-      setError("Failed to create post. Check security/token settings.");
+      setError("Failed to create post.");
     } finally {
       setLoading(false);
     }
@@ -156,6 +208,7 @@ export default function FeedPage() {
 
   async function toggleLike(item: FeedItem) {
     if (item.kind !== "POST") return;
+
     if (!user?.email) {
       setError("You must be logged in.");
       return;
@@ -202,6 +255,7 @@ export default function FeedPage() {
 
   async function handleDelete(item: FeedItem) {
     if (item.kind !== "POST") return;
+
     if (!user?.email) {
       setError("You must be logged in.");
       return;
@@ -210,7 +264,6 @@ export default function FeedPage() {
     const ok = confirm("Delete this post permanently?");
     if (!ok) return;
 
-    // optimistic remove
     setPosts((prev) =>
       prev.filter((p) => !(p.kind === "POST" && p.postId === item.postId))
     );
@@ -218,7 +271,6 @@ export default function FeedPage() {
     try {
       await deletePost(item.postId, user.email);
 
-      // si estabas editando ese post, cancelar edición
       if (editingPostId === item.postId) {
         setEditingPostId(null);
         setEditText("");
@@ -244,6 +296,7 @@ export default function FeedPage() {
 
   async function saveEdit(item: FeedItem) {
     if (item.kind !== "POST") return;
+
     if (!user?.email) {
       setError("You must be logged in.");
       return;
@@ -290,145 +343,181 @@ export default function FeedPage() {
     return fullFeed.filter((i) => i.kind === "AD");
   }, [filter, fullFeed]);
 
+  const meName =
+    user?.name ||
+    user?.firstName ||
+    (user?.email ? user.email.split("@")[0] : "You");
+
   return (
-    <div className="page">
+    <div className="feed-wrap">
       {/* Header */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <h1 style={{ margin: 0 }}>Wall</h1>
+      <div className="feed-card">
+        <div className="feed-headerRow">
+          <div>
+            <h1 className="feed-title">Wall</h1>
+            <div className="feed-subtle">{items.length} items</div>
+          </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {(["ALL", "POST", "NEWS", "AD"] as const).map((f) => (
-            <button
-              key={f}
-              className="btn"
-              onClick={() => setFilter(f)}
-              style={{ opacity: filter === f ? 1 : 0.7 }}
-            >
-              {f === "ALL" ? "All" : f === "POST" ? "Posts" : f === "NEWS" ? "News" : "Ads"}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="feed-tabs">
+              {(["ALL", "POST", "NEWS", "AD"] as const).map((f) => (
+                <button
+                  key={f}
+                  className={`feed-tab ${filter === f ? "feed-tabActive" : ""}`}
+                  onClick={() => setFilter(f)}
+                >
+                  {f === "ALL" ? "All" : f === "POST" ? "Posts" : f === "NEWS" ? "News" : "Ads"}
+                </button>
+              ))}
+            </div>
+
+            <button className="feed-btn feed-btnOutline" onClick={loadFeed} disabled={loading}>
+              Refresh
             </button>
-          ))}
-
-          <button className="btn" onClick={loadFeed} style={{ opacity: 0.9 }}>
-            Refresh
-          </button>
+          </div>
         </div>
       </div>
 
+      <div className="feed-spacer12" />
+
       {/* Composer */}
-      <div style={{ marginTop: 16, padding: 12, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Create a post</div>
+      <div className="feed-card">
+        <div className="feed-createRow">
+          <AvatarBubble name={meName} url={user?.avatarUrl || undefined} label="Your avatar" />
 
-        <textarea
-          value={postText}
-          onChange={(e) => setPostText(e.target.value)}
-          placeholder="What's new?"
-          rows={3}
-          style={{
-            width: "100%",
-            padding: 10,
-            borderRadius: 10,
-            border: "1px solid #e5e7eb",
-          }}
-        />
+          <div className="feed-createRight">
+            <textarea
+              className="feed-textarea"
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              placeholder="What's new?"
+              rows={3}
+            />
 
-        {error && <div style={{ marginTop: 8, color: "#b91c1c" }}>{error}</div>}
-        {loading && <div style={{ marginTop: 8, opacity: 0.7 }}>Loading...</div>}
+            {error && (
+              <div style={{ marginTop: 8, color: "#b91c1c", fontWeight: 700 }}>
+                {error}
+              </div>
+            )}
+            {loading && <div style={{ marginTop: 8, opacity: 0.7 }}>Loading...</div>}
 
-        <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-          <button className="btn" onClick={handlePost} disabled={loading}>
-            Post
-          </button>
+            <div className="feed-actions">
+              <button className="feed-btn feed-btnPrimary" onClick={handlePost} disabled={loading}>
+                Post
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Feed */}
-      <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+      <div className="feed-list">
         {items.map((it) => (
-          <div key={it.id} style={{ padding: 12, border: "1px solid #e5e7eb", borderRadius: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <strong>
-                {it.kind === "POST" ? "📝 Post" : it.kind === "NEWS" ? "🗞️ News" : "📢 Ad"}
-              </strong>
-              <span style={{ opacity: 0.7, fontSize: 12 }}>{formatTime(it.createdAt)}</span>
-            </div>
-
+          <div key={it.id} className="feed-card">
             {it.kind === "POST" && (
-              <>
-                <div style={{ fontSize: 13, opacity: 0.85 }}>
-                  by {it.authorName} ({it.authorEmail})
-                </div>
+              <div className="feed-postTop">
+                <AvatarBubble name={it.authorName} url={it.authorAvatarUrl} />
 
-                {/* ✅ Edit UI */}
-                {editingPostId === it.postId ? (
-                  <div style={{ marginTop: 10 }}>
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      rows={3}
-                      style={{
-                        width: "100%",
-                        padding: 10,
-                        borderRadius: 10,
-                        border: "1px solid #e5e7eb",
-                      }}
-                    />
-
-                    <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button className="btn" onClick={() => saveEdit(it)} disabled={loading}>
-                        💾 Save
-                      </button>
-                      <button className="btn" onClick={cancelEdit} style={{ opacity: 0.85 }}>
-                        ✖ Cancel
-                      </button>
+                <div className="feed-postMeta">
+                  <div className="feed-postNameRow">
+                    <div>
+                      <p className="feed-postName">{it.authorName}</p>
+                      <div className="feed-postEmail">{it.authorEmail}</div>
                     </div>
+                    <div className="feed-postTime">{formatTime(it.createdAt)}</div>
                   </div>
-                ) : (
-                  <div style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{it.text}</div>
-                )}
 
-                <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <button className="btn" onClick={() => toggleLike(it)} style={{ opacity: it.likedByViewer ? 1 : 0.85 }}>
-                    {it.likedByViewer ? "❤️ Liked" : "🤍 Like"}
-                  </button>
-
-                  <span style={{ opacity: 0.8, fontSize: 13 }}>{it.likeCount} likes</span>
-
-                  {/* ✅ Author actions */}
-                  {user?.email && user.email.toLowerCase() === it.authorEmail.toLowerCase() && (
-                    <>
-                      {editingPostId !== it.postId && (
-                        <button className="btn" onClick={() => startEdit(it)} style={{ opacity: 0.85 }}>
-                          ✏️ Edit
+                  {editingPostId === it.postId ? (
+                    <div style={{ marginTop: 10 }}>
+                      <textarea
+                        className="feed-textarea"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={3}
+                      />
+                      <div className="feed-actions" style={{ justifyContent: "flex-start" }}>
+                        <button
+                          className="feed-btn feed-btnPrimary"
+                          onClick={() => saveEdit(it)}
+                          disabled={loading}
+                        >
+                          Save
                         </button>
-                      )}
-
-                      <button className="btn" onClick={() => handleDelete(it)} style={{ opacity: 0.85 }}>
-                        🗑️ Delete
-                      </button>
-                    </>
+                        <button
+                          className="feed-btn feed-btnOutline"
+                          onClick={cancelEdit}
+                          disabled={loading}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="feed-postBody">{it.text}</div>
                   )}
+
+                  <div className="feed-postActionsRow">
+                    <div className="feed-actionGroup">
+                      <button
+                        className="feed-btn feed-btnGhost"
+                        onClick={() => toggleLike(it)}
+                        disabled={loading}
+                      >
+                        {it.likedByViewer ? "👍 Liked" : "👍 Like"}
+                      </button>
+                      <div className="feed-likesCount">{it.likeCount} likes</div>
+                    </div>
+
+                    {user?.email &&
+                      user.email.toLowerCase() === it.authorEmail.toLowerCase() && (
+                        <div className="feed-actionGroup">
+                          {editingPostId !== it.postId && (
+                            <button
+                              className="feed-btn feed-btnGhost"
+                              onClick={() => startEdit(it)}
+                              disabled={loading}
+                            >
+                              ✏️ Edit
+                            </button>
+                          )}
+                          <button
+                            className="feed-btn feed-btnDanger"
+                            onClick={() => handleDelete(it)}
+                            disabled={loading}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      )}
+                  </div>
                 </div>
+              </div>
+            )}
+
+            {it.kind === "NEWS" && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <strong>{it.title}</strong>
+                  <span className="feed-postTime">{formatTime(it.createdAt)}</span>
+                </div>
+                <div className="feed-postBody">{it.text}</div>
               </>
             )}
 
-            {it.kind !== "POST" && <div style={{ marginTop: 8, fontWeight: 700 }}>{it.title}</div>}
-
-            {it.kind !== "POST" && (
-              <div style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{it.text}</div>
-            )}
-
             {it.kind === "AD" && (
-              <div style={{ marginTop: 12 }}>
-                <a className="btn" href={it.ctaUrl}>
-                  {it.ctaText}
-                </a>
-              </div>
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <strong>{it.title}</strong>
+                  <span className="feed-postTime">{formatTime(it.createdAt)}</span>
+                </div>
+                <div className="feed-postBody">{it.text}</div>
+              </>
             )}
           </div>
         ))}
 
         {!loading && items.length === 0 && (
-          <div style={{ opacity: 0.6, padding: 12, border: "1px dashed #e5e7eb", borderRadius: 12 }}>
+          <div className="feed-card" style={{ opacity: 0.7, borderStyle: "dashed" }}>
             Nothing here yet.
           </div>
         )}

@@ -5,7 +5,9 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
+
 import "./index.css";
+import "./App.css"; // ✅ AGREGA ESTA LÍNEA
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

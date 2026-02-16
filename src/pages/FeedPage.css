@@ -1,0 +1,278 @@
+/* src/pages/FeedPage.css
+   Estilos SOLO del feed. No toca .card global, ni .main, ni dashboard. */
+
+   .feed-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  
+  .feed-spacer12 {
+    height: 12px;
+  }
+  
+  /* “Card” SOLO para feed (no usa .card global) */
+  .feed-card {
+    width: 100%;
+    margin: 0 auto;
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+  
+  /* Header row */
+  .feed-headerRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  .feed-title {
+    font-size: 22px;
+    margin: 0;
+    font-weight: 800;
+  }
+  
+  .feed-subtle {
+    color: #6b7280;
+    font-size: 13px;
+    margin-top: 2px;
+  }
+  
+  /* Composer */
+  .feed-createRow {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .feed-createRight {
+    flex: 1;
+  }
+  
+  .feed-textarea {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    min-height: 92px;
+    resize: vertical;
+  }
+  
+  .feed-textarea:focus {
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
+  }
+  
+  .feed-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    gap: 10px;
+  }
+  
+  /* Buttons (solo feed) */
+  .feed-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  
+  .feed-btnPrimary {
+    background: #1d4ed8;
+    color: #fff;
+  }
+  
+  .feed-btnPrimary:hover {
+    background: #1e40af;
+  }
+  
+  .feed-btnOutline {
+    background: transparent;
+    border-color: rgba(29, 78, 216, 0.45);
+    color: #1d4ed8;
+  }
+  
+  .feed-btnOutline:hover {
+    background: rgba(29, 78, 216, 0.08);
+    border-color: rgba(29, 78, 216, 0.55);
+  }
+  
+  .feed-btnGhost {
+    background: transparent;
+    color: #374151;
+    padding: 7px 10px;
+  }
+  
+  .feed-btnGhost:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #111;
+  }
+  
+  .feed-btnDanger {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #6b7280;
+  }
+  
+  .feed-btnDanger:hover {
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.14);
+    color: #111;
+  }
+  
+  /* Tabs */
+  .feed-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.75);
+  }
+  
+  .feed-tab {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #5a5a5a;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  
+  .feed-tab:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #111;
+  }
+  
+  .feed-tabActive {
+    background: #fff;
+    border-color: #e5e7eb;
+    color: #111;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+  }
+  
+  /* Post list */
+  .feed-list {
+    margin-top: 12px;
+    display: grid;
+    gap: 12px;
+  }
+  
+  .feed-postTop {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .feed-postMeta {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .feed-postNameRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  .feed-postName {
+    font-weight: 900;
+    font-size: 14px;
+    margin: 0;
+    color: #111;
+  }
+  
+  .feed-postEmail {
+    color: #6b7280;
+    font-weight: 600;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  
+  .feed-postTime {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  
+  .feed-postBody {
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  
+  .feed-postActionsRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  
+  .feed-actionGroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .feed-likesCount {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  
+  /* ✅ AVATAR (solo feed) */
+  .feed-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #1d4ed8;
+    position: relative;
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+  
+  .feed-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    z-index: 2;
+  }
+  
+  .feed-avatar span {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    color: #fff;
+    z-index: 1;
+  }
+  
+  .feed-avatarHasImg span {
+    display: none !important;
+  }
+  
