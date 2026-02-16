@@ -47,7 +47,13 @@ const axiosClient = axios.create({
  */
 axiosClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    // ✅ En tu app el token está en 'rycus_token' (según consola)
+    // Mantengo fallback por compatibilidad
+    const token =
+      localStorage.getItem("rycus_token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      sessionStorage.getItem("token");
 
     if (token) {
       config.headers = config.headers ?? {};
@@ -73,8 +79,15 @@ axiosClient.interceptors.response.use(
     if (status === 401) {
       console.warn("⚠️ Session expired → redirecting to login");
 
+      // limpia todas las keys posibles para evitar estados raros
+      localStorage.removeItem("rycus_token");
       localStorage.removeItem("token");
+      localStorage.removeItem("authToken");
+
+      localStorage.removeItem("rycus_user");
       localStorage.removeItem("user");
+
+      sessionStorage.removeItem("token");
 
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";

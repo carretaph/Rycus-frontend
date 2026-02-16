@@ -112,9 +112,30 @@ const UsersSearchPage: React.FC = () => {
           <div>
             <h1>Search Users</h1>
             <p>
-              Find other Rycus users and see how many customer reviews they've submitted.
-              Type at least <b>2 letters</b> to start searching automatically.
+              Find other Rycus users and see how many customer reviews they've
+              submitted. Type at least <b>2 letters</b> to start searching
+              automatically.
             </p>
+
+            {/* ✅ NUEVO BLOQUE (la opción 2) */}
+            <div className="users-search-intro">
+              <p>
+                <strong>
+                  Did you know you can search and connect with other contractors
+                  and service providers on Rycus?
+                </strong>
+              </p>
+
+              <p>
+                Start with a name or email — and soon you’ll be able to filter
+                by industry, city, and even find users who offer{" "}
+                <strong>Referral Fees</strong> for new customers.
+              </p>
+
+              <p className="users-search-tagline">
+                Grow your network. Send business. Get paid.
+              </p>
+            </div>
           </div>
 
           <div className="users-top-actions">
@@ -148,7 +169,9 @@ const UsersSearchPage: React.FC = () => {
         <div className="users-results">
           {results.map((r) => {
             const prof = profileMap[r.id];
-            const fullName = (prof?.fullName ?? r.fullName ?? "").toString().trim();
+            const fullName = (prof?.fullName ?? r.fullName ?? "")
+              .toString()
+              .trim();
             const email = (prof?.email ?? r.email ?? "").toString().trim();
             const avatarUrl = (prof?.avatarUrl ?? "").toString().trim() || null;
 
