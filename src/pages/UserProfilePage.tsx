@@ -72,7 +72,13 @@ const UserProfilePage: React.FC = () => {
         setError(null);
 
         const res = await axios.get<UserProfile>(`/users/${id}`);
-        setProfile(res.data);
+        const data = res.data as any;
+
+        // ✅ Defensive: backend may return reviews as null/undefined
+        setProfile({
+          ...data,
+          reviews: Array.isArray(data.reviews) ? data.reviews : [],
+        });
       } catch (err) {
         console.error("Error loading user profile", err);
         setError("Could not load this user profile.");
@@ -188,7 +194,8 @@ const UserProfilePage: React.FC = () => {
   const avatarInitial = useMemo(() => {
     if (profile?.fullName?.trim())
       return profile.fullName.trim().charAt(0).toUpperCase();
-    if (profile?.email?.trim()) return profile.email.trim().charAt(0).toUpperCase();
+    if (profile?.email?.trim())
+      return profile.email.trim().charAt(0).toUpperCase();
     return "U";
   }, [profile?.fullName, profile?.email]);
 
@@ -200,6 +207,9 @@ const UserProfilePage: React.FC = () => {
   const city = (profile?.city ?? "").trim();
   const state = (profile?.state ?? "").trim();
   const location = [city, state].filter(Boolean).join(", ");
+
+  // ✅ Always-safe reviews array for render
+  const reviews = profile?.reviews ?? [];
 
   // ================================
   // Render
@@ -246,13 +256,20 @@ const UserProfilePage: React.FC = () => {
               <div className="userprofile-email">{profile.email}</div>
 
               <div className="userprofile-chips">
-                {industry && <span className="userprofile-chip">🛠️ {industry}</span>}
+                {industry && (
+                  <span className="userprofile-chip">🛠️ {industry}</span>
+                )}
                 {businessName && (
                   <span className="userprofile-chip">🏢 {businessName}</span>
                 )}
-                {location && <span className="userprofile-chip">📍 {location}</span>}
+                {location && (
+                  <span className="userprofile-chip">📍 {location}</span>
+                )}
                 {tel && (
-                  <a className="userprofile-chip userprofile-chip-link" href={`tel:${tel}`}>
+                  <a
+                    className="userprofile-chip userprofile-chip-link"
+                    href={`tel:${tel}`}
+                  >
                     📞 {phone}
                   </a>
                 )}
@@ -293,7 +310,9 @@ const UserProfilePage: React.FC = () => {
           <div className="dashboard-card">
             <h2>Average Rating</h2>
             <div className="dashboard-number">
-              {profile.totalReviews > 0 ? profile.averageRating.toFixed(1) : "0.0"}
+              {profile.totalReviews > 0
+                ? profile.averageRating.toFixed(1)
+                : "0.0"}
             </div>
             <p className="dashboard-text">
               Average overall / payment rating of their reviews.
@@ -305,17 +324,21 @@ const UserProfilePage: React.FC = () => {
         <div className="userprofile-section">
           <h2 className="userprofile-section-title">Customer Reviews</h2>
 
-          {profile.reviews.length === 0 && (
-            <p className="dashboard-text">This user hasn&apos;t written any reviews yet.</p>
+          {reviews.length === 0 && (
+            <p className="dashboard-text">
+              This user hasn&apos;t written any reviews yet.
+            </p>
           )}
 
           <div className="userprofile-reviews">
-            {profile.reviews.map((r) => (
+            {reviews.map((r) => (
               <div key={r.id} className="dashboard-card userprofile-review-card">
                 <h3 className="userprofile-review-title">
                   Customer:{" "}
                   {r.customerId ? (
-                    <Link to={`/customers/${r.customerId}`}>{r.customerName}</Link>
+                    <Link to={`/customers/${r.customerId}`}>
+                      {r.customerName}
+                    </Link>
                   ) : (
                     r.customerName
                   )}
@@ -331,7 +354,9 @@ const UserProfilePage: React.FC = () => {
                 {r.comment && <p className="dashboard-text">{r.comment}</p>}
 
                 {r.createdAt && (
-                  <p className="dashboard-text userprofile-review-date">{r.createdAt}</p>
+                  <p className="dashboard-text userprofile-review-date">
+                    {r.createdAt}
+                  </p>
                 )}
               </div>
             ))}
