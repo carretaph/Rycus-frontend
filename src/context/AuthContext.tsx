@@ -31,6 +31,15 @@ export interface User {
 
   // avatar
   avatarUrl?: string;
+
+  // ✅ Referral Fee (NEW)
+  offersReferralFee?: boolean;
+  referralFeeType?: string | null; // "FLAT" | "PERCENT" | null
+  referralFeeValue?: number | null;
+  referralFeeNotes?: string | null;
+
+  // optional (some flows may store it)
+  subscriptionStatus?: string | null;
 }
 
 interface AuthContextType {
@@ -70,6 +79,11 @@ type ProfileExtra = Partial<
     | "name"
     | "hasAccess"
     | "planType"
+    // ✅ referral fields (NEW)
+    | "offersReferralFee"
+    | "referralFeeType"
+    | "referralFeeValue"
+    | "referralFeeNotes"
   >
 >;
 
@@ -100,6 +114,28 @@ function cleanString(v: unknown): string | undefined {
   return t ? t : undefined;
 }
 
+function cleanNumber(v: unknown): number | null | undefined {
+  if (v === null) return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (!t) return undefined;
+    const n = Number(t);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+function cleanBoolean(v: unknown): boolean | undefined {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const t = v.trim().toLowerCase();
+    if (t === "true") return true;
+    if (t === "false") return false;
+  }
+  return undefined;
+}
+
 // ✅ Para campos sensibles: si llega null/undefined/"" NO debe pisar.
 function sanitizePatch(patch: Partial<User>): Partial<User> {
   const next: Partial<User> = { ...patch };
@@ -128,6 +164,45 @@ function sanitizePatch(patch: Partial<User>): Partial<User> {
     const cleaned = cleanString((next as any).lastName);
     if (!cleaned) delete (next as any).lastName;
     else (next as any).lastName = cleaned;
+  }
+
+  // ✅ Referral sanitize
+  if ("offersReferralFee" in next) {
+    const b = cleanBoolean((next as any).offersReferralFee);
+    if (typeof b !== "boolean") delete (next as any).offersReferralFee;
+    else (next as any).offersReferralFee = b;
+  }
+
+  if ("referralFeeType" in next) {
+    const t = cleanString((next as any).referralFeeType);
+    // allow null explicitly (meaning "clear"), but ignore empty string
+    if ((next as any).referralFeeType === null) {
+      (next as any).referralFeeType = null;
+    } else if (!t) {
+      delete (next as any).referralFeeType;
+    } else {
+      (next as any).referralFeeType = t;
+    }
+  }
+
+  if ("referralFeeNotes" in next) {
+    const n = cleanString((next as any).referralFeeNotes);
+    if ((next as any).referralFeeNotes === null) {
+      (next as any).referralFeeNotes = null;
+    } else if (!n) {
+      delete (next as any).referralFeeNotes;
+    } else {
+      (next as any).referralFeeNotes = n;
+    }
+  }
+
+  if ("referralFeeValue" in next) {
+    const raw = (next as any).referralFeeValue;
+    const val = cleanNumber(raw);
+    // allow null (clear), ignore undefined/NaN
+    if (raw === null) (next as any).referralFeeValue = null;
+    else if (typeof val === "number") (next as any).referralFeeValue = val;
+    else delete (next as any).referralFeeValue;
   }
 
   // hasAccess/planType no requieren sanitize (opcionales)
@@ -224,9 +299,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // ✅ Helper: rehydrate user from backend (/users/me)
+  // ✅ Helper: rehydrate user from backend (/users/me) (JWT)
   const rehydrateUserFromBackend = async (email: string, base: User) => {
     try {
+      // NOTE: /users/me uses JWT; email param is ignored in your controller
       const res = await axiosClient.get("/users/me", { params: { email } });
       const fresh = res.data as any;
 
@@ -262,9 +338,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         state: cleanString(fresh?.state) ?? base.state,
         zipcode: cleanString(fresh?.zipcode) ?? base.zipcode,
         address: cleanString(fresh?.address) ?? base.address,
-        // billing (if backend ever returns it)
-        hasAccess: typeof fresh?.hasAccess === "boolean" ? fresh.hasAccess : base.hasAccess,
+
+        // billing (if backend returns it)
+        hasAccess:
+          typeof fresh?.hasAccess === "boolean" ? fresh.hasAccess : base.hasAccess,
         planType: cleanString(fresh?.planType) ?? base.planType,
+        subscriptionStatus:
+          cleanString(fresh?.subscriptionStatus) ?? base.subscriptionStatus,
+
+        // ✅ referral (if backend returns it)
+        offersReferralFee:
+          typeof fresh?.offersReferralFee === "boolean"
+            ? fresh.offersReferralFee
+            : base.offersReferralFee,
+        referralFeeType:
+          fresh?.referralFeeType === null
+            ? null
+            : cleanString(fresh?.referralFeeType) ?? base.referralFeeType ?? null,
+        referralFeeValue:
+          fresh?.referralFeeValue === null
+            ? null
+            : (typeof fresh?.referralFeeValue === "number"
+                ? fresh.referralFeeValue
+                : base.referralFeeValue ?? null),
+        referralFeeNotes:
+          fresh?.referralFeeNotes === null
+            ? null
+            : cleanString(fresh?.referralFeeNotes) ?? base.referralFeeNotes ?? null,
       };
 
       if (!patch.name) {
@@ -290,6 +390,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           zipcode: updated.zipcode,
           hasAccess: updated.hasAccess,
           planType: updated.planType,
+
+          // ✅ persist referral locally too (optional, but helps UI stay stable)
+          offersReferralFee: updated.offersReferralFee,
+          referralFeeType: updated.referralFeeType ?? null,
+          referralFeeValue: updated.referralFeeValue ?? null,
+          referralFeeNotes: updated.referralFeeNotes ?? null,
         });
       }
     } catch {

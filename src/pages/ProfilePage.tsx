@@ -15,18 +15,34 @@ interface ProfileExtra {
   zipcode?: string;
   state?: string;
 
-  // ✅ NEW: también guardamos avatarUrl en el extra por email
+  // also store avatarUrl locally by email
   avatarUrl?: string;
 }
 
+type ReferralFeeType = "FLAT" | "PERCENT";
+
 type UserMiniDto = {
+  id?: number | null;
   email?: string | null;
   fullName?: string | null;
   avatarUrl?: string | null;
+  phone?: string | null;
+  businessName?: string | null;
+  city?: string | null;
+  state?: string | null;
+
+  offersReferralFee?: boolean | null;
+  referralFeeType?: ReferralFeeType | null;
+  referralFeeValue?: number | null;
+  referralFeeNotes?: string | null;
+
+  planType?: string | null;
+  subscriptionStatus?: string | null;
 };
 
 const EXTRA_KEY_PREFIX = "rycus_profile_extra_";
 const VIS_KEY_PREFIX = "rycus_profile_visibility_";
+const SOUND_KEY = "rycus_sound_enabled";
 
 const getExtraKey = (email?: string | null) =>
   email ? `${EXTRA_KEY_PREFIX}${email.toLowerCase()}` : `${EXTRA_KEY_PREFIX}guest`;
@@ -34,25 +50,30 @@ const getExtraKey = (email?: string | null) =>
 const getVisKey = (email?: string | null) =>
   email ? `${VIS_KEY_PREFIX}${email.toLowerCase()}` : `${VIS_KEY_PREFIX}guest`;
 
-const SOUND_KEY = "rycus_sound_enabled";
+function toBool(v: any, fallback = false) {
+  if (typeof v === "boolean") return v;
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return fallback;
+}
+
+function numOrNull(v: string) {
+  const t = (v || "").trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
 
 const ProfilePage: React.FC = () => {
-  const {
-    user,
-    updateAvatar,
-    updateUser,
-    logout,
-    moveExtrasToNewEmail,
-  } = useAuth();
-
+  const { user, updateAvatar, updateUser, logout, moveExtrasToNewEmail } = useAuth();
   const navigate = useNavigate();
 
   const [preview, setPreview] = useState<string | null>(null);
 
-  // ✅ Notifications (local setting for now)
+  // Notifications (local)
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(SOUND_KEY);
-    if (raw === null) return true; // default ON
+    if (raw === null) return true;
     return raw === "true";
   });
 
@@ -60,7 +81,7 @@ const ProfilePage: React.FC = () => {
     localStorage.setItem(SOUND_KEY, String(soundEnabled));
   }, [soundEnabled]);
 
-  // visibility (local only for now)
+  // visibility (local)
   const [isPublicProfile, setIsPublicProfile] = useState(true);
   const [isSearchable, setIsSearchable] = useState(true);
 
@@ -81,27 +102,41 @@ const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<ProfileExtra>(extra);
   const [savedMsg, setSavedMsg] = useState<string>("");
-
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  // ✅ Change Email UI
+  // Referral fee (BACKEND fields)
+  const [offersReferralFee, setOffersReferralFee] = useState<boolean>(false);
+  const [referralFeeType, setReferralFeeType] = useState<ReferralFeeType>("FLAT");
+  const [referralFeeValue, setReferralFeeValue] = useState<string>(""); // string for input
+  const [referralFeeNotes, setReferralFeeNotes] = useState<string>("");
+
+  // Change Email
   const [newEmail, setNewEmail] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingEmail, setChangingEmail] = useState(false);
   const [changeEmailMsg, setChangeEmailMsg] = useState<string>("");
 
   // =========================================
-  // Load extra + visibility from localStorage (per email)
+  // Load local extra + visibility; also init referral from Auth user
   // =========================================
   useEffect(() => {
     const email = user?.email ?? undefined;
     const extraKey = getExtraKey(email);
     const visKey = getVisKey(email);
 
-    // primero: si el user ya trae avatarUrl, úsalo
+    // preview: prefer user.avatarUrl
     if (user?.avatarUrl) setPreview(user.avatarUrl);
 
-    // load extra
+    // init referral fee from AuthContext user (comes from login)
+    setOffersReferralFee(toBool((user as any)?.offersReferralFee, false));
+    const t = (user as any)?.referralFeeType as ReferralFeeType | null | undefined;
+    if (t === "FLAT" || t === "PERCENT") setReferralFeeType(t);
+    const v = (user as any)?.referralFeeValue;
+    if (typeof v === "number" && Number.isFinite(v)) setReferralFeeValue(String(v));
+    else setReferralFeeValue("");
+    setReferralFeeNotes(((user as any)?.referralFeeNotes ?? "") as string);
+
+    // load extra from localStorage
     try {
       const stored = localStorage.getItem(extraKey);
       if (stored && stored !== "undefined" && stored !== "null") {
@@ -120,7 +155,7 @@ const ProfilePage: React.FC = () => {
           avatarUrl: parsed.avatarUrl || "",
         });
 
-        // ✅ si el extra tiene avatarUrl, úsalo como preview también
+        // if local extra has avatarUrl, use it
         if (parsed.avatarUrl && parsed.avatarUrl.trim()) {
           setPreview(parsed.avatarUrl.trim());
         }
@@ -133,10 +168,7 @@ const ProfilePage: React.FC = () => {
     try {
       const v = localStorage.getItem(visKey);
       if (v && v !== "undefined" && v !== "null") {
-        const parsed = JSON.parse(v) as {
-          isPublicProfile?: boolean;
-          isSearchable?: boolean;
-        };
+        const parsed = JSON.parse(v) as { isPublicProfile?: boolean; isSearchable?: boolean };
         if (typeof parsed.isPublicProfile === "boolean") setIsPublicProfile(parsed.isPublicProfile);
         if (typeof parsed.isSearchable === "boolean") setIsSearchable(parsed.isSearchable);
       }
@@ -145,18 +177,18 @@ const ProfilePage: React.FC = () => {
     }
   }, [user?.email, user?.avatarUrl]);
 
-  // ✅ cuando preview cambia, sincroniza AuthContext para que el header lo tenga siempre
+  // keep header avatar synced
   useEffect(() => {
     if (!preview) return;
     if (!user?.email) return;
 
-    const current = (user.avatarUrl || "").trim();
+    const current = ((user as any).avatarUrl || "").trim();
     const next = preview.trim();
 
     if (next && next !== current) {
-      updateAvatar(next); // persiste en localStorage + actualiza user (header)
+      updateAvatar(next);
     }
-  }, [preview, user?.email]); // no ponemos user.avatarUrl para evitar loops
+  }, [preview, user?.email]);
 
   useEffect(() => {
     if (!isEditing) setDraft(extra);
@@ -189,16 +221,12 @@ const ProfilePage: React.FC = () => {
     return "User";
   }, [fullName, user?.email]);
 
-  const initial = (extra.firstName || (user as any)?.name || user?.email || "U")
-    .charAt(0)
-    .toUpperCase();
+  const initial = (extra.firstName || (user as any)?.name || user?.email || "U").charAt(0).toUpperCase();
 
-  const profileUrl = user?.id
-    ? `https://rycus.app/u/${user.id}`
-    : "https://rycus.app/u/your-profile";
+  const profileUrl = (user as any)?.id ? `https://rycus.app/u/${(user as any).id}` : "https://rycus.app/u/your-profile";
 
   // =========================================
-  // ✅ Upload avatar to backend -> Cloudinary
+  // Upload avatar -> backend
   // =========================================
   const uploadAvatarToBackend = async (file: File) => {
     const email = user?.email?.trim();
@@ -226,12 +254,10 @@ const ProfilePage: React.FC = () => {
       }
 
       setPreview(url);
-
-      // ✅ actualizar AuthContext (header) + persistencia
       updateAvatar(url);
       updateUser({ avatarUrl: url });
 
-      // ✅ guardar también en extra local por email
+      // store in local extra
       try {
         const extraKey = getExtraKey(email);
         const stored = localStorage.getItem(extraKey);
@@ -243,14 +269,12 @@ const ProfilePage: React.FC = () => {
       setTimeout(() => setSavedMsg(""), 2500);
     } catch (err: any) {
       console.error("Avatar upload failed:", err);
-
       const msg =
         err?.response?.data?.message ??
         err?.response?.data?.error ??
         err?.response?.data ??
         err?.message ??
         "Avatar upload failed. Please try again.";
-
       setSavedMsg(String(msg));
     } finally {
       setUploadingAvatar(false);
@@ -272,6 +296,13 @@ const ProfilePage: React.FC = () => {
   const cancelEditing = () => {
     setSavedMsg("");
     setDraft(extra);
+    // reset referral draft from user (avoid accidental changes)
+    setOffersReferralFee(toBool((user as any)?.offersReferralFee, false));
+    const t = (user as any)?.referralFeeType as ReferralFeeType | null | undefined;
+    if (t === "FLAT" || t === "PERCENT") setReferralFeeType(t);
+    const v = (user as any)?.referralFeeValue;
+    setReferralFeeValue(typeof v === "number" ? String(v) : "");
+    setReferralFeeNotes(((user as any)?.referralFeeNotes ?? "") as string);
     setIsEditing(false);
   };
 
@@ -295,22 +326,21 @@ const ProfilePage: React.FC = () => {
       city: (draft.city || "").trim(),
       zipcode: (draft.zipcode || "").trim(),
       state: (draft.state || "").trim(),
-      avatarUrl: (preview || user?.avatarUrl || "").trim(),
+      avatarUrl: (preview || (user as any)?.avatarUrl || "").trim(),
     };
 
-    const email = user?.email ?? undefined;
-    const extraKey = getExtraKey(email);
-
+    // local extra save
     try {
+      const email = user?.email ?? undefined;
+      const extraKey = getExtraKey(email);
       localStorage.setItem(extraKey, JSON.stringify(cleaned));
-    } catch (err) {
-      console.error("Error saving profile to localStorage:", err);
-    }
+    } catch {}
 
     const fullNameToSave =
-      [cleaned.firstName, cleaned.lastName].filter(Boolean).join(" ").trim() ||
-      (user as any)?.name ||
-      "";
+      [cleaned.firstName, cleaned.lastName].filter(Boolean).join(" ").trim() || (user as any)?.name || "";
+
+    // referral payload (backend)
+    const referralValueNum = offersReferralFee ? numOrNull(referralFeeValue) : null;
 
     try {
       if (!user?.email) {
@@ -326,9 +356,15 @@ const ProfilePage: React.FC = () => {
         industry: cleaned.industry || null,
         city: cleaned.city || null,
         state: cleaned.state || null,
+
+        // ✅ referral fee fields
+        offersReferralFee: !!offersReferralFee,
+        referralFeeType: offersReferralFee ? referralFeeType : null,
+        referralFeeValue: offersReferralFee ? referralValueNum : null,
+        referralFeeNotes: offersReferralFee ? (referralFeeNotes || "").trim() || null : null,
       };
 
-      const res = await axios.put(`/users/me`, body, { params: { email: user.email } });
+      const res = await axios.put<UserMiniDto>(`/users/me`, body, { params: { email: user.email } });
       const updated = res.data as any;
 
       setExtra(cleaned);
@@ -343,8 +379,12 @@ const ProfilePage: React.FC = () => {
         address: cleaned.address,
         avatarUrl: (updated?.avatarUrl ?? cleaned.avatarUrl ?? undefined) || undefined,
         name: updated?.fullName || fullNameToSave || (user as any)?.name,
-        firstName: cleaned.firstName,
-        lastName: cleaned.lastName,
+
+        // ✅ keep referral fee in auth user
+        offersReferralFee: typeof updated?.offersReferralFee === "boolean" ? updated.offersReferralFee : offersReferralFee,
+        referralFeeType: updated?.referralFeeType ?? (offersReferralFee ? referralFeeType : null),
+        referralFeeValue: updated?.referralFeeValue ?? (offersReferralFee ? referralValueNum : null),
+        referralFeeNotes: updated?.referralFeeNotes ?? (offersReferralFee ? referralFeeNotes : null),
       });
 
       setSavedMsg("Saved ✅");
@@ -352,7 +392,7 @@ const ProfilePage: React.FC = () => {
     } catch (err) {
       console.error("Error saving profile to backend:", err);
 
-      setSavedMsg("Saved locally ✅ (backend update failed)");
+      // still save locally
       setExtra(cleaned);
       setIsEditing(false);
 
@@ -363,18 +403,22 @@ const ProfilePage: React.FC = () => {
         state: cleaned.state,
         zipcode: cleaned.zipcode,
         address: cleaned.address,
-        avatarUrl: cleaned.avatarUrl || user?.avatarUrl,
+        avatarUrl: cleaned.avatarUrl || (user as any)?.avatarUrl,
         name: fullNameToSave || (user as any)?.name,
-        firstName: cleaned.firstName,
-        lastName: cleaned.lastName,
+
+        offersReferralFee,
+        referralFeeType: offersReferralFee ? referralFeeType : null,
+        referralFeeValue: offersReferralFee ? referralValueNum : null,
+        referralFeeNotes: offersReferralFee ? referralFeeNotes : null,
       });
 
+      setSavedMsg("Saved locally ✅ (backend update failed)");
       setTimeout(() => setSavedMsg(""), 3500);
     }
   };
 
   // =========================================
-  // ✅ Change Email action
+  // Change Email
   // =========================================
   const submitChangeEmail = async () => {
     setChangeEmailMsg("");
@@ -383,22 +427,10 @@ const ProfilePage: React.FC = () => {
     const nextEmail = newEmail.trim().toLowerCase();
     const pwd = confirmPassword;
 
-    if (!currentEmail) {
-      setChangeEmailMsg("Missing current email. Please log in again.");
-      return;
-    }
-    if (!nextEmail || !nextEmail.includes("@")) {
-      setChangeEmailMsg("Please enter a valid new email.");
-      return;
-    }
-    if (nextEmail === currentEmail.toLowerCase()) {
-      setChangeEmailMsg("New email must be different.");
-      return;
-    }
-    if (!pwd || pwd.trim().length < 1) {
-      setChangeEmailMsg("Please enter your password to confirm.");
-      return;
-    }
+    if (!currentEmail) return setChangeEmailMsg("Missing current email. Please log in again.");
+    if (!nextEmail || !nextEmail.includes("@")) return setChangeEmailMsg("Please enter a valid new email.");
+    if (nextEmail === currentEmail.toLowerCase()) return setChangeEmailMsg("New email must be different.");
+    if (!pwd || pwd.trim().length < 1) return setChangeEmailMsg("Please enter your password to confirm.");
 
     try {
       setChangingEmail(true);
@@ -447,9 +479,7 @@ const ProfilePage: React.FC = () => {
         <div className="profile-header-row">
           <div>
             <h1 className="card-title">My Profile</h1>
-            <p className="card-subtitle">
-              Update your personal information, profile photo and visibility.
-            </p>
+            <p className="card-subtitle">Update your personal information, profile photo and visibility.</p>
           </div>
 
           <div className="profile-actions">
@@ -472,21 +502,32 @@ const ProfilePage: React.FC = () => {
 
         {savedMsg && <div className="profile-save-msg">{savedMsg}</div>}
 
-        {/* FOTO */}
+        {/* PHOTO */}
         <div className="profile-photo-row">
           <div className="profile-photo-wrapper">
             {preview ? (
-              <img src={preview} alt={displayName} className="profile-photo-img" />
+              <img
+                src={preview}
+                alt={displayName}
+                className="profile-photo-img"
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: "999px",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
             ) : (
-              <div className="profile-photo-placeholder">{initial}</div>
+              <div className="profile-photo-placeholder" style={{ width: 96, height: 96 }}>
+                {initial}
+              </div>
             )}
           </div>
 
           <div className="profile-photo-text">
             <p className="profile-photo-title">Profile photo</p>
-            <p className="profile-photo-description">
-              This picture will be shown across the app (messages, inbox, profile).
-            </p>
+            <p className="profile-photo-description">This picture will be shown across the app (messages, inbox, profile).</p>
 
             <label
               className="btn-secondary"
@@ -496,13 +537,7 @@ const ProfilePage: React.FC = () => {
               }}
             >
               {uploadingAvatar ? "Uploading..." : "Upload new photo"}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                style={{ display: "none" }}
-                disabled={uploadingAvatar}
-              />
+              <input type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} disabled={uploadingAvatar} />
             </label>
           </div>
         </div>
@@ -514,12 +549,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{extra.firstName?.trim() || "Not set"}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.firstName || ""}
-                onChange={(e) => setField("firstName", e.target.value)}
-                placeholder="First name"
-              />
+              <input className="input" value={draft.firstName || ""} onChange={(e) => setField("firstName", e.target.value)} placeholder="First name" />
             )}
           </div>
 
@@ -528,12 +558,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{extra.lastName?.trim() || "Not set"}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.lastName || ""}
-                onChange={(e) => setField("lastName", e.target.value)}
-                placeholder="Last name"
-              />
+              <input className="input" value={draft.lastName || ""} onChange={(e) => setField("lastName", e.target.value)} placeholder="Last name" />
             )}
           </div>
 
@@ -552,12 +577,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{phone}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.phone || ""}
-                onChange={(e) => setField("phone", e.target.value)}
-                placeholder="(407) 555-1234"
-              />
+              <input className="input" value={draft.phone || ""} onChange={(e) => setField("phone", e.target.value)} placeholder="(407) 555-1234" />
             )}
           </div>
 
@@ -566,12 +586,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{industry}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.industry || ""}
-                onChange={(e) => setField("industry", e.target.value)}
-                placeholder='e.g. "Windows and Doors"'
-              />
+              <input className="input" value={draft.industry || ""} onChange={(e) => setField("industry", e.target.value)} placeholder='e.g. "Windows and Doors"' />
             )}
           </div>
 
@@ -580,12 +595,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{businessName}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.businessName || ""}
-                onChange={(e) => setField("businessName", e.target.value)}
-                placeholder="Business name (optional)"
-              />
+              <input className="input" value={draft.businessName || ""} onChange={(e) => setField("businessName", e.target.value)} placeholder="Business name (optional)" />
             )}
           </div>
 
@@ -594,11 +604,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{city}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.city || ""}
-                onChange={(e) => setField("city", e.target.value)}
-              />
+              <input className="input" value={draft.city || ""} onChange={(e) => setField("city", e.target.value)} />
             )}
           </div>
 
@@ -607,11 +613,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{state}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.state || ""}
-                onChange={(e) => setField("state", e.target.value)}
-              />
+              <input className="input" value={draft.state || ""} onChange={(e) => setField("state", e.target.value)} />
             )}
           </div>
 
@@ -620,11 +622,7 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{zipcode}</div>
             ) : (
-              <input
-                className="input"
-                value={draft.zipcode || ""}
-                onChange={(e) => setField("zipcode", e.target.value)}
-              />
+              <input className="input" value={draft.zipcode || ""} onChange={(e) => setField("zipcode", e.target.value)} />
             )}
           </div>
 
@@ -633,11 +631,78 @@ const ProfilePage: React.FC = () => {
             {!isEditing ? (
               <div className="profile-info-box">{address}</div>
             ) : (
+              <input className="input" value={draft.address || ""} onChange={(e) => setField("address", e.target.value)} placeholder="Address (optional)" />
+            )}
+          </div>
+        </div>
+
+        {/* ✅ REFERRAL FEE */}
+        <h2 className="card-section-title">Referral fee</h2>
+        <p className="dashboard-text" style={{ marginTop: 6 }}>
+          If enabled, other users will see that you offer a referral fee (details can be shared later).
+        </p>
+
+        <div className="profile-toggle-group" style={{ marginTop: 10 }}>
+          <label className="profile-toggle">
+            <input
+              type="checkbox"
+              checked={offersReferralFee}
+              onChange={(e) => setOffersReferralFee(e.target.checked)}
+              disabled={!isEditing}
+            />
+            <div>
+              <div className="profile-toggle-title">I offer a referral fee</div>
+              <div className="profile-toggle-description">Enable to show you pay a referral fee when someone sends you a job.</div>
+            </div>
+          </label>
+        </div>
+
+        <div className="profile-info-grid" style={{ marginTop: 12, opacity: offersReferralFee ? 1 : 0.55 }}>
+          <div>
+            <label>Type</label>
+            {!isEditing ? (
+              <div className="profile-info-box">{offersReferralFee ? referralFeeType : "Not set"}</div>
+            ) : (
+              <select
+                className="input"
+                value={referralFeeType}
+                onChange={(e) => setReferralFeeType(e.target.value as ReferralFeeType)}
+                disabled={!offersReferralFee}
+              >
+                <option value="FLAT">FLAT (fixed amount)</option>
+                <option value="PERCENT">PERCENT (%)</option>
+              </select>
+            )}
+          </div>
+
+          <div>
+            <label>Value</label>
+            {!isEditing ? (
+              <div className="profile-info-box">
+                {offersReferralFee ? (referralFeeValue ? referralFeeValue : "Not set") : "Not set"}
+              </div>
+            ) : (
               <input
                 className="input"
-                value={draft.address || ""}
-                onChange={(e) => setField("address", e.target.value)}
-                placeholder="Address (optional)"
+                value={referralFeeValue}
+                onChange={(e) => setReferralFeeValue(e.target.value)}
+                placeholder={referralFeeType === "PERCENT" ? "e.g. 10" : "e.g. 50"}
+                disabled={!offersReferralFee}
+              />
+            )}
+          </div>
+
+          <div className="profile-info-full">
+            <label>Notes</label>
+            {!isEditing ? (
+              <div className="profile-info-box">{offersReferralFee ? (referralFeeNotes?.trim() || "Not set") : "Not set"}</div>
+            ) : (
+              <input
+                className="input"
+                value={referralFeeNotes}
+                onChange={(e) => setReferralFeeNotes(e.target.value)}
+                placeholder="e.g. Per job completed"
+                disabled={!offersReferralFee}
               />
             )}
           </div>
@@ -647,16 +712,10 @@ const ProfilePage: React.FC = () => {
         <h2 className="card-section-title">Notifications</h2>
         <div className="profile-toggle-group" style={{ marginTop: 10 }}>
           <label className="profile-toggle">
-            <input
-              type="checkbox"
-              checked={soundEnabled}
-              onChange={(e) => setSoundEnabled(e.target.checked)}
-            />
+            <input type="checkbox" checked={soundEnabled} onChange={(e) => setSoundEnabled(e.target.checked)} />
             <div>
               <div className="profile-toggle-title">Sound notifications</div>
-              <div className="profile-toggle-description">
-                Play a soft sound when you receive a new network invitation.
-              </div>
+              <div className="profile-toggle-description">Play a soft sound when you receive a new network invitation.</div>
             </div>
           </label>
         </div>
@@ -666,30 +725,18 @@ const ProfilePage: React.FC = () => {
 
         <div className="profile-toggle-group">
           <label className="profile-toggle">
-            <input
-              type="checkbox"
-              checked={isPublicProfile}
-              onChange={(e) => setIsPublicProfile(e.target.checked)}
-            />
+            <input type="checkbox" checked={isPublicProfile} onChange={(e) => setIsPublicProfile(e.target.checked)} />
             <div>
               <div className="profile-toggle-title">Public profile</div>
-              <div className="profile-toggle-description">
-                Allow other Rycus users to see your profile when you share your link. Your email will never be public.
-              </div>
+              <div className="profile-toggle-description">Allow other Rycus users to see your profile when you share your link. Your email will never be public.</div>
             </div>
           </label>
 
           <label className="profile-toggle">
-            <input
-              type="checkbox"
-              checked={isSearchable}
-              onChange={(e) => setIsSearchable(e.target.checked)}
-            />
+            <input type="checkbox" checked={isSearchable} onChange={(e) => setIsSearchable(e.target.checked)} />
             <div>
               <div className="profile-toggle-title">Searchable by name</div>
-              <div className="profile-toggle-description">
-                Allow other verified members to find you by your name or business when sending invites or sharing reviews.
-              </div>
+              <div className="profile-toggle-description">Allow other verified members to find you by your name or business when sending invites or sharing reviews.</div>
             </div>
           </label>
 
@@ -708,35 +755,16 @@ const ProfilePage: React.FC = () => {
         <div className="profile-info-grid" style={{ marginTop: 12 }}>
           <div className="profile-info-full">
             <label>New email</label>
-            <input
-              className="input"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="new-email@example.com"
-              disabled={changingEmail}
-            />
+            <input className="input" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="new-email@example.com" disabled={changingEmail} />
           </div>
 
           <div className="profile-info-full">
             <label>Confirm your password</label>
-            <input
-              className="input"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Your password"
-              disabled={changingEmail}
-            />
+            <input className="input" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Your password" disabled={changingEmail} />
           </div>
 
           <div className="profile-info-full" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={submitChangeEmail}
-              disabled={changingEmail}
-              style={{ maxWidth: 320 }}
-            >
+            <button type="button" className="btn-primary" onClick={submitChangeEmail} disabled={changingEmail} style={{ maxWidth: 320 }}>
               {changingEmail ? "Updating..." : "Change Email"}
             </button>
 

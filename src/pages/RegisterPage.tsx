@@ -1,5 +1,5 @@
 // src/pages/RegisterPage.tsx
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
@@ -31,8 +31,44 @@ const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // ================================
+  // ✅ Referral Fee fields
+  // ================================
+  const [offersReferralFee, setOffersReferralFee] = useState(false);
+  const [referralFeeType, setReferralFeeType] = useState<"FLAT" | "PERCENT">("FLAT");
+  const [referralFeeValue, setReferralFeeValue] = useState<string>(""); // keep as string for input
+  const [referralFeeNotes, setReferralFeeNotes] = useState<string>("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const feeLabel = useMemo(() => {
+    return referralFeeType === "PERCENT" ? "Percent (%)" : "Amount ($)";
+  }, [referralFeeType]);
+
+  const sanitizeMoneyLike = (raw: string) => {
+    // allow digits + dot only
+    return raw.replace(/[^0-9.]/g, "");
+  };
+
+  const parseFeeNumber = (raw: string): number | null => {
+    const cleaned = sanitizeMoneyLike(raw);
+    if (!cleaned) return null;
+    const n = Number.parseFloat(cleaned);
+    if (!Number.isFinite(n)) return null;
+    return n;
+  };
+
+  const validateReferralFee = (): string | null => {
+    if (!offersReferralFee) return null;
+
+    const n = parseFeeNumber(referralFeeValue);
+    if (n === null) return "Referral fee value is required.";
+    if (n <= 0) return "Referral fee value must be > 0.";
+    if (referralFeeType === "PERCENT" && n > 100) return "Percent must be <= 100.";
+
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -40,8 +76,17 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
 
     const emailTrimmed = email.trim().toLowerCase();
-    const fullName =
-      `${firstName.trim()} ${lastName.trim()}`.trim() || emailTrimmed;
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim() || emailTrimmed;
+
+    // ✅ Validate referral fee (client-side)
+    const feeErr = validateReferralFee();
+    if (feeErr) {
+      setError(feeErr);
+      setLoading(false);
+      return;
+    }
+
+    const feeNumber = offersReferralFee ? parseFeeNumber(referralFeeValue) : null;
 
     try {
       // 1) Register
@@ -50,6 +95,12 @@ const RegisterPage: React.FC = () => {
         email: emailTrimmed,
         password,
         phone: phone.trim() || null,
+
+        // ✅ Referral Fee payload (matches AuthRequest)
+        offersReferralFee: offersReferralFee,
+        referralFeeType: offersReferralFee ? referralFeeType : null,
+        referralFeeValue: offersReferralFee ? feeNumber : null,
+        referralFeeNotes: offersReferralFee ? (referralFeeNotes || "").trim() || null : null,
       });
 
       const data = response.data;
@@ -64,17 +115,12 @@ const RegisterPage: React.FC = () => {
         hasAccess: false,
       };
 
-      const token =
-        data?.token ??
-        data?.accessToken ??
-        data?.jwt ??
-        data?.authToken ??
-        "";
+      const token = data?.token ?? data?.accessToken ?? data?.jwt ?? data?.authToken ?? "";
 
       // 2) Login (aunque token venga vacío, guardamos usuario y seguimos)
       login(safeUser, token);
 
-      // 3) Save extra profile
+      // 3) Save extra profile (local)
       const extraProfile = {
         firstName,
         lastName,
@@ -85,7 +131,14 @@ const RegisterPage: React.FC = () => {
         zipcode,
         state: stateValue,
         industry: accountType,
+
+        // ✅ also store referral fee in local extra (optional, helpful for UI)
+        offersReferralFee,
+        referralFeeType,
+        referralFeeValue: offersReferralFee ? feeNumber : null,
+        referralFeeNotes: offersReferralFee ? (referralFeeNotes || "").trim() : "",
       };
+
       const extraKey = `${EXTRA_KEY_PREFIX}${emailTrimmed}`;
       localStorage.setItem(extraKey, JSON.stringify(extraProfile));
 
@@ -182,8 +235,7 @@ const RegisterPage: React.FC = () => {
 
             <div className="form-grid-full">
               <label htmlFor="businessName">
-                Business name{" "}
-                <span style={{ color: "#9ca3af" }}>(optional)</span>
+                Business name <span style={{ color: "#9ca3af" }}>(optional)</span>
               </label>
               <input
                 id="businessName"
@@ -292,6 +344,76 @@ const RegisterPage: React.FC = () => {
                 required
               />
             </div>
+
+            {/* =========================================
+                ✅ Referral Fee section
+               ========================================= */}
+            <div className="form-grid-full" style={{ marginTop: 6 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={offersReferralFee}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setOffersReferralFee(on);
+                    if (!on) {
+                      setReferralFeeValue("");
+                      setReferralFeeNotes("");
+                      setReferralFeeType("FLAT");
+                    }
+                  }}
+                />
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontWeight: 600 }}>I offer a referral fee</span>
+                  <span style={{ color: "#6b7280", fontSize: 13 }}>
+                    Check this if you pay referral fees for completed jobs, leads, or introductions.
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            {offersReferralFee && (
+              <>
+                <div>
+                  <label htmlFor="refType">Type</label>
+                  <select
+                    id="refType"
+                    value={referralFeeType}
+                    onChange={(e) => setReferralFeeType((e.target.value as any) || "FLAT")}
+                    required
+                  >
+                    <option value="FLAT">Flat ($)</option>
+                    <option value="PERCENT">Percent (%)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="refValue">{feeLabel}</label>
+                  <input
+                    id="refValue"
+                    type="text"
+                    inputMode="decimal"
+                    value={referralFeeValue}
+                    onChange={(e) => setReferralFeeValue(sanitizeMoneyLike(e.target.value))}
+                    placeholder={referralFeeType === "PERCENT" ? "e.g. 10" : "e.g. 50"}
+                    required
+                  />
+                </div>
+
+                <div className="form-grid-full">
+                  <label htmlFor="refNotes">
+                    Notes <span style={{ color: "#9ca3af" }}>(optional)</span>
+                  </label>
+                  <input
+                    id="refNotes"
+                    type="text"
+                    value={referralFeeNotes}
+                    onChange={(e) => setReferralFeeNotes(e.target.value)}
+                    placeholder='e.g. "Per job completed"'
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>
