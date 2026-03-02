@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import CustomerMap from "../components/CustomerMap";
+import AvatarWithBadge from "../components/AvatarWithBadge";
 
 type Review = {
   id: number;
@@ -105,6 +106,7 @@ const DashboardPage: React.FC = () => {
   }, [user?.firstName, user?.email]);
 
   const avatarUrl = (user as any)?.photoUrl || (user as any)?.avatarUrl || "";
+  const myOffersRF = !!(user as any)?.offersReferralFee;
 
   useEffect(() => {
     const loadStats = async () => {
@@ -229,16 +231,26 @@ const DashboardPage: React.FC = () => {
       <div className="dashboard-container">
         {/* HEADER */}
         <div className="dashboard-user-header">
-          <div className="dashboard-user-photo" aria-label="User avatar">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                className="dashboard-user-photo-img"
-              />
-            ) : (
-              <span style={{ fontWeight: 800, color: "#334155" }}>{initials}</span>
-            )}
+          {/* ✅ wrapper con overflow visible para que el badge NO se corte */}
+          <div
+            className="dashboard-user-photo"
+            aria-label="User avatar"
+            style={{
+              overflow: "visible",
+              background: "transparent",
+              border: "none",
+              padding: 0,
+            }}
+          >
+            <AvatarWithBadge
+              size={44}
+              avatarUrl={avatarUrl || null}
+              name={(user?.firstName || (user as any)?.name || user?.email || "User") as string}
+              email={user?.email || null}
+              showReferralBadge={myOffersRF}
+              badgeAlt="RF"
+              badgeOffset={-3}
+            />
           </div>
 
           <div className="dashboard-user-meta" style={{ flex: 1 }}>
@@ -251,9 +263,7 @@ const DashboardPage: React.FC = () => {
         <div className="dashboard-grid">
           <div className="dashboard-card">
             <h2>My Customers</h2>
-            <div className="dashboard-number">
-              {loading ? "…" : stats.totalCustomers}
-            </div>
+            <div className="dashboard-number">{loading ? "…" : stats.totalCustomers}</div>
             <p className="dashboard-text">Active customers added by you.</p>
             <Link to="/customers" className="dashboard-link">
               View customers
@@ -262,9 +272,7 @@ const DashboardPage: React.FC = () => {
 
           <div className="dashboard-card">
             <h2>Pending Reviews</h2>
-            <div className="dashboard-number">
-              {loading ? "…" : stats.pendingReviews}
-            </div>
+            <div className="dashboard-number">{loading ? "…" : stats.pendingReviews}</div>
             <p className="dashboard-text">Customers you haven&apos;t reviewed yet.</p>
             <Link to="/customers" className="dashboard-link">
               Rate now
@@ -273,16 +281,13 @@ const DashboardPage: React.FC = () => {
 
           <div className="dashboard-card">
             <h2>Completed Reviews</h2>
-            <div className="dashboard-number">
-              {loading ? "…" : stats.completedReviews}
-            </div>
+            <div className="dashboard-number">{loading ? "…" : stats.completedReviews}</div>
             <p className="dashboard-text">Reviews you have already submitted.</p>
             <Link to="/customers" className="dashboard-link">
               See reviews
             </Link>
           </div>
 
-          {/* ✅ Igualamos altura con “link fantasma” */}
           <div className="dashboard-card">
             <h2>Average Rating</h2>
             <div
@@ -295,8 +300,6 @@ const DashboardPage: React.FC = () => {
               {avgText}
             </div>
             <p className="dashboard-text">Your overall customer rating score.</p>
-
-            {/* reserva el mismo espacio que las otras cards (pero invisible) */}
             <span className="dashboard-link dashboard-link--ghost">See reviews</span>
           </div>
 
@@ -352,8 +355,7 @@ const DashboardPage: React.FC = () => {
               maxWidth: 640,
             }}
           >
-            See all customers with a valid address on the map. Each pin represents
-            one customer.
+            See all customers with a valid address on the map. Each pin represents one customer.
           </p>
 
           <div className="dashboard-map-wrap">

@@ -1,4 +1,5 @@
 // src/components/SidebarNav.tsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Home,
@@ -11,6 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 
+import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import "./Sidebar.css";
 
@@ -25,6 +27,70 @@ export default function SidebarNav() {
 
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  // =========================
+  // Unread badge
+  // =========================
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const pollRef = useRef<number | null>(null);
+
+  const userEmail = useMemo(() => {
+    const email = user?.email;
+    return typeof email === "string" ? email.trim() : "";
+  }, [user?.email]);
+
+  const inInbox = useMemo(() => {
+    // cubre /inbox y /messages/*
+    return location.pathname.startsWith("/inbox") || location.pathname.startsWith("/messages");
+  }, [location.pathname]);
+
+  const fetchUnread = async () => {
+    if (!userEmail) {
+      setUnreadCount(0);
+      return;
+    }
+
+    // Si estoy dentro del inbox, normalmente ya estoy leyendo / marcando read.
+    // Ocultamos el badge para UX (y evitamos flicker).
+    if (inInbox) {
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const res = await axios.get<number>("/messages/unread-count", {
+        params: { userEmail },
+      });
+
+      const n = Number(res.data);
+      setUnreadCount(Number.isFinite(n) ? n : 0);
+    } catch (e) {
+      // silencioso: si falla no rompemos el sidebar
+      // (puede fallar si aún no hay backend listo, etc.)
+    }
+  };
+
+  useEffect(() => {
+    // 1) fetch inicial
+    fetchUnread();
+
+    // 2) polling liviano
+    if (pollRef.current) window.clearInterval(pollRef.current);
+    pollRef.current = window.setInterval(() => {
+      fetchUnread();
+    }, 12000);
+
+    // 3) escucha evento global (tú ya lo estás usando)
+    const onRefresh = () => fetchUnread();
+    window.addEventListener("rycus:refresh-badges", onRefresh);
+
+    return () => {
+      window.removeEventListener("rycus:refresh-badges", onRefresh);
+      if (pollRef.current) window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userEmail, inInbox]);
 
   const initial = (
     user?.firstName?.[0] ||
@@ -100,7 +166,16 @@ export default function SidebarNav() {
           to="/inbox"
           className={`sideItem ${isActive("/inbox") ? "active" : ""}`}
         >
-          <MessageCircle size={22} className="sideSvg" />
+          {/* wrapper para poder posicionar badge */}
+          <span className="sideIconWrap">
+            <MessageCircle size={22} className="sideSvg" />
+            {unreadCount > 0 && (
+              <span className="sideBadge" aria-label={`${unreadCount} unread messages`}>
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </span>
+
           <span className="sideLabel">Messages</span>
           <span className="tip">Messages</span>
         </Link>

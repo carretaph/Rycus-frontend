@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import AvatarWithBadge from "../components/AvatarWithBadge";
 
 type Connection = {
   id: number;
@@ -16,14 +17,22 @@ type Connection = {
   createdAt: string | null;
 };
 
-// ✅ lo mínimo: solo lo que necesitamos para avatar
+// ✅ mini profile (lo que necesitamos para avatar + badge)
 type UserProfileMini = {
-  id?: number;
-  avatarUrl?: string;
-  profileImageUrl?: string;
-  photoUrl?: string;
-  pictureUrl?: string;
-  imageUrl?: string;
+  id?: number | null;
+  email?: string | null;
+  fullName?: string | null;
+
+  avatarUrl?: string | null;
+  profileImageUrl?: string | null;
+  photoUrl?: string | null;
+  pictureUrl?: string | null;
+  imageUrl?: string | null;
+
+  offersReferralFee?: boolean | null;
+  referralFeeType?: "FLAT" | "PERCENT" | null;
+  referralFeeValue?: number | null;
+  referralFeeNotes?: string | null;
 };
 
 const UserConnectionsPage: React.FC = () => {
@@ -36,8 +45,8 @@ const UserConnectionsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  // ✅ cache { userId -> avatarUrl }
-  const [avatarByUserId, setAvatarByUserId] = useState<Record<number, string>>(
+  // ✅ cache por email: { email -> mini }
+  const [miniByEmail, setMiniByEmail] = useState<Record<string, UserProfileMini>>(
     {}
   );
 
@@ -83,8 +92,7 @@ const UserConnectionsPage: React.FC = () => {
     return c.requesterId;
   };
 
-  const pickAvatarUrl = (data: UserProfileMini): string => {
-    // ✅ soporta varios nombres de campo (por si tu backend usa otro)
+  const pickAvatarUrl = (data?: UserProfileMini | null): string | null => {
     const url =
       data?.avatarUrl ||
       data?.profileImageUrl ||
@@ -92,39 +100,37 @@ const UserConnectionsPage: React.FC = () => {
       data?.pictureUrl ||
       data?.imageUrl ||
       "";
-    return typeof url === "string" ? url.trim() : "";
+
+    const s = String(url || "").trim();
+    return s ? s : null;
   };
 
-  const loadAvatarsForUserIds = async (ids: number[]) => {
-    const unique = Array.from(new Set(ids))
-      .filter((x) => Number.isFinite(x))
-      .filter((x) => x > 0);
+  // ✅ carga mini profiles por email (incluye offersReferralFee)
+  const loadMiniForEmails = async (emails: string[]) => {
+    const unique = Array.from(
+      new Set(
+        emails
+          .map((e) => String(e || "").trim().toLowerCase())
+          .filter(Boolean)
+      )
+    );
 
-    // solo los que aún no tenemos
-    const missing = unique.filter((id) => !avatarByUserId[id]);
+    const missing = unique.filter((email) => !miniByEmail[email]);
     if (missing.length === 0) return;
 
-    try {
-      // ⚠️ asume que existe GET /users/{id}
-      // Si tu endpoint es distinto, cambia SOLO esta línea.
-      const results = await Promise.all(
-        missing.map(async (id) => {
-          const res = await axios.get<UserProfileMini>(`/users/${id}`);
-          const url = pickAvatarUrl(res.data ?? {});
-          return [id, url] as const;
-        })
-      );
-
-      setAvatarByUserId((prev) => {
-        const next = { ...prev };
-        for (const [id, url] of results) {
-          if (url) next[id] = url; // si no hay url, dejamos inicial
+    await Promise.all(
+      missing.map(async (email) => {
+        try {
+          const res = await axios.get<UserProfileMini>("/users/by-email", {
+            params: { email },
+          });
+          setMiniByEmail((prev) => ({ ...prev, [email]: res.data || { email } }));
+        } catch {
+          // fallback: guardamos al menos el email para no reintentar infinito
+          setMiniByEmail((prev) => ({ ...prev, [email]: { email } }));
         }
-        return next;
-      });
-    } catch {
-      // silencioso: si falla, queda inicial (no rompas la página)
-    }
+      })
+    );
   };
 
   useEffect(() => {
@@ -154,9 +160,9 @@ const UserConnectionsPage: React.FC = () => {
         setMyConnections(my);
         setPendingInvites(pending);
 
-        // ✅ hydrate avatars
-        const ids = [...my, ...pending].map(getOtherId);
-        await loadAvatarsForUserIds(ids);
+        // ✅ hydrate minis (para avatar + badge)
+        const emails = [...my, ...pending].map(getOtherEmail);
+        await loadMiniForEmails(emails);
 
         refreshBadgesNow();
       } catch (err: any) {
@@ -202,9 +208,9 @@ const UserConnectionsPage: React.FC = () => {
     setMyConnections(my);
     setPendingInvites(pending);
 
-    // ✅ hydrate avatars otra vez por si cambió algo
-    const ids = [...my, ...pending].map(getOtherId);
-    await loadAvatarsForUserIds(ids);
+    // ✅ hydrate minis otra vez por si cambió algo
+    const emails = [...my, ...pending].map(getOtherEmail);
+    await loadMiniForEmails(emails);
 
     refreshBadgesNow();
   };
@@ -260,36 +266,29 @@ const UserConnectionsPage: React.FC = () => {
     }
   };
 
-  const renderAvatar = (otherId: number, c: Connection) => {
-    const url = avatarByUserId[otherId];
-    if (url) {
-      return (
-        <div className="network-avatar" aria-label="avatar">
-          <img
-            src={url}
-            alt={getOtherName(c)}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              borderRadius: "999px",
-              display: "block",
-            }}
-            onError={(e) => {
-              // si la imagen falla, borramos cache para volver a inicial
-              setAvatarByUserId((prev) => {
-                const next = { ...prev };
-                delete next[otherId];
-                return next;
-              });
-              (e.currentTarget as HTMLImageElement).src = "";
-            }}
-          />
-        </div>
-      );
-    }
+  const renderAvatar = (c: Connection) => {
+    const otherEmail = String(getOtherEmail(c) || "").trim().toLowerCase();
+    const mini = otherEmail ? miniByEmail[otherEmail] : undefined;
 
-    return <div className="network-avatar">{getAvatarInitial(c)}</div>;
+    const avatarUrl = pickAvatarUrl(mini);
+    const name = (mini?.fullName || getOtherName(c) || otherEmail || "User").toString();
+
+    return (
+      <div className="network-avatar" aria-label="avatar" style={{ overflow: "visible" }}>
+        <AvatarWithBadge
+          size={42}
+          avatarUrl={avatarUrl}
+          name={name}
+          email={otherEmail || null}
+          showReferralBadge={!!mini?.offersReferralFee}
+        />
+
+        {/* fallback ultra raro */}
+        {!avatarUrl && !mini?.fullName ? (
+          <span style={{ display: "none" }}>{getAvatarInitial(c)}</span>
+        ) : null}
+      </div>
+    );
   };
 
   // ---- render ----
@@ -345,7 +344,7 @@ const UserConnectionsPage: React.FC = () => {
                   return (
                     <div key={c.id} className="network-card">
                       <div className="network-card-left">
-                        {renderAvatar(otherId, c)}
+                        {renderAvatar(c)}
 
                         <div className="network-meta">
                           <div className="network-name">{getOtherName(c)}</div>
@@ -394,7 +393,7 @@ const UserConnectionsPage: React.FC = () => {
                   return (
                     <div key={c.id} className="network-card">
                       <div className="network-card-left">
-                        {renderAvatar(otherId, c)}
+                        {renderAvatar(c)}
 
                         <div className="network-meta">
                           <div className="network-name">{getOtherName(c)}</div>

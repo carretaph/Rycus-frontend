@@ -4,6 +4,10 @@ import { Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 
+// ✅ NEW: reusable avatar w/ RF badge
+import AvatarWithBadge from "../components/AvatarWithBadge";
+import rfBadge from "../assets/badges/rf-badge.png";
+
 type InboxThread = {
   otherEmail: string;
   otherFullName: string | null;
@@ -15,7 +19,16 @@ type InboxThread = {
 type UserMini = {
   email?: string | null;
   fullName?: string | null;
+
+  // ✅ supports multiple backend names
   avatarUrl?: string | null;
+  profileImageUrl?: string | null;
+  photoUrl?: string | null;
+  pictureUrl?: string | null;
+  imageUrl?: string | null;
+
+  // ✅ for RF badge
+  offersReferralFee?: boolean | null;
 };
 
 function safeDate(iso?: string | null): Date | null {
@@ -44,42 +57,19 @@ function dateLabel(date: Date) {
   });
 }
 
-function initialFromEmailOrName(name?: string | null, email?: string | null) {
-  const n = (name || "").trim();
-  if (n) return n.charAt(0).toUpperCase();
-  const e = (email || "").trim();
-  if (e) return e.charAt(0).toUpperCase();
-  return "?";
+// ✅ same pattern used in Connections
+function pickAvatarUrl(data?: UserMini | null): string | null {
+  const url =
+    data?.avatarUrl ||
+    data?.profileImageUrl ||
+    data?.photoUrl ||
+    data?.pictureUrl ||
+    data?.imageUrl ||
+    "";
+
+  const s = String(url || "").trim();
+  return s ? s : null;
 }
-
-const AvatarBubble: React.FC<{
-  size?: number;
-  avatarUrl?: string | null;
-  name?: string | null;
-  email?: string | null;
-}> = ({ size = 42, avatarUrl, name, email }) => {
-  const initial = initialFromEmailOrName(name, email);
-
-  return (
-    <div
-      className="avatar"
-      style={{
-        width: size,
-        height: size,
-        flex: "0 0 auto",
-      }}
-      title={(name || email || "").toString()}
-    >
-      {avatarUrl ? (
-        <img src={avatarUrl} alt={(name || email || "avatar").toString()} />
-      ) : (
-        <span style={{ fontWeight: 900, fontSize: 13, color: "#fff" }}>
-          {initial}
-        </span>
-      )}
-    </div>
-  );
-};
 
 const InboxPage: React.FC = () => {
   const { user } = useAuth();
@@ -88,7 +78,7 @@ const InboxPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // cache: otherEmail -> {fullName, avatarUrl}
+  // cache: otherEmail -> mini user (fullName/avatar/offersReferralFee)
   const [miniMap, setMiniMap] = useState<Record<string, UserMini>>({});
 
   useEffect(() => {
@@ -130,16 +120,19 @@ const InboxPage: React.FC = () => {
 
       if (missing.length === 0) return;
 
-      for (const email of missing) {
-        try {
-          const res = await axios.get<UserMini>("/users/by-email", {
-            params: { email },
-          });
-          setMiniMap((prev) => ({ ...prev, [email]: res.data || {} }));
-        } catch {
-          setMiniMap((prev) => ({ ...prev, [email]: { email } }));
-        }
-      }
+      // ✅ parallel (faster)
+      await Promise.all(
+        missing.map(async (email) => {
+          try {
+            const res = await axios.get<UserMini>("/users/by-email", {
+              params: { email },
+            });
+            setMiniMap((prev) => ({ ...prev, [email]: res.data || {} }));
+          } catch {
+            setMiniMap((prev) => ({ ...prev, [email]: { email } }));
+          }
+        })
+      );
     };
 
     void run();
@@ -190,8 +183,8 @@ const InboxPage: React.FC = () => {
                 .toString()
                 .trim();
 
-              const avatarUrl =
-                (mini?.avatarUrl || "").toString().trim() || null;
+              const avatarUrl = pickAvatarUrl(mini);
+              const showRF = !!mini?.offersReferralFee;
 
               const badge = t.unreadCount || 0;
               const dt = safeDate(t.lastMessageAt);
@@ -205,10 +198,13 @@ const InboxPage: React.FC = () => {
                   style={{ textDecoration: "none", color: "inherit" }}
                 >
                   <div className="inbox-card-left">
-                    <AvatarBubble
+                    <AvatarWithBadge
+                      size={42}
                       avatarUrl={avatarUrl}
                       name={displayName}
                       email={otherEmail}
+                      showReferralBadge={showRF}
+                      badgeSrc={rfBadge}
                     />
 
                     <div className="inbox-meta">

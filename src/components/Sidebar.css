@@ -283,4 +283,36 @@
     padding: 0 12px;
     column-gap: 10px;
   }
-  
+  /* ===========================
+   ✅ MESSAGES BADGE
+=========================== */
+
+.sideIconWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* badge rojo estilo IG */
+.sideBadge {
+  position: absolute;
+  top: -7px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 800;
+  background: #ef4444;
+  color: #fff;
+
+  /* ✅ como tu sidebar es blanco, el borde debe ser blanco */
+  border: 2px solid #ffffff;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
