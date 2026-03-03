@@ -1,5 +1,5 @@
 // src/pages/FeedPage.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   fetchFeed,
@@ -12,6 +12,8 @@ import {
 
 import AvatarWithBadge from "../components/AvatarWithBadge";
 import "./FeedPage.css";
+
+type FeedFilter = "ALL" | "POST" | "NEWS" | "AD";
 
 type FeedItem =
   | {
@@ -32,6 +34,15 @@ type FeedItem =
       createdAt: string;
       title: string;
       text: string;
+    }
+  | {
+      kind: "AD";
+      id: string;
+      createdAt: string;
+      title: string;
+      text: string;
+      ctaText: string;
+      ctaUrl: string;
     };
 
 const STATIC_ITEMS: FeedItem[] = [
@@ -75,33 +86,67 @@ function mapPost(p: PostDto): FeedItem {
 export default function FeedPage() {
   const { user } = useAuth();
 
+  const [filter, setFilter] = useState<FeedFilter>("ALL");
   const [postText, setPostText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const [posts, setPosts] = useState<FeedItem[]>([]);
-  const [loadingFeed, setLoadingFeed] = useState(false);
-  const [posting, setPosting] = useState(false);
 
-  async function loadFeed() {
-    setLoadingFeed(true);
-    setError(null);
+  const pollRef = useRef<number | null>(null);
+
+  const meName =
+    user?.name ||
+    user?.firstName ||
+    (user?.email ? user.email.split("@")[0] : "You");
+
+  const canLoadViewerEmail = (user?.email || "").trim() || undefined;
+
+  async function loadFeed(opts?: { silent?: boolean }) {
+    const silent = !!opts?.silent;
+
+    if (!silent) setLoading(true);
+    if (!silent) setError(null);
 
     try {
-      const viewerEmail = user?.email ?? undefined;
-      const data = await fetchFeed(50, viewerEmail);
+      const data = await fetchFeed(50, canLoadViewerEmail);
       setPosts(Array.isArray(data) ? data.map(mapPost) : []);
     } catch {
-      setError("Could not load the wall.");
-      setPosts([]);
+      if (!silent) setError("Could not load the wall.");
+      if (!silent) setPosts([]);
     } finally {
-      setLoadingFeed(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     void loadFeed();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    // Polling (solo si el tab está visible)
+    if (pollRef.current) window.clearInterval(pollRef.current);
+    pollRef.current = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadFeed({ silent: true });
+      }
+    }, 8000);
+
+    // Refrescar cuando vuelves al tab / focus (muy útil en producción)
+    const onFocus = () => void loadFeed({ silent: true });
+    const onVis = () => {
+      if (document.visibilityState === "visible") void loadFeed({ silent: true });
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+      if (pollRef.current) window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+    // eslint-disable-next-line
+  }, [canLoadViewerEmail]);
 
   async function handlePost() {
     const text = postText.trim();
@@ -116,9 +161,9 @@ export default function FeedPage() {
       return;
     }
 
-    const authorName = (user.name || user.firstName || user.email.split("@")[0]).trim();
+    const authorName = user.name || user.firstName || user.email.split("@")[0];
 
-    setPosting(true);
+    setLoading(true);
     setError(null);
 
     try {
@@ -130,10 +175,13 @@ export default function FeedPage() {
 
       setPosts((prev) => [mapPost(created), ...prev]);
       setPostText("");
+
+      // mini refresh silencioso para “alinear” con backend (timestamps/likes/etc)
+      void loadFeed({ silent: true });
     } catch {
       setError("Failed to create post.");
     } finally {
-      setPosting(false);
+      setLoading(false);
     }
   }
 
@@ -177,7 +225,7 @@ export default function FeedPage() {
         );
       }
     } catch {
-      void loadFeed();
+      void loadFeed({ silent: true });
     }
   }
 
@@ -187,13 +235,13 @@ export default function FeedPage() {
 
     if (!confirm("Delete this post permanently?")) return;
 
-    // optimistic remove
     setPosts((prev) => prev.filter((p) => !(p.kind === "POST" && p.postId === item.postId)));
 
     try {
       await deletePost(item.postId, user.email);
+      void loadFeed({ silent: true });
     } catch {
-      void loadFeed();
+      void loadFeed({ silent: true });
     }
   }
 
@@ -203,10 +251,12 @@ export default function FeedPage() {
     );
   }, [posts]);
 
-  const meName =
-    user?.name || user?.firstName || (user?.email ? user.email.split("@")[0] : "You");
-
-  const myOffersRF = !!(user as any)?.offersReferralFee;
+  const items = useMemo(() => {
+    if (filter === "ALL") return fullFeed;
+    if (filter === "POST") return fullFeed.filter((i) => i.kind === "POST");
+    if (filter === "NEWS") return fullFeed.filter((i) => i.kind === "NEWS");
+    return fullFeed.filter((i) => i.kind === "AD");
+  }, [filter, fullFeed]);
 
   return (
     <div className="feed-wrap">
@@ -215,18 +265,35 @@ export default function FeedPage() {
         <div className="feed-headerRow">
           <div>
             <h1 className="feed-title">Wall</h1>
-            <div className="feed-subtle">{fullFeed.length} items</div>
+            <div className="feed-subtle">{items.length} items</div>
           </div>
 
-          <button
-            className="feed-btn feed-btnOutline"
-            onClick={loadFeed}
-            disabled={loadingFeed}
-            title={loadingFeed ? "Loading…" : "Refresh"}
-          >
-            {loadingFeed ? "Loading…" : "Refresh"}
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* ✅ para que setFilter NO quede unused */}
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as FeedFilter)}
+              className="feed-btn feed-btnOutline"
+              style={{ padding: "8px 10px" }}
+              aria-label="Filter"
+            >
+              <option value="ALL">All</option>
+              <option value="POST">Posts</option>
+              <option value="NEWS">News</option>
+              <option value="AD">Ads</option>
+            </select>
+
+            <button className="feed-btn feed-btnOutline" onClick={() => void loadFeed()} disabled={loading}>
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </div>
+
+        {loading && (
+          <div className="feed-subtle" style={{ marginTop: 8 }}>
+            Updating…
+          </div>
+        )}
       </div>
 
       <div className="feed-spacer12" />
@@ -239,7 +306,7 @@ export default function FeedPage() {
             avatarUrl={user?.avatarUrl || null}
             name={meName}
             email={user?.email || null}
-            showReferralBadge={myOffersRF}
+            showReferralBadge={!!(user as any)?.offersReferralFee}
           />
 
           <div className="feed-createRight">
@@ -248,19 +315,13 @@ export default function FeedPage() {
               value={postText}
               onChange={(e) => setPostText(e.target.value)}
               placeholder="What's new?"
-              rows={3}
             />
 
             {error && <div className="feed-error">{error}</div>}
 
             <div className="feed-actions">
-              <button
-                className="feed-btn feed-btnPrimary"
-                onClick={handlePost}
-                disabled={posting || !postText.trim()}
-                title={posting ? "Posting…" : "Post"}
-              >
-                {posting ? "Posting…" : "Post"}
+              <button className="feed-btn feed-btnPrimary" onClick={handlePost} disabled={loading}>
+                {loading ? "Posting…" : "Post"}
               </button>
             </div>
           </div>
@@ -269,20 +330,20 @@ export default function FeedPage() {
 
       {/* POSTS */}
       <div className="feed-list">
-        {fullFeed.map((it) => (
+        {items.map((it) => (
           <div key={it.id} className="feed-card">
             {it.kind === "POST" && (
               <div className="feed-postTop">
-                {/* ✅ FIX: badge shows if THIS post belongs to current user */}
+                {/* badge solo si el post es mío */}
                 <AvatarWithBadge
                   size={42}
-                  avatarUrl={it.authorAvatarUrl || null}
+                  avatarUrl={it.authorAvatarUrl}
                   name={it.authorName}
                   email={it.authorEmail}
                   showReferralBadge={
                     !!user?.email &&
                     user.email.toLowerCase() === it.authorEmail.toLowerCase() &&
-                    myOffersRF
+                    !!(user as any)?.offersReferralFee
                   }
                 />
 
@@ -299,24 +360,13 @@ export default function FeedPage() {
                   <div className="feed-postBody">{it.text}</div>
 
                   <div className="feed-postActionsRow">
-                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                      <button
-                        className="feed-btn feed-btnGhost"
-                        onClick={() => toggleLike(it)}
-                        title={it.likedByViewer ? "Unlike" : "Like"}
-                      >
-                        {it.likedByViewer ? "👍 Liked" : "👍 Like"}
-                      </button>
-
-                      <div className="feed-likesCount">{it.likeCount} likes</div>
-                    </div>
+                    <button className="feed-btn feed-btnGhost" onClick={() => void toggleLike(it)}>
+                      👍 Like
+                    </button>
 
                     {user?.email &&
                       user.email.toLowerCase() === it.authorEmail.toLowerCase() && (
-                        <button
-                          className="feed-btn feed-btnDanger"
-                          onClick={() => handleDelete(it)}
-                        >
+                        <button className="feed-btn feed-btnDanger" onClick={() => void handleDelete(it)}>
                           Delete
                         </button>
                       )}
@@ -327,10 +377,14 @@ export default function FeedPage() {
 
             {it.kind === "NEWS" && (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <strong>{it.title}</strong>
-                  <span className="feed-postTime">{formatTime(it.createdAt)}</span>
-                </div>
+                <strong>{it.title}</strong>
+                <div className="feed-postBody">{it.text}</div>
+              </>
+            )}
+
+            {it.kind === "AD" && (
+              <>
+                <strong>{it.title}</strong>
                 <div className="feed-postBody">{it.text}</div>
               </>
             )}
