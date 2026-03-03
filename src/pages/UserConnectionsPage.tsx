@@ -332,9 +332,7 @@ const UserConnectionsPage: React.FC = () => {
             <h2>My Connections</h2>
 
             {myConnections.length === 0 ? (
-              <p className="dashboard-text">
-                You don&apos;t have any connections yet.
-              </p>
+              <p className="dashboard-text">You don&apos;t have any connections yet.</p>
             ) : (
               <div className="network-list">
                 {myConnections.map((c) => {
@@ -387,7 +385,7 @@ const UserConnectionsPage: React.FC = () => {
             ) : (
               <div className="network-list">
                 {pendingInvites.map((c) => {
-                  const otherId = getOtherId(c);
+                  // ✅ FIX TS6133: NO declaramos otherId porque no lo usamos aquí
                   const otherEmail = getOtherEmail(c);
 
                   return (

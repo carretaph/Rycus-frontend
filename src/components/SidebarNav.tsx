@@ -1,5 +1,5 @@
 // src/components/SidebarNav.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Home,
@@ -41,7 +41,10 @@ export default function SidebarNav() {
 
   const inInbox = useMemo(() => {
     // cubre /inbox y /messages/*
-    return location.pathname.startsWith("/inbox") || location.pathname.startsWith("/messages");
+    return (
+      location.pathname.startsWith("/inbox") ||
+      location.pathname.startsWith("/messages")
+    );
   }, [location.pathname]);
 
   const fetchUnread = async () => {
@@ -170,7 +173,10 @@ export default function SidebarNav() {
           <span className="sideIconWrap">
             <MessageCircle size={22} className="sideSvg" />
             {unreadCount > 0 && (
-              <span className="sideBadge" aria-label={`${unreadCount} unread messages`}>
+              <span
+                className="sideBadge"
+                aria-label={`${unreadCount} unread messages`}
+              >
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
@@ -202,11 +208,7 @@ export default function SidebarNav() {
         <Link to="/profile" className="sideMe" aria-label="Profile">
           <div className="sideAvatarRing">
             {user?.avatarUrl ? (
-              <img
-                className="sideAvatarImg"
-                src={user.avatarUrl}
-                alt="Profile"
-              />
+              <img className="sideAvatarImg" src={user.avatarUrl} alt="Profile" />
             ) : (
               <div className="sideAvatarFallback">{initial}</div>
             )}

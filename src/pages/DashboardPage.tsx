@@ -97,14 +97,6 @@ const DashboardPage: React.FC = () => {
     return user?.email || "User";
   }, [user?.firstName, user?.email]);
 
-  const initials = useMemo(() => {
-    const fn = user?.firstName?.trim();
-    const ln = (user as any)?.lastName?.trim?.();
-    const src = fn || user?.email || "U";
-    if (fn && ln) return `${fn[0]}${ln[0]}`.toUpperCase();
-    return (src[0] || "U").toUpperCase();
-  }, [user?.firstName, user?.email]);
-
   const avatarUrl = (user as any)?.photoUrl || (user as any)?.avatarUrl || "";
   const myOffersRF = !!(user as any)?.offersReferralFee;
 
@@ -245,11 +237,15 @@ const DashboardPage: React.FC = () => {
             <AvatarWithBadge
               size={44}
               avatarUrl={avatarUrl || null}
-              name={(user?.firstName || (user as any)?.name || user?.email || "User") as string}
+              name={
+                ((user?.firstName ||
+                  (user as any)?.name ||
+                  user?.email ||
+                  "User") as string) || "User"
+              }
               email={user?.email || null}
               showReferralBadge={myOffersRF}
               badgeAlt="RF"
-              badgeOffset={-3}
             />
           </div>
 
@@ -300,6 +296,7 @@ const DashboardPage: React.FC = () => {
               {avgText}
             </div>
             <p className="dashboard-text">Your overall customer rating score.</p>
+            {/* reserva el mismo espacio que las otras cards (pero invisible) */}
             <span className="dashboard-link dashboard-link--ghost">See reviews</span>
           </div>
 

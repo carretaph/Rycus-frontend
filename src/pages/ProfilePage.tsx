@@ -223,10 +223,6 @@ const ProfilePage: React.FC = () => {
     return "User";
   }, [fullName, user?.email]);
 
-  const initial = (extra.firstName || (user as any)?.name || user?.email || "U")
-    .charAt(0)
-    .toUpperCase();
-
   const profileUrl = (user as any)?.id
     ? `https://rycus.app/u/${(user as any).id}`
     : "https://rycus.app/u/your-profile";

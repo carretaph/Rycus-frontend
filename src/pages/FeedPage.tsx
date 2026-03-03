@@ -7,14 +7,11 @@ import {
   likePost,
   unlikePost,
   deletePost,
-  updatePost,
   type PostDto,
 } from "../api/posts";
 
 import AvatarWithBadge from "../components/AvatarWithBadge";
 import "./FeedPage.css";
-
-type FeedFilter = "ALL" | "POST" | "NEWS" | "AD";
 
 type FeedItem =
   | {
@@ -35,15 +32,6 @@ type FeedItem =
       createdAt: string;
       title: string;
       text: string;
-    }
-  | {
-      kind: "AD";
-      id: string;
-      createdAt: string;
-      title: string;
-      text: string;
-      ctaText: string;
-      ctaUrl: string;
     };
 
 const STATIC_ITEMS: FeedItem[] = [
@@ -87,18 +75,15 @@ function mapPost(p: PostDto): FeedItem {
 export default function FeedPage() {
   const { user } = useAuth();
 
-  const [filter, setFilter] = useState<FeedFilter>("ALL");
   const [postText, setPostText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   const [posts, setPosts] = useState<FeedItem[]>([]);
-
-  const [editingPostId, setEditingPostId] = useState<number | null>(null);
-  const [editText, setEditText] = useState("");
+  const [loadingFeed, setLoadingFeed] = useState(false);
+  const [posting, setPosting] = useState(false);
 
   async function loadFeed() {
-    setLoading(true);
+    setLoadingFeed(true);
     setError(null);
 
     try {
@@ -109,13 +94,13 @@ export default function FeedPage() {
       setError("Could not load the wall.");
       setPosts([]);
     } finally {
-      setLoading(false);
+      setLoadingFeed(false);
     }
   }
 
   useEffect(() => {
     void loadFeed();
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handlePost() {
@@ -131,12 +116,9 @@ export default function FeedPage() {
       return;
     }
 
-    const authorName =
-      user.name ||
-      user.firstName ||
-      user.email.split("@")[0];
+    const authorName = (user.name || user.firstName || user.email.split("@")[0]).trim();
 
-    setLoading(true);
+    setPosting(true);
     setError(null);
 
     try {
@@ -151,7 +133,7 @@ export default function FeedPage() {
     } catch {
       setError("Failed to create post.");
     } finally {
-      setLoading(false);
+      setPosting(false);
     }
   }
 
@@ -161,16 +143,14 @@ export default function FeedPage() {
 
     const email = user.email;
 
+    // optimistic
     setPosts((prev) =>
       prev.map((p) =>
         p.kind === "POST" && p.postId === item.postId
           ? {
               ...p,
               likedByViewer: !p.likedByViewer,
-              likeCount: Math.max(
-                0,
-                p.likeCount + (p.likedByViewer ? -1 : 1)
-              ),
+              likeCount: Math.max(0, p.likeCount + (p.likedByViewer ? -1 : 1)),
             }
           : p
       )
@@ -207,12 +187,8 @@ export default function FeedPage() {
 
     if (!confirm("Delete this post permanently?")) return;
 
-    setPosts((prev) =>
-      prev.filter(
-        (p) =>
-          !(p.kind === "POST" && p.postId === item.postId)
-      )
-    );
+    // optimistic remove
+    setPosts((prev) => prev.filter((p) => !(p.kind === "POST" && p.postId === item.postId)));
 
     try {
       await deletePost(item.postId, user.email);
@@ -221,81 +197,34 @@ export default function FeedPage() {
     }
   }
 
-  async function saveEdit(item: FeedItem) {
-    if (item.kind !== "POST") return;
-    if (!user?.email) return;
-
-    const text = editText.trim();
-
-    if (!text) {
-      setError("Post text cannot be empty.");
-      return;
-    }
-
-    try {
-      const updated = await updatePost(
-        item.postId,
-        user.email,
-        text
-      );
-
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.kind === "POST" && p.postId === item.postId
-            ? mapPost(updated)
-            : p
-        )
-      );
-
-      setEditingPostId(null);
-      setEditText("");
-    } catch {
-      void loadFeed();
-    }
-  }
-
   const fullFeed = useMemo(() => {
     return [...posts, ...STATIC_ITEMS].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [posts]);
 
-  const items = useMemo(() => {
-    if (filter === "ALL") return fullFeed;
-    if (filter === "POST")
-      return fullFeed.filter((i) => i.kind === "POST");
-    if (filter === "NEWS")
-      return fullFeed.filter((i) => i.kind === "NEWS");
-    return fullFeed.filter((i) => i.kind === "AD");
-  }, [filter, fullFeed]);
-
   const meName =
-    user?.name ||
-    user?.firstName ||
-    (user?.email
-      ? user.email.split("@")[0]
-      : "You");
+    user?.name || user?.firstName || (user?.email ? user.email.split("@")[0] : "You");
+
+  const myOffersRF = !!(user as any)?.offersReferralFee;
 
   return (
     <div className="feed-wrap">
-
       {/* HEADER */}
       <div className="feed-card">
         <div className="feed-headerRow">
           <div>
             <h1 className="feed-title">Wall</h1>
-            <div className="feed-subtle">
-              {items.length} items
-            </div>
+            <div className="feed-subtle">{fullFeed.length} items</div>
           </div>
 
           <button
             className="feed-btn feed-btnOutline"
             onClick={loadFeed}
+            disabled={loadingFeed}
+            title={loadingFeed ? "Loading…" : "Refresh"}
           >
-            Refresh
+            {loadingFeed ? "Loading…" : "Refresh"}
           </button>
         </div>
       </div>
@@ -305,37 +234,33 @@ export default function FeedPage() {
       {/* CREATE POST */}
       <div className="feed-card">
         <div className="feed-createRow">
-
           <AvatarWithBadge
             size={42}
             avatarUrl={user?.avatarUrl || null}
             name={meName}
             email={user?.email || null}
-            showReferralBadge={!!(user as any)?.offersReferralFee}
+            showReferralBadge={myOffersRF}
           />
 
           <div className="feed-createRight">
             <textarea
               className="feed-textarea"
               value={postText}
-              onChange={(e) =>
-                setPostText(e.target.value)
-              }
+              onChange={(e) => setPostText(e.target.value)}
               placeholder="What's new?"
+              rows={3}
             />
 
-            {error && (
-              <div className="feed-error">
-                {error}
-              </div>
-            )}
+            {error && <div className="feed-error">{error}</div>}
 
             <div className="feed-actions">
               <button
                 className="feed-btn feed-btnPrimary"
                 onClick={handlePost}
+                disabled={posting || !postText.trim()}
+                title={posting ? "Posting…" : "Post"}
               >
-                Post
+                {posting ? "Posting…" : "Post"}
               </button>
             </div>
           </div>
@@ -344,90 +269,74 @@ export default function FeedPage() {
 
       {/* POSTS */}
       <div className="feed-list">
-        {items.map((it) => (
+        {fullFeed.map((it) => (
           <div key={it.id} className="feed-card">
-
             {it.kind === "POST" && (
               <div className="feed-postTop">
-
                 {/* ✅ FIX: badge shows if THIS post belongs to current user */}
                 <AvatarWithBadge
                   size={42}
-                  avatarUrl={it.authorAvatarUrl}
+                  avatarUrl={it.authorAvatarUrl || null}
                   name={it.authorName}
                   email={it.authorEmail}
                   showReferralBadge={
                     !!user?.email &&
-                    user.email.toLowerCase() ===
-                      it.authorEmail.toLowerCase() &&
-                    !!(user as any)?.offersReferralFee
+                    user.email.toLowerCase() === it.authorEmail.toLowerCase() &&
+                    myOffersRF
                   }
                 />
 
                 <div className="feed-postMeta">
-
                   <div className="feed-postNameRow">
                     <div>
-                      <div className="feed-postName">
-                        {it.authorName}
-                      </div>
-                      <div className="feed-postEmail">
-                        {it.authorEmail}
-                      </div>
+                      <div className="feed-postName">{it.authorName}</div>
+                      <div className="feed-postEmail">{it.authorEmail}</div>
                     </div>
 
-                    <div className="feed-postTime">
-                      {formatTime(it.createdAt)}
-                    </div>
+                    <div className="feed-postTime">{formatTime(it.createdAt)}</div>
                   </div>
 
-                  <div className="feed-postBody">
-                    {it.text}
-                  </div>
+                  <div className="feed-postBody">{it.text}</div>
 
                   <div className="feed-postActionsRow">
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <button
+                        className="feed-btn feed-btnGhost"
+                        onClick={() => toggleLike(it)}
+                        title={it.likedByViewer ? "Unlike" : "Like"}
+                      >
+                        {it.likedByViewer ? "👍 Liked" : "👍 Like"}
+                      </button>
 
-                    <button
-                      className="feed-btn feed-btnGhost"
-                      onClick={() =>
-                        toggleLike(it)
-                      }
-                    >
-                      👍 Like
-                    </button>
+                      <div className="feed-likesCount">{it.likeCount} likes</div>
+                    </div>
 
                     {user?.email &&
-                      user.email.toLowerCase() ===
-                        it.authorEmail.toLowerCase() && (
+                      user.email.toLowerCase() === it.authorEmail.toLowerCase() && (
                         <button
                           className="feed-btn feed-btnDanger"
-                          onClick={() =>
-                            handleDelete(it)
-                          }
+                          onClick={() => handleDelete(it)}
                         >
                           Delete
                         </button>
                       )}
-
                   </div>
-
                 </div>
               </div>
             )}
 
             {it.kind === "NEWS" && (
               <>
-                <strong>{it.title}</strong>
-                <div className="feed-postBody">
-                  {it.text}
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <strong>{it.title}</strong>
+                  <span className="feed-postTime">{formatTime(it.createdAt)}</span>
                 </div>
+                <div className="feed-postBody">{it.text}</div>
               </>
             )}
-
           </div>
         ))}
       </div>
-
     </div>
   );
 }
