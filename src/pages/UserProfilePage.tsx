@@ -1,8 +1,10 @@
-// src/pages/UserProfilePage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
+
+import AvatarWithBadge from "../components/AvatarWithBadge";
+import rfBadge from "../assets/badges/rf-badge.png";
 
 type UserReview = {
   id: number;
@@ -27,6 +29,8 @@ type UserProfile = {
   city?: string | null;
   state?: string | null;
   avatarUrl?: string | null;
+
+  offersReferralFee?: boolean | null;
 
   totalReviews: number;
   averageRating: number;
@@ -56,9 +60,6 @@ const UserProfilePage: React.FC = () => {
   const [sendingRequest, setSendingRequest] = useState(false);
   const [isAlreadyConnected, setIsAlreadyConnected] = useState(false);
 
-  // ================================
-  // Load profile
-  // ================================
   useEffect(() => {
     const load = async () => {
       if (!id) {
@@ -74,7 +75,6 @@ const UserProfilePage: React.FC = () => {
         const res = await axios.get<UserProfile>(`/users/${id}`);
         const data = res.data as any;
 
-        // ✅ Defensive: backend may return reviews as null/undefined
         setProfile({
           ...data,
           reviews: Array.isArray(data.reviews) ? data.reviews : [],
@@ -87,12 +87,9 @@ const UserProfilePage: React.FC = () => {
       }
     };
 
-    load();
+    void load();
   }, [id]);
 
-  // ================================
-  // Check connection
-  // ================================
   useEffect(() => {
     const checkConnection = async () => {
       if (!currentUser?.email || !profile) {
@@ -131,12 +128,9 @@ const UserProfilePage: React.FC = () => {
       }
     };
 
-    checkConnection();
+    void checkConnection();
   }, [currentUser?.email, profile]);
 
-  // ================================
-  // Actions
-  // ================================
   const handleAddToNetwork = async () => {
     if (!profile) return;
 
@@ -184,18 +178,17 @@ const UserProfilePage: React.FC = () => {
     }
   };
 
-  // ================================
-  // Computed UI values
-  // ================================
   const isMe = currentUser?.id === profile?.id;
   const isLoggedIn = !!currentUser;
   const showAddToNetwork = isLoggedIn && !isMe && !isAlreadyConnected;
 
   const avatarInitial = useMemo(() => {
-    if (profile?.fullName?.trim())
+    if (profile?.fullName?.trim()) {
       return profile.fullName.trim().charAt(0).toUpperCase();
-    if (profile?.email?.trim())
+    }
+    if (profile?.email?.trim()) {
       return profile.email.trim().charAt(0).toUpperCase();
+    }
     return "U";
   }, [profile?.fullName, profile?.email]);
 
@@ -208,12 +201,9 @@ const UserProfilePage: React.FC = () => {
   const state = (profile?.state ?? "").trim();
   const location = [city, state].filter(Boolean).join(", ");
 
-  // ✅ Always-safe reviews array for render
   const reviews = profile?.reviews ?? [];
+  const showRF = !!profile?.offersReferralFee;
 
-  // ================================
-  // Render
-  // ================================
   if (loading) {
     return (
       <div className="page">
@@ -240,15 +230,17 @@ const UserProfilePage: React.FC = () => {
   return (
     <div className="page">
       <div className="userprofile-container">
-        {/* HEADER CARD */}
         <div className="userprofile-header-card">
           <div className="userprofile-header">
-            <div className="userprofile-avatar">
-              {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={profile.fullName} />
-              ) : (
-                <span>{avatarInitial}</span>
-              )}
+            <div className="userprofile-avatar-wrap">
+              <AvatarWithBadge
+                size={96}
+                avatarUrl={profile.avatarUrl || null}
+                name={profile.fullName}
+                email={profile.email}
+                showReferralBadge={showRF}
+                badgeSrc={rfBadge}
+              />
             </div>
 
             <div className="userprofile-main">
@@ -259,12 +251,15 @@ const UserProfilePage: React.FC = () => {
                 {industry && (
                   <span className="userprofile-chip">🛠️ {industry}</span>
                 )}
+
                 {businessName && (
                   <span className="userprofile-chip">🏢 {businessName}</span>
                 )}
+
                 {location && (
                   <span className="userprofile-chip">📍 {location}</span>
                 )}
+
                 {tel && (
                   <a
                     className="userprofile-chip userprofile-chip-link"
@@ -272,6 +267,12 @@ const UserProfilePage: React.FC = () => {
                   >
                     📞 {phone}
                   </a>
+                )}
+
+                {showRF && (
+                  <span className="userprofile-rf-badge-big" title="Offers referral fee">
+                    <img src={rfBadge} alt="RF badge" />
+                  </span>
                 )}
               </div>
             </div>
@@ -297,7 +298,6 @@ const UserProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* STATS */}
         <div className="userprofile-stats">
           <div className="dashboard-card">
             <h2>Total Reviews</h2>
@@ -320,7 +320,6 @@ const UserProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* REVIEWS */}
         <div className="userprofile-section">
           <h2 className="userprofile-section-title">Customer Reviews</h2>
 

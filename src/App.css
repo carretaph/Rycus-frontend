@@ -1129,6 +1129,14 @@
      display: block;
    }
    
+   .userprofile-avatar-wrap {
+     width: 96px;
+     height: 96px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+   }
+   
    .userprofile-main {
      min-width: 0;
    }
@@ -1152,6 +1160,7 @@
      display: flex;
      gap: 8px;
      flex-wrap: wrap;
+     align-items: center;
    }
    
    .userprofile-chip {
@@ -1175,6 +1184,26 @@
    
    .userprofile-chip-link:hover {
      text-decoration: underline;
+   }
+   
+   .userprofile-rf-badge-big {
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     width: 64px;
+     height: 64px;
+     border-radius: 16px;
+     background: #fff;
+     border: 1px solid rgba(37, 99, 235, 0.14);
+     box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08);
+     padding: 8px;
+   }
+   
+   .userprofile-rf-badge-big img {
+     width: 100%;
+     height: 100%;
+     object-fit: contain;
+     display: block;
    }
    
    .userprofile-actions {
@@ -1448,9 +1477,13 @@
        align-items: start;
      }
    
-     .userprofile-avatar {
+     .userprofile-avatar,
+     .userprofile-avatar-wrap {
        width: 84px;
        height: 84px;
+     }
+   
+     .userprofile-avatar {
        font-size: 30px;
      }
    
@@ -1513,7 +1546,7 @@
        width: 100%;
        padding-top: calc(env(safe-area-inset-top) + 54px);
        padding-right: 12px;
-       padding-bottom: calc(env(safe-area-inset-bottom) + 20px);
+       padding-bottom: calc(env(safe-area-inset-bottom) + 92px);
        padding-left: 12px;
      }
    
@@ -1604,7 +1637,7 @@
    
      .composeButton {
        right: 16px;
-       bottom: 16px;
+       bottom: calc(env(safe-area-inset-bottom) + 84px);
        width: 52px;
        height: 52px;
        border-radius: 14px;
@@ -1620,23 +1653,31 @@
      textarea {
        zoom: 1;
      }
+   
+     .userprofile-rf-badge-big {
+       width: 54px;
+       height: 54px;
+       border-radius: 14px;
+       padding: 7px;
+     }
    }
+   
    .inbox-compose-top {
-    flex: 0 0 auto;
-  }
-  
-  @media (max-width: 640px) {
-    .inbox-compose-top {
-      display: none !important;
-    }
-  
-    .composeButton {
-      display: flex !important;
-    }
-  }
-  
-  @media (min-width: 641px) {
-    .composeButton {
-      display: none !important;
-    }
-  }
+     flex: 0 0 auto;
+   }
+   
+   @media (max-width: 640px) {
+     .inbox-compose-top {
+       display: none !important;
+     }
+   
+     .composeButton {
+       display: flex !important;
+     }
+   }
+   
+   @media (min-width: 641px) {
+     .composeButton {
+       display: none !important;
+     }
+   }
