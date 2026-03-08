@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rycus</string>
+    <string name="title_activity_main">Rycus</string>
+    <string name="package_name">com.rycus.app</string>
+    <string name="custom_url_scheme">com.rycus.app</string>
+</resources>

@@ -35,7 +35,8 @@ import ActivatePage from "./pages/ActivatePage";
 import BillingSuccessPage from "./pages/BillingSuccessPage";
 import BillingCancelPage from "./pages/BillingCancelPage";
 
-import logo from "./assets/rycus-logo.png";
+// ✅ CAMBIO: usar el logo correcto
+import logo from "./assets/rycus-logo-check.png";
 
 /* =========================================================
    HELPERS
@@ -145,7 +146,6 @@ export default function App() {
     }
 
     // ===== PROD =====
-
     try {
       const me = await axios.get("/users/me", {
         params: { email: user.email },
@@ -221,8 +221,7 @@ export default function App() {
 
   return (
     <div className={`app ${user ? "appShell" : ""}`}>
-      
-      {/* ===== SIDEBAR ===== */}
+      {/* ===== SIDEBAR / PUBLIC HEADER ===== */}
       {user ? (
         <SidebarNav />
       ) : (
@@ -230,9 +229,7 @@ export default function App() {
           <div className="site-header-logo-block">
             <img src={logo} alt="Rycus" className="site-header-logo" />
             <div className="site-header-title">Rycus</div>
-            <div className="site-header-subtitle">
-              Rate Your Customer US
-            </div>
+            <div className="site-header-subtitle">Rate Your Customer US</div>
           </div>
 
           <nav className="site-header-nav">
@@ -244,10 +241,8 @@ export default function App() {
       )}
 
       {/* ===== MAIN ===== */}
-      {/* 🔥 IMPORTANTE: main + appMain */}
       <main className={user ? "main appMain" : "main"}>
         <Routes>
-
           {/* ===== PUBLIC ===== */}
           <Route
             path="/"
@@ -277,7 +272,6 @@ export default function App() {
           />
 
           {/* ===== PRIVATE ===== */}
-
           <Route
             path="/home"
             element={
@@ -297,7 +291,6 @@ export default function App() {
           />
 
           {/* ===== BILLING ===== */}
-
           <Route
             path="/activate"
             element={
@@ -326,7 +319,6 @@ export default function App() {
           />
 
           {/* ===== CUSTOMERS ===== */}
-
           <Route
             path="/customers"
             element={
@@ -364,7 +356,6 @@ export default function App() {
           />
 
           {/* ===== USERS ===== */}
-
           <Route
             path="/users"
             element={
@@ -393,7 +384,6 @@ export default function App() {
           />
 
           {/* ===== PROFILE ===== */}
-
           <Route
             path="/profile"
             element={
@@ -404,7 +394,6 @@ export default function App() {
           />
 
           {/* ===== MESSAGES ===== */}
-
           <Route
             path="/inbox"
             element={
@@ -424,9 +413,7 @@ export default function App() {
           />
 
           {/* ===== FALLBACK ===== */}
-
           <Route path="*" element={<Navigate to="/" replace />} />
-
         </Routes>
       </main>
     </div>

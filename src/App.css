@@ -8,12 +8,26 @@
      box-sizing: border-box;
    }
    
+   html {
+     -webkit-text-size-adjust: 100%;
+     height: 100%;
+   }
+   
    body {
      margin: 0;
      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
        Roboto, Helvetica, Arial, sans-serif;
      background: #f5f7fb;
      color: #111827;
+     height: 100%;
+     overflow-x: hidden;
+     overflow-y: auto;
+     -webkit-overflow-scrolling: touch;
+   }
+   
+   #root {
+     min-height: 100vh;
+     height: 100%;
    }
    
    /* evita imágenes gigantes globales */
@@ -27,16 +41,22 @@
       APP SHELL LAYOUT
       ========================================================= */
    
+   .app,
+   .appMain {
+     min-height: 100vh;
+   }
+   
    .app.appShell {
      display: flex;
      min-height: 100vh;
    }
    
-   /* SIDEBAR */
+   /* SIDEBAR legacy */
    .appSidebar {
      width: 72px;
      background: #fff;
      border-right: 1px solid rgba(0, 0, 0, 0.06);
+     flex: 0 0 72px;
    }
    
    /* MAIN CONTENT AREA */
@@ -46,6 +66,11 @@
      margin: 0;
      padding: 24px 28px;
      box-sizing: border-box;
+     min-width: 0;
+     overflow-x: hidden;
+     overflow-y: auto;
+     -webkit-overflow-scrolling: touch;
+     touch-action: pan-y;
    }
    
    /* =========================================================
@@ -55,9 +80,10 @@
    .page {
      width: 100%;
      padding-top: 20px;
-   
      display: flex;
      justify-content: center;
+     min-width: 0;
+     touch-action: pan-y;
    }
    
    .page > * {
@@ -69,9 +95,34 @@
       SITE HEADER (public pages)
       ========================================================= */
    
+   .site-header {
+     width: 100%;
+     max-width: 1120px;
+     margin: 0 auto;
+     padding:
+       max(14px, env(safe-area-inset-top))
+       16px
+       18px
+       16px;
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     box-sizing: border-box;
+   }
+   
+   .site-header-logo-block {
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     justify-content: center;
+     margin-bottom: 8px;
+   }
+   
    .site-header-logo {
-     height: 60px;
-     width: auto;
+     width: 44px;
+     height: 44px;
+     object-fit: contain;
+     margin: 0 auto 10px;
    }
    
    .site-header-title {
@@ -82,25 +133,26 @@
      font-size: 14px;
      color: #4b5563;
      text-align: center;
+     margin: 0;
    }
    
    .site-header-nav {
-     margin-top: 16px;
-     margin-bottom: 32px;
+     margin-top: 14px;
+     margin-bottom: 20px;
      display: flex;
      flex-wrap: wrap;
      justify-content: center;
      align-items: center;
-     gap: 28px;
+     gap: 18px;
    }
    
    .site-header-nav a {
-     display: flex;
+     display: inline-flex;
      align-items: center;
      gap: 6px;
      font-size: 14px;
      color: #1d4ed8;
-     font-weight: 500;
+     font-weight: 600;
      text-decoration: none;
    }
    
@@ -131,7 +183,6 @@
      border-radius: 12px;
      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
      padding: 18px;
-   
      display: flex;
      flex-direction: column;
    }
@@ -146,7 +197,6 @@
      font-size: 34px;
      font-weight: 900;
      margin-bottom: 8px;
-   
      display: flex;
      align-items: center;
      min-height: 40px;
@@ -167,7 +217,6 @@
      text-decoration: none;
    }
    
-   /* Rewards compacto */
    .dashboard-card--rewards {
      max-width: 520px;
    }
@@ -273,6 +322,7 @@
      align-items: center;
      justify-content: center;
      font-weight: 700;
+     flex: 0 0 42px;
    }
    
    .avatar img {
@@ -300,26 +350,6 @@
    
    .star-selected {
      color: #fbbf24;
-   }
-   
-   /* =========================================================
-      RESPONSIVE (general)
-      ========================================================= */
-   
-   @media (max-width: 1100px) {
-     .dashboard-grid {
-       grid-template-columns: repeat(2, 1fr);
-     }
-   }
-   
-   @media (max-width: 640px) {
-     .dashboard-grid {
-       grid-template-columns: 1fr;
-     }
-   
-     .customers-search-bar {
-       flex-direction: column;
-     }
    }
    
    /* =========================================================
@@ -353,7 +383,7 @@
    }
    
    /* =========================================================
-      MY NETWORK (Connections) — centered + cards (match PROD)
+      MY NETWORK (Connections)
       ========================================================= */
    
    .network-container {
@@ -411,7 +441,6 @@
      border-radius: 12px;
      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
      padding: 14px;
-   
      display: flex;
      align-items: center;
      justify-content: space-between;
@@ -431,13 +460,10 @@
      border-radius: 999px;
      overflow: hidden;
      flex: 0 0 44px;
-   
      background: #2563eb;
      color: #fff;
-   
      display: grid;
      place-items: center;
-   
      font-weight: 900;
    }
    
@@ -484,24 +510,8 @@
      font-size: 13px;
    }
    
-   /* Responsive */
-   @media (max-width: 980px) {
-     .network-grid {
-       grid-template-columns: 1fr;
-     }
-   
-     .network-header {
-       flex-direction: column;
-     }
-   
-     .network-actions {
-       width: 100%;
-       justify-content: flex-end;
-     }
-   }
-   
    /* =========================================================
-      INBOX (Messages) — match PROD layout (SINGLE SOURCE OF TRUTH)
+      INBOX (Messages)
       ========================================================= */
    
    .inbox-container {
@@ -509,6 +519,7 @@
      max-width: 1120px;
      margin: 0 auto;
      padding: 0;
+     position: relative;
    }
    
    .inbox-header {
@@ -534,7 +545,6 @@
      line-height: 1.4;
    }
    
-   /* Two-column layout: intro on left, list on right */
    .inbox-grid {
      display: grid;
      grid-template-columns: 1fr 520px;
@@ -542,21 +552,18 @@
      align-items: start;
    }
    
-   /* right column list */
    .inbox-list {
      display: flex;
      flex-direction: column;
      gap: 12px;
    }
    
-   /* conversation card */
    .inbox-card {
      background: #fff;
      border: 1px solid rgba(0, 0, 0, 0.08);
      border-radius: 12px;
      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
      padding: 14px;
-   
      display: flex;
      align-items: center;
      justify-content: space-between;
@@ -631,23 +638,32 @@
      text-decoration: underline;
    }
    
-   /* Responsive: stack columns */
-   @media (max-width: 980px) {
-     .inbox-grid {
-       grid-template-columns: 1fr;
-     }
+   .composeButton {
+     position: fixed;
+     right: 24px;
+     bottom: 24px;
+     width: 56px;
+     height: 56px;
+     border-radius: 16px;
+     background: #ffffff;
+     border: 1px solid rgba(0, 0, 0, 0.12);
+     color: #111827;
+     display: flex !important;
+     align-items: center;
+     justify-content: center;
+     text-decoration: none;
+     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+     transition: transform 0.15s ease, box-shadow 0.15s ease;
+     z-index: 9999;
+   }
    
-     .inbox-snippet {
-       max-width: 100%;
-     }
-   
-     .inbox-header {
-       flex-direction: column;
-     }
+   .composeButton:hover {
+     transform: scale(1.05);
+     box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
    }
    
    /* =========================================================
-      USERS SEARCH (match PROD / centered / stable)
+      USERS SEARCH
       ========================================================= */
    
    .users-container {
@@ -732,7 +748,6 @@
      border-radius: 12px;
      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
      padding: 14px;
-   
      display: flex;
      align-items: center;
      justify-content: space-between;
@@ -752,7 +767,6 @@
      border-radius: 999px;
      overflow: hidden;
      flex: 0 0 48px;
-   
      background: #2563eb;
      color: #fff;
      display: grid;
@@ -807,7 +821,6 @@
      justify-content: flex-end;
    }
    
-   /* ✅ BLOQUE GRANDE "Did you know..." */
    .users-search-intro {
      margin-top: 12px;
      padding: 12px 14px;
@@ -834,27 +847,11 @@
      color: #0a66c2;
    }
    
-   /* responsive */
-   @media (max-width: 860px) {
-     .users-header {
-       flex-direction: column;
-     }
-     .users-actions {
-       width: 100%;
-       justify-content: flex-start;
-     }
-     .users-search-input {
-       max-width: 100%;
-     }
-     .users-search-intro {
-       max-width: 100%;
-     }
-   }
-   
    /* =========================================================
-      PROFILE (My Profile) — clean layout + photo not huge
+      PROFILE (My Profile)
       ========================================================= */
    
+   .profile-page-container,
    .profile-container {
      width: 100%;
      max-width: 1120px;
@@ -884,6 +881,21 @@
      line-height: 1.4;
    }
    
+   .profile-card,
+   .card.profile-card,
+   .profile-photo-card,
+   .profile-fields-card {
+     background: #fff;
+     border: 1px solid rgba(0, 0, 0, 0.08);
+     border-radius: 12px;
+     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+   }
+   
+   .profile-card,
+   .card.profile-card {
+     padding: 18px;
+   }
+   
    .profile-grid {
      display: grid;
      grid-template-columns: 380px 1fr;
@@ -892,17 +904,15 @@
    }
    
    .profile-photo-card {
-     background: #fff;
-     border: 1px solid rgba(0, 0, 0, 0.08);
-     border-radius: 12px;
-     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
      padding: 14px;
    }
    
-   .profile-photo-title {
+   .profile-photo-title,
+   .profile-fields-title,
+   .card-section-title {
      font-weight: 900;
      font-size: 14px;
-     margin: 0 0 6px;
+     margin: 0 0 10px;
    }
    
    .profile-photo-subtitle {
@@ -912,19 +922,62 @@
      line-height: 1.35;
    }
    
-   .profile-photo-frame {
-     width: 100%;
-     border-radius: 12px;
-     overflow: hidden;
-     background: #f3f4f6;
-     border: 1px solid rgba(0, 0, 0, 0.06);
-     max-height: 260px; /* ✅ evita foto gigante */
+   .profile-head-row {
+     display: grid;
+     grid-template-columns: 360px 1fr;
+     gap: 16px;
+     align-items: start;
    }
    
-   .profile-photo-frame img {
-     width: 100%;
-     height: 260px; /* ✅ altura fija */
-     object-fit: cover; /* ✅ recorta bonito */
+   .profile-header-row {
+     margin-bottom: 12px;
+   }
+   
+   .profile-header-row h1 {
+     margin: 0 0 6px;
+     font-size: 34px;
+     font-weight: 900;
+     letter-spacing: -0.02em;
+   }
+   
+   .profile-header-row p {
+     margin: 0;
+     max-width: 720px;
+     font-size: 13px;
+     color: #6b7280;
+     line-height: 1.4;
+   }
+   
+   .profile-photo-row {
+     display: grid;
+     grid-template-columns: 140px 1fr;
+     gap: 18px;
+     align-items: center;
+     margin-top: 12px;
+     padding: 14px 0 18px;
+     border-top: 1px solid rgba(0, 0, 0, 0.06);
+     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+   }
+   
+   .profile-photo-wrapper {
+     width: 124px;
+     height: 124px;
+     border-radius: 9999px;
+     overflow: hidden;
+     border: 2px solid rgba(0, 0, 0, 0.1);
+     background: #f3f4f6;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+   }
+   
+   img.profile-photo-img {
+     width: 100% !important;
+     height: 100% !important;
+     max-width: none !important;
+     max-height: none !important;
+     object-fit: cover !important;
+     border-radius: 9999px !important;
      display: block;
    }
    
@@ -932,24 +985,56 @@
      margin-top: 10px;
    }
    
+   .profile-photo-text {
+     display: flex;
+     flex-direction: column;
+     gap: 8px;
+     min-width: 0;
+   }
+   
+   .profile-photo-text strong,
+   .profile-photo-text b {
+     font-size: 14px;
+     font-weight: 900;
+     color: #111827;
+   }
+   
+   .profile-photo-text p,
+   .profile-photo-text span {
+     font-size: 13px;
+     color: #6b7280;
+     line-height: 1.4;
+   }
+   
+   .profile-photo-text button,
+   .profile-photo-text .btn-secondary,
+   .profile-photo-text .btn-primary,
+   .profile-photo-text input[type="button"] {
+     align-self: flex-start;
+   }
+   
    .profile-fields-card {
-     background: #fff;
-     border: 1px solid rgba(0, 0, 0, 0.08);
-     border-radius: 12px;
-     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
      padding: 14px;
    }
    
-   .profile-fields-title {
-     font-weight: 900;
-     font-size: 14px;
-     margin: 0 0 12px;
-   }
-   
-   .profile-fields {
+   .profile-fields,
+   .profile-info-grid {
      display: grid;
      grid-template-columns: 1fr 1fr;
-     gap: 10px 14px;
+     gap: 12px 14px;
+   }
+   
+   .profile-info-grid {
+     margin-top: 16px;
+   }
+   
+   .profile-info-grid > * {
+     background: #fff;
+     border: 1px solid rgba(0, 0, 0, 0.08);
+     border-radius: 12px;
+     padding: 12px;
+     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03);
+     min-width: 0;
    }
    
    .profile-field {
@@ -959,22 +1044,31 @@
      min-width: 0;
    }
    
-   .profile-label {
+   .profile-label,
+   .profile-info-grid label,
+   .profile-info-grid .label,
+   .profile-info-grid .profile-label {
+     display: block;
      font-size: 11px;
-     font-weight: 800;
+     font-weight: 900;
      color: #6b7280;
      text-transform: uppercase;
      letter-spacing: 0.03em;
+     margin-bottom: 6px;
    }
    
-   .profile-value {
+   .profile-value,
+   .profile-info-grid .value,
+   .profile-info-grid .profile-value {
      font-size: 14px;
      font-weight: 800;
      color: #111827;
      word-break: break-word;
    }
    
-   .profile-value.muted {
+   .profile-value.muted,
+   .profile-info-grid .muted,
+   .profile-info-grid .profile-value.muted {
      color: #9ca3af;
      font-weight: 700;
    }
@@ -989,21 +1083,8 @@
      font-weight: 900;
    }
    
-   /* Responsive */
-   @media (max-width: 980px) {
-     .profile-grid {
-       grid-template-columns: 1fr;
-     }
-     .profile-fields {
-       grid-template-columns: 1fr;
-     }
-     .profile-header {
-       flex-direction: column;
-     }
-   }
-   
    /* =========================================================
-      USER PROFILE (Public) — clean + not giant photo
+      USER PROFILE (Public)
       ========================================================= */
    
    .userprofile-container {
@@ -1022,7 +1103,6 @@
      border-radius: 12px;
      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
      padding: 16px;
-   
      display: grid;
      grid-template-columns: 96px 1fr auto;
      gap: 16px;
@@ -1034,12 +1114,10 @@
      height: 96px;
      border-radius: 999px;
      overflow: hidden;
-   
      background: #2563eb;
      color: #fff;
      display: grid;
      place-items: center;
-   
      font-weight: 900;
      font-size: 34px;
    }
@@ -1120,7 +1198,6 @@
      white-space: nowrap;
    }
    
-   /* STATS */
    .userprofile-stats {
      margin-top: 12px;
      display: grid;
@@ -1129,7 +1206,6 @@
      align-items: start;
    }
    
-   /* REVIEWS */
    .userprofile-section {
      margin-top: 22px;
    }
@@ -1176,8 +1252,196 @@
      margin-top: 22px;
    }
    
-   /* Responsive */
+   /* =========================================================
+      HOME (Landing)
+      ========================================================= */
+   
+   .home-page {
+     width: 100%;
+     min-height: auto;
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     justify-content: flex-start;
+     padding:
+       8px
+       12px
+       max(24px, env(safe-area-inset-bottom));
+     box-sizing: border-box;
+   }
+   
+   .home-hero {
+     width: 100%;
+     max-width: 640px;
+     background: #eef5ff;
+     border: 1px solid rgba(0, 0, 0, 0.06);
+     border-radius: 18px;
+     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
+     padding: 24px 18px 18px;
+     text-align: center;
+   }
+   
+   .home-logo {
+     width: 72px;
+     height: 72px;
+     object-fit: contain;
+     margin: 0 auto 14px;
+   }
+   
+   .home-hero-badge {
+     display: inline-block;
+     padding: 7px 12px;
+     border-radius: 999px;
+     background: #1d4ed8;
+     color: #fff;
+     font-weight: 900;
+     font-size: 11px;
+     letter-spacing: 0.05em;
+     margin-bottom: 14px;
+   }
+   
+   .home-title {
+     margin: 0 0 12px;
+     font-size: 22px;
+     line-height: 1.12;
+     font-weight: 900;
+     letter-spacing: -0.02em;
+     color: #111827;
+   }
+   
+   .home-subtitle {
+     margin: 0 auto 18px;
+     max-width: 560px;
+     font-size: 15px;
+     line-height: 1.55;
+     color: #374151;
+   }
+   
+   .home-buttons {
+     display: flex;
+     flex-direction: column;
+     gap: 12px;
+     margin-top: 10px;
+     margin-bottom: 12px;
+   }
+   
+   .home-button {
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     width: 100%;
+     min-height: 44px;
+     padding: 0 14px;
+     border-radius: 999px;
+     font-size: 14px;
+     font-weight: 900;
+     text-decoration: none;
+     border: 1px solid rgba(0, 0, 0, 0.12);
+   }
+   
+   .home-button-primary {
+     background: #1d4ed8;
+     color: #fff;
+     border-color: rgba(29, 78, 216, 0.65);
+   }
+   
+   .home-button-secondary {
+     background: #fff;
+     color: #111827;
+   }
+   
+   .home-note {
+     margin: 8px 0 0;
+     font-size: 13px;
+     line-height: 1.5;
+     color: #6b7280;
+   }
+   
+   .home-note a {
+     color: #1d4ed8;
+     font-weight: 800;
+     text-decoration: none;
+   }
+   
+   .home-note a:hover {
+     text-decoration: underline;
+   }
+   
+   .home-legal {
+     width: 100%;
+     max-width: 860px;
+     margin-top: 16px;
+     background: #fff;
+     border: 1px solid rgba(0, 0, 0, 0.08);
+     border-radius: 16px;
+     padding: 16px;
+     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03);
+   }
+   
+   .home-legal h3 {
+     margin: 0 0 10px;
+     font-size: 18px;
+     font-weight: 900;
+     color: #111827;
+   }
+   
+   .home-legal p {
+     margin: 0 0 12px;
+     font-size: 14px;
+     line-height: 1.6;
+     color: #374151;
+   }
+   
+   .home-legal p:last-child {
+     margin-bottom: 0;
+   }
+   
+   /* =========================================================
+      RESPONSIVE
+      ========================================================= */
+   
+   @media (max-width: 1100px) {
+     .dashboard-grid {
+       grid-template-columns: repeat(2, 1fr);
+     }
+   }
+   
    @media (max-width: 980px) {
+     .network-grid {
+       grid-template-columns: 1fr;
+     }
+   
+     .network-header,
+     .inbox-header,
+     .users-header,
+     .profile-header {
+       flex-direction: column;
+     }
+   
+     .network-actions {
+       width: 100%;
+       justify-content: flex-end;
+     }
+   
+     .inbox-grid {
+       grid-template-columns: 1fr;
+     }
+   
+     .inbox-snippet {
+       max-width: 100%;
+     }
+   
+     .profile-grid,
+     .profile-head-row,
+     .profile-photo-row {
+       grid-template-columns: 1fr;
+     }
+   
+     .profile-fields,
+     .profile-info-grid {
+       grid-template-columns: 1fr;
+     }
+   
      .userprofile-header {
        grid-template-columns: 84px 1fr;
        grid-template-rows: auto auto;
@@ -1199,701 +1463,180 @@
        grid-template-columns: 1fr;
      }
    }
-   /* =========================================================
-   MY PROFILE (/profile) — FIX photo giant + tidy layout
-   Matches your real DOM: .profile-photo-wrapper + img.profile-photo-img
-   ========================================================= */
-
-.profile-page-container {
-  width: 100%;
-  max-width: 1120px;
-  margin: 0 auto;
-}
-
-/* Card wrapper (si ya existe, esto lo refuerza) */
-.profile-card {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
-  padding: 18px;
-}
-
-/* Layout row del profile */
-.profile-head-row {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-/* FOTO: el contenedor real que tienes */
-.profile-photo-wrapper {
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #f3f4f6;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-/* FOTO: el <img> real que tienes */
-img.profile-photo-img {
-  width: 100% !important;
-  height: 260px !important;      /* ✅ evita gigante */
-  max-height: 260px !important;  /* ✅ evita gigante */
-  object-fit: cover !important;  /* ✅ recorte bonito */
-  display: block;
-}
-
-/* Texto / info al lado */
-.profile-info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 14px;
-}
-
-.profile-info-grid .profile-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.profile-info-grid .profile-value {
-  font-size: 14px;
-  font-weight: 800;
-  color: #111827;
-  word-break: break-word;
-}
-
-/* Responsive */
-@media (max-width: 980px) {
-  .profile-head-row {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-info-grid {
-    grid-template-columns: 1fr;
-  }
-}
-/* =========================================================
-   MY PROFILE (/profile) — FINAL LAYOUT FIX (matches DOM)
-   ========================================================= */
-
-   .profile-page-container {
-    width: 100%;
-    max-width: 1120px;
-    margin: 0 auto;
-  }
-  
-  /* Card general */
-  .profile-card {
-    background: #fff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
-    padding: 18px;
-  }
-  
-  /* Header: titulo + subtitulo */
-  .profile-header-row {
-    margin-bottom: 12px;
-  }
-  
-  .profile-header-row h1 {
-    margin: 0 0 6px;
-    font-size: 34px;
-    font-weight: 900;
-    letter-spacing: -0.02em;
-  }
-  
-  .profile-header-row p {
-    margin: 0;
-    max-width: 720px;
-    font-size: 13px;
-    color: #6b7280;
-    line-height: 1.4;
-  }
-  
-  /* FOTO + TEXTO + BOTON: layout limpio */
-  .profile-photo-row {
-    display: grid;
-    grid-template-columns: 360px 1fr;
-    gap: 16px;
-    align-items: start;
-    margin-top: 14px;
-  }
-  
-  /* Foto */
-  .profile-photo-wrapper {
-    width: 100%;
-  }
-  
-  img.profile-photo-img {
-    width: 100% !important;
-    height: 260px !important;
-    max-height: 260px !important;
-    border-radius: 12px;
-    object-fit: cover !important;
-    display: block;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    background: #f3f4f6;
-  }
-  
-  /* Texto al lado de la foto (y el botón Upload si está aquí) */
-  .profile-photo-text {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-    padding-top: 6px;
-  }
-  
-  /* Titulo "Profile photo" */
-  .profile-photo-text strong,
-  .profile-photo-text b {
-    font-size: 14px;
-    font-weight: 900;
-    color: #111827;
-  }
-  
-  /* Descripción */
-  .profile-photo-text p,
-  .profile-photo-text span {
-    font-size: 13px;
-    color: #6b7280;
-    line-height: 1.4;
+   
+   @media (max-width: 860px) {
+     .users-actions {
+       width: 100%;
+       justify-content: flex-start;
+     }
+   
+     .users-search-input,
+     .users-search-intro {
+       max-width: 100%;
+     }
+   }
+   
+   @media (max-width: 768px) {
+     .home-buttons {
+       flex-direction: row;
+       justify-content: center;
+       flex-wrap: wrap;
+     }
+   
+     .home-button {
+       width: auto;
+       min-width: 160px;
+     }
+   
+     .home-title {
+       font-size: 30px;
+     }
+   }
+   
+   @media (max-width: 720px) {
+     .customers-search-bar {
+       flex-direction: column;
+     }
+   }
+   
+   @media (max-width: 640px) {
+     .appSidebar {
+       display: none;
+     }
+   
+     /* SIDEBAR REAL */
+     .side {
+       display: none !important;
+     }
+   
+     .app.appShell .appMain {
+       width: 100%;
+       padding-top: calc(env(safe-area-inset-top) + 54px);
+       padding-right: 12px;
+       padding-bottom: calc(env(safe-area-inset-bottom) + 20px);
+       padding-left: 12px;
+     }
+   
+     .page {
+       padding-top: 0;
+     }
+   
+     .dashboard-container,
+     .network-container,
+     .inbox-container,
+     .users-container,
+     .profile-page-container,
+     .profile-container,
+     .userprofile-container,
+     .customers-container {
+       padding-top: 8px;
+     }
+   
+     .dashboard-user-header,
+     .network-header,
+     .inbox-header,
+     .users-header,
+     .profile-header {
+       margin-top: 0;
+     }
+   
+     .dashboard-grid {
+       grid-template-columns: 1fr;
+     }
+   
+     .site-header-logo {
+       width: 34px;
+       height: 34px;
+     }
+   
+     .site-header-nav {
+       gap: 14px;
+       margin-bottom: 16px;
+     }
+   
+     .site-header-nav a {
+       font-size: 13px;
+     }
+   
+     .home-page {
+       padding:
+         6px
+         10px
+         max(20px, env(safe-area-inset-bottom));
+     }
+   
+     .home-hero {
+       padding: 20px 16px 16px;
+     }
+   
+     .home-logo {
+       width: 60px;
+       height: 60px;
+     }
+   
+     .home-title {
+       font-size: 24px;
+     }
+   
+     .home-subtitle {
+       font-size: 14px;
+       line-height: 1.5;
+     }
+   
+     .home-buttons {
+       flex-direction: column;
+       align-items: stretch;
+     }
+   
+     .home-button {
+       width: 100%;
+       min-width: 0;
+     }
+   
+     .home-legal h3 {
+       font-size: 16px;
+     }
+   
+     .home-legal p,
+     .home-note {
+       font-size: 13px;
+     }
+   
+     .composeButton {
+       right: 16px;
+       bottom: 16px;
+       width: 52px;
+       height: 52px;
+       border-radius: 14px;
+     }
+   
+     input,
+     textarea,
+     select,
+     button {
+       font-size: 16px !important;
+     }
+   
+     textarea {
+       zoom: 1;
+     }
+   }
+   .inbox-compose-top {
+    flex: 0 0 auto;
   }
   
-  /* Botón upload (si es button dentro de profile-photo-text) */
-  .profile-photo-text button,
-  .profile-photo-text .btn-secondary,
-  .profile-photo-text .btn-primary,
-  .profile-photo-text input[type="button"] {
-    align-self: flex-start;
-    height: 36px;
-    padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(0, 0, 0, 0.16);
-    background: #fff;
-    color: #111827;
-    font-weight: 800;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  
-  .profile-photo-text button:hover {
-    border-color: rgba(0, 0, 0, 0.28);
-  }
-  
-  /* INFO GRID (los campos) */
-  .profile-info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px 22px;
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-  }
-  
-  /* Cada item label/value típico (si tu markup es label/value en stacks) */
-  .profile-info-grid > div {
-    min-width: 0;
-  }
-  
-  .profile-info-grid .label,
-  .profile-info-grid .profile-label {
-    font-size: 11px;
-    font-weight: 800;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin-bottom: 4px;
-  }
-  
-  .profile-info-grid .value,
-  .profile-info-grid .profile-value {
-    font-size: 14px;
-    font-weight: 800;
-    color: #111827;
-    word-break: break-word;
-  }
-  
-  /* Si te sale "Not set", hacerlo muted */
-  .profile-info-grid .muted,
-  .profile-info-grid .profile-value.muted {
-    color: #9ca3af;
-    font-weight: 700;
-  }
-  
-  /* Responsive */
-  @media (max-width: 980px) {
-    .profile-photo-row {
-      grid-template-columns: 1fr;
+  @media (max-width: 640px) {
+    .inbox-compose-top {
+      display: none !important;
     }
   
-    .profile-info-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  /* =========================================================
-   MY PROFILE — AVATAR CIRCULAR (NO RECTANGULO)
-   ========================================================= */
-
-/* Contenedor de la foto */
-.profile-photo-wrapper {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #eef2ff;
-  border: 3px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Imagen dentro del círculo */
-img.profile-photo-img {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  object-fit: cover !important;
-  border-radius: 50% !important;
-  display: block;
-}
-
-/* Layout fila foto + texto */
-.profile-photo-row {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-top: 14px;
-}
-
-/* Texto al lado */
-.profile-photo-text {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* =========================================================
-   MY PROFILE — AVATAR CIRCULAR (NO RECTANGULO)
-   ========================================================= */
-
-/* Contenedor de la foto */
-.profile-photo-wrapper {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #eef2ff;
-  border: 3px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Imagen dentro del círculo */
-img.profile-photo-img {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  object-fit: cover !important;
-  border-radius: 50% !important;
-  display: block;
-}
-
-/* Layout fila foto + texto */
-.profile-photo-row {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-top: 14px;
-}
-
-/* Texto al lado */
-.profile-photo-text {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-/* =========================================================
-   PROFILE (My Profile) — tidy boxes + bold labels (SAFE)
-   PÉGALO AL FINAL DE App.css
-   ========================================================= */
-
-   .profile-page-container{
-    width: 100%;
-    max-width: 1120px;
-    margin: 0 auto;
-  }
-  
-  /* Card principal */
-  .card.profile-card{
-    background: #fff;
-    border: 1px solid rgba(0,0,0,.08);
-    border-radius: 16px;
-    box-shadow: 0 0 0 1px rgba(0,0,0,.04);
-    padding: 18px;
-  }
-  
-  /* Fila de foto + texto */
-  .profile-photo-row{
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 18px;
-    align-items: center;
-    margin-top: 12px;
-    padding: 14px 0 18px;
-    border-top: 1px solid rgba(0,0,0,.06);
-    border-bottom: 1px solid rgba(0,0,0,.06);
-  }
-  
-  /* Círculo (frame) */
-  .profile-photo-wrapper{
-    width: 124px;
-    height: 124px;
-    border-radius: 9999px;
-    overflow: hidden;
-    border: 2px solid rgba(0,0,0,.10);
-    background: #f3f4f6;
-  }
-  
-  /* La foto dentro del círculo */
-  img.profile-photo-img{
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    border-radius: 9999px !important;
-    display: block;
-  }
-  
-  /* Texto a la derecha de la foto */
-  .profile-photo-text{
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .profile-photo-text strong{
-    font-weight: 900;
-  }
-  
-  /* Grid de datos en “cajas” */
-  .profile-info-grid{
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 16px;
-  }
-  
-  /* Cada item dentro del grid */
-  .profile-info-grid > *{
-    background: #fff;
-    border: 1px solid rgba(0,0,0,.08);
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow: 0 0 0 1px rgba(0,0,0,.03);
-  }
-  
-  /* Labels (títulos) en negrita */
-  .profile-info-grid label,
-  .profile-info-grid .label,
-  .profile-info-grid .profile-label{
-    display: block;
-    font-size: 11px;
-    font-weight: 900;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    margin-bottom: 6px;
-  }
-  
-  /* Valores */
-  .profile-info-grid .value,
-  .profile-info-grid .profile-value{
-    font-size: 14px;
-    font-weight: 800;
-    color: #111827;
-    word-break: break-word;
-  }
-  
-  /* Títulos de secciones */
-  .card-section-title{
-    margin: 18px 0 10px;
-    font-size: 14px;
-    font-weight: 900;
-  }
-  
-  /* Responsive */
-  @media (max-width: 980px){
-    .profile-photo-row{ grid-template-columns: 1fr; }
-    .profile-info-grid{ grid-template-columns: 1fr; }
-  }
-  /* =========================================================
-   HOME (Landing) — center + max-width + spacing
-   ========================================================= */
-
-.home-container {
-  width: 100%;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 26px 28px;
-}
-
-/* Asegura que el contenido no quede “pegado” arriba si hay header */
-.home-badge {
-  margin: 0 0 12px;
-  font-size: 14px;
-  color: #4b5563;
-}
-
-.home-title {
-  margin: 0 0 12px;
-  font-size: 44px;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  color: #111827;
-}
-
-.home-subtitle,
-.home-price {
-  margin: 10px 0;
-  max-width: 880px;
-  font-size: 15px;
-  line-height: 1.55;
-  color: #111827;
-}
-
-.home-buttons {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin: 16px 0 10px;
-  flex-wrap: wrap;
-}
-
-.home-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: 13px;
-  text-decoration: none;
-  border: 1px solid rgba(0, 0, 0, 0.14);
-}
-
-.home-button-primary {
-  background: #111827;
-  color: #fff;
-  border-color: rgba(17, 24, 39, 0.9);
-}
-
-.home-button-secondary {
-  background: #fff;
-  color: #111827;
-}
-
-.home-note {
-  margin: 12px 0 18px;
-  max-width: 880px;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-.home-legal {
-  max-width: 980px;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
-  padding: 14px;
-}
-
-.home-legal h3 {
-  margin: 0 0 10px;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.home-legal p {
-  margin: 0;
-  font-size: 13px;
-  color: #374151;
-  line-height: 1.55;
-}
-
-.home-legal p + p {
-  margin-top: 10px;
-}
-
-@media (max-width: 720px) {
-  .home-container {
-    padding: 20px 16px;
-  }
-
-  .home-title {
-    font-size: 34px;
-  }
-
-  .home-buttons {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-/* =========================================================
-   HOME (Landing) — matches the “original” screenshot
-   ========================================================= */
-
-   .home-page {
-    width: 100%;
-    min-height: calc(100vh - 160px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 18px 20px 34px;
-  }
-  
-  .home-hero {
-    width: 100%;
-    max-width: 640px;
-    background: #eef5ff;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 14px;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
-    padding: 26px 26px 20px;
-    text-align: center;
-  }
-  
-  .home-hero-badge {
-    display: inline-block;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: #1d4ed8;
-    color: #fff;
-    font-weight: 900;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    margin-bottom: 12px;
-  }
-  
-  .home-title {
-    margin: 0 0 10px;
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    color: #111827;
-  }
-  
-  .home-subtitle {
-    margin: 0 auto 16px;
-    max-width: 560px;
-    font-size: 13px;
-    line-height: 1.45;
-    color: #374151;
-  }
-  
-  .home-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-  }
-  
-  .home-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 34px;
-    padding: 0 14px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 900;
-    text-decoration: none;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-  }
-  
-  .home-button-primary {
-    background: #1d4ed8;
-    color: #fff;
-    border-color: rgba(29, 78, 216, 0.65);
-  }
-  
-  .home-button-secondary {
-    background: #fff;
-    color: #111827;
-  }
-  
-  .home-note {
-    margin: 8px 0 0;
-    font-size: 12px;
-    color: #6b7280;
-  }
-  
-  .home-note a {
-    color: #1d4ed8;
-    font-weight: 800;
-    text-decoration: none;
-  }
-  
-  .home-note a:hover {
-    text-decoration: underline;
-  }
-  
-  /* Disclaimer abajo (centrado y limpio) */
-  .home-legal {
-    width: 100%;
-    max-width: 860px;
-    margin-top: 18px;
-    background: #fff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    padding: 14px 16px;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03);
-  }
-  
-  .home-legal h3 {
-    margin: 0 0 8px;
-    font-size: 14px;
-    font-weight: 900;
-    color: #111827;
-  }
-  
-  .home-legal p {
-    margin: 0 0 10px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: #374151;
-  }
-  
-  .home-legal p:last-child {
-    margin-bottom: 0;
-  }
-  
-  /* Responsive */
-  @media (max-width: 560px) {
-    .home-hero {
-      padding: 20px 16px 16px;
-    }
-    .home-title {
-      font-size: 24px;
+    .composeButton {
+      display: flex !important;
     }
   }
   
+  @media (min-width: 641px) {
+    .composeButton {
+      display: none !important;
+    }
+  }

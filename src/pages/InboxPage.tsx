@@ -1,10 +1,10 @@
 // src/pages/InboxPage.tsx
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { SquarePen } from "lucide-react";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 
-// ✅ NEW: reusable avatar w/ RF badge
 import AvatarWithBadge from "../components/AvatarWithBadge";
 import rfBadge from "../assets/badges/rf-badge.png";
 
@@ -19,15 +19,11 @@ type InboxThread = {
 type UserMini = {
   email?: string | null;
   fullName?: string | null;
-
-  // ✅ supports multiple backend names
   avatarUrl?: string | null;
   profileImageUrl?: string | null;
   photoUrl?: string | null;
   pictureUrl?: string | null;
   imageUrl?: string | null;
-
-  // ✅ for RF badge
   offersReferralFee?: boolean | null;
 };
 
@@ -39,7 +35,7 @@ function safeDate(iso?: string | null): Date | null {
   const hasTimezone = /Z$/i.test(s) || /[+-]\d{2}:\d{2}$/.test(s);
   const normalized = hasTimezone ? s : `${s}Z`;
   const d = new Date(normalized);
-  return isNaN(d.getTime()) ? null : d;
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function timeLabel(date: Date) {
@@ -57,7 +53,6 @@ function dateLabel(date: Date) {
   });
 }
 
-// ✅ same pattern used in Connections
 function pickAvatarUrl(data?: UserMini | null): string | null {
   const url =
     data?.avatarUrl ||
@@ -78,7 +73,6 @@ const InboxPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // cache: otherEmail -> mini user (fullName/avatar/offersReferralFee)
   const [miniMap, setMiniMap] = useState<Record<string, UserMini>>({});
 
   useEffect(() => {
@@ -108,28 +102,33 @@ const InboxPage: React.FC = () => {
       }
     };
 
-    load();
+    void load();
   }, [user?.email]);
 
-  // load mini info for each thread (cached)
   useEffect(() => {
     const run = async () => {
       const missing = threads
         .map((t) => (t.otherEmail || "").trim())
-        .filter((e) => e && !miniMap[e]);
+        .filter((email) => email && !miniMap[email]);
 
       if (missing.length === 0) return;
 
-      // ✅ parallel (faster)
       await Promise.all(
         missing.map(async (email) => {
           try {
             const res = await axios.get<UserMini>("/users/by-email", {
               params: { email },
             });
-            setMiniMap((prev) => ({ ...prev, [email]: res.data || {} }));
+
+            setMiniMap((prev) => ({
+              ...prev,
+              [email]: res.data || {},
+            }));
           } catch {
-            setMiniMap((prev) => ({ ...prev, [email]: { email } }));
+            setMiniMap((prev) => ({
+              ...prev,
+              [email]: { email },
+            }));
           }
         })
       );
@@ -152,6 +151,25 @@ const InboxPage: React.FC = () => {
               to open the chat.
             </p>
           </div>
+
+          {/* ✅ Visible in web/desktop */}
+          <Link
+            to="/users"
+            className="btn-secondary inbox-compose-top"
+            aria-label="New message"
+            title="New message"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <SquarePen size={18} />
+            <span>New message</span>
+          </Link>
         </div>
 
         {loading && <div className="network-empty">Loading inbox…</div>}
@@ -209,11 +227,7 @@ const InboxPage: React.FC = () => {
 
                     <div className="inbox-meta">
                       <div className="inbox-name">{displayName}</div>
-
-                      <div className="inbox-snippet">
-                        {t.lastMessage || "—"}
-                      </div>
-
+                      <div className="inbox-snippet">{t.lastMessage || "—"}</div>
                       {when && <div className="inbox-date">{when}</div>}
                     </div>
                   </div>
@@ -251,6 +265,16 @@ const InboxPage: React.FC = () => {
 
         <Link to="/dashboard" className="inbox-back">
           ← Back to Dashboard
+        </Link>
+
+        {/* ✅ Floating button for mobile/app */}
+        <Link
+          to="/users"
+          className="composeButton"
+          aria-label="New message"
+          title="New message"
+        >
+          <SquarePen size={24} />
         </Link>
       </div>
     </div>

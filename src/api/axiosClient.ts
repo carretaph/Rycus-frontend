@@ -1,5 +1,6 @@
 // src/api/axiosClient.ts
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
 
 /**
  * ==========================================================
@@ -7,24 +8,29 @@ import axios from "axios";
  * ----------------------------------------------------------
  * PRIORIDAD:
  *
- * 1️⃣ Si existe VITE_API_BASE_URL → usa esa
- * 2️⃣ Si NO existe:
- *      DEV  → usa backend LOCAL (8080)
- *      PROD → usa misma URL del host
+ * 1) Si existe VITE_API_BASE_URL -> usar esa
+ * 2) Si corre en app nativa (iPhone / Android via Capacitor) -> Render
+ * 3) Si corre en DEV web -> localhost:8080
+ * 4) Si corre en PROD web -> Render
  *
- * Esto evita pegarle accidentalmente a Render
- * cuando estás desarrollando avatars / posts.
+ * Esto evita el error de login en el simulador, porque
+ * "localhost:8080" no debe usarse dentro de la app móvil.
  * ==========================================================
  */
 
+const RENDER_API_BASE = "https://rycus-backend.onrender.com";
+
 const envBase = import.meta.env.VITE_API_BASE_URL?.trim();
+const isNativeApp = Capacitor.isNativePlatform();
 
 const baseURL =
   envBase && envBase.length > 0
     ? envBase
+    : isNativeApp
+    ? RENDER_API_BASE
     : import.meta.env.DEV
     ? "http://localhost:8080"
-    : "";
+    : RENDER_API_BASE;
 
 /**
  * ==========================================================
@@ -47,8 +53,6 @@ const axiosClient = axios.create({
  */
 axiosClient.interceptors.request.use(
   (config) => {
-    // ✅ En tu app el token está en 'rycus_token' (según consola)
-    // Mantengo fallback por compatibilidad
     const token =
       localStorage.getItem("rycus_token") ||
       localStorage.getItem("token") ||
@@ -79,7 +83,6 @@ axiosClient.interceptors.response.use(
     if (status === 401) {
       console.warn("⚠️ Session expired → redirecting to login");
 
-      // limpia todas las keys posibles para evitar estados raros
       localStorage.removeItem("rycus_token");
       localStorage.removeItem("token");
       localStorage.removeItem("authToken");
@@ -100,11 +103,10 @@ axiosClient.interceptors.response.use(
 
 /**
  * ==========================================================
- * DEBUG (solo DEV)
+ * DEBUG
  * ==========================================================
  */
-if (import.meta.env.DEV) {
-  console.log("🌐 API BASE URL →", baseURL);
-}
+console.log("🌐 API BASE URL →", baseURL);
+console.log("📱 Native app? →", isNativeApp);
 
 export default axiosClient;

@@ -16,11 +16,10 @@ import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import "./Sidebar.css";
 
-import logoFull from "../assets/rycus-logo.png";
+import logoFull from "../assets/rycus-logo-full.png";
 import logoIcon from "../assets/rycus-logo-check.png";
 
 export default function SidebarNav() {
-  // ✅ agarramos logout si existe; si no, hacemos fallback seguro
   const auth: any = useAuth();
   const user = auth?.user;
   const logoutFn = auth?.logout;
@@ -28,9 +27,6 @@ export default function SidebarNav() {
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  // =========================
-  // Unread badge
-  // =========================
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const pollRef = useRef<number | null>(null);
 
@@ -40,7 +36,6 @@ export default function SidebarNav() {
   }, [user?.email]);
 
   const inInbox = useMemo(() => {
-    // cubre /inbox y /messages/*
     return (
       location.pathname.startsWith("/inbox") ||
       location.pathname.startsWith("/messages")
@@ -53,8 +48,6 @@ export default function SidebarNav() {
       return;
     }
 
-    // Si estoy dentro del inbox, normalmente ya estoy leyendo / marcando read.
-    // Ocultamos el badge para UX (y evitamos flicker).
     if (inInbox) {
       setUnreadCount(0);
       return;
@@ -67,23 +60,19 @@ export default function SidebarNav() {
 
       const n = Number(res.data);
       setUnreadCount(Number.isFinite(n) ? n : 0);
-    } catch (e) {
-      // silencioso: si falla no rompemos el sidebar
-      // (puede fallar si aún no hay backend listo, etc.)
+    } catch {
+      // silencioso
     }
   };
 
   useEffect(() => {
-    // 1) fetch inicial
     fetchUnread();
 
-    // 2) polling liviano
     if (pollRef.current) window.clearInterval(pollRef.current);
     pollRef.current = window.setInterval(() => {
       fetchUnread();
     }, 12000);
 
-    // 3) escucha evento global (tú ya lo estás usando)
     const onRefresh = () => fetchUnread();
     window.addEventListener("rycus:refresh-badges", onRefresh);
 
@@ -104,16 +93,14 @@ export default function SidebarNav() {
 
   const handleLogout = () => {
     try {
-      // 1) si tu AuthContext ya tiene logout(), úsalo
       if (typeof logoutFn === "function") {
         logoutFn();
         return;
       }
     } catch {
-      // seguimos con fallback
+      // fallback abajo
     }
 
-    // 2) fallback: limpiar y mandar al login
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     window.location.href = "/login";
@@ -121,13 +108,11 @@ export default function SidebarNav() {
 
   return (
     <aside className="side">
-      {/* BRAND / LOGO */}
       <Link to="/home" className="sideBrand" aria-label="Rycus Home">
         <img className="sideLogoIcon" src={logoIcon} alt="Rycus" />
         <img className="sideLogoFull" src={logoFull} alt="Rycus" />
       </Link>
 
-      {/* NAV */}
       <nav className="sideNav">
         <Link
           to="/home"
@@ -169,7 +154,6 @@ export default function SidebarNav() {
           to="/inbox"
           className={`sideItem ${isActive("/inbox") ? "active" : ""}`}
         >
-          {/* wrapper para poder posicionar badge */}
           <span className="sideIconWrap">
             <MessageCircle size={22} className="sideSvg" />
             {unreadCount > 0 && (
@@ -202,9 +186,7 @@ export default function SidebarNav() {
         </Link>
       </nav>
 
-      {/* BOTTOM AREA */}
       <div className="sideBottom">
-        {/* PROFILE */}
         <Link to="/profile" className="sideMe" aria-label="Profile">
           <div className="sideAvatarRing">
             {user?.avatarUrl ? (
@@ -222,7 +204,6 @@ export default function SidebarNav() {
           <span className="tip">Profile</span>
         </Link>
 
-        {/* LOGOUT */}
         <button
           type="button"
           className="sideItem sideLogout"
