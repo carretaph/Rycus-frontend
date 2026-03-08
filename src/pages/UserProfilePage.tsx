@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
@@ -129,7 +129,7 @@ const UserProfilePage: React.FC = () => {
     };
 
     void checkConnection();
-  }, [currentUser?.email, profile]);
+  }, [currentUser?.email, currentUser?.id, profile]);
 
   const handleAddToNetwork = async () => {
     if (!profile) return;
@@ -181,16 +181,6 @@ const UserProfilePage: React.FC = () => {
   const isMe = currentUser?.id === profile?.id;
   const isLoggedIn = !!currentUser;
   const showAddToNetwork = isLoggedIn && !isMe && !isAlreadyConnected;
-
-  const avatarInitial = useMemo(() => {
-    if (profile?.fullName?.trim()) {
-      return profile.fullName.trim().charAt(0).toUpperCase();
-    }
-    if (profile?.email?.trim()) {
-      return profile.email.trim().charAt(0).toUpperCase();
-    }
-    return "U";
-  }, [profile?.fullName, profile?.email]);
 
   const phone = (profile?.phone ?? "").trim();
   const tel = normalizePhoneForTel(phone);
@@ -270,7 +260,10 @@ const UserProfilePage: React.FC = () => {
                 )}
 
                 {showRF && (
-                  <span className="userprofile-rf-badge-big" title="Offers referral fee">
+                  <span
+                    className="userprofile-rf-badge-big"
+                    title="Offers referral fee"
+                  >
                     <img src={rfBadge} alt="RF badge" />
                   </span>
                 )}
