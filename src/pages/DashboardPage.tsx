@@ -1,9 +1,10 @@
-// src/pages/DashboardPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import CustomerMap from "../components/CustomerMap";
+import CustomersMapNative from "../components/CustomersMapNative";
 import AvatarWithBadge from "../components/AvatarWithBadge";
 
 type Review = {
@@ -51,21 +52,26 @@ function getAuthToken(): string | null {
   );
 }
 
-/** ErrorBoundary local para que CustomerMap NO tumbe toda la página */
 class SafeBlock extends React.Component<
   { title?: string; children: React.ReactNode },
   { hasError: boolean; msg?: string }
 > {
-  constructor(props: any) {
+  constructor(props: { title?: string; children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, msg: undefined };
   }
-  static getDerivedStateFromError(err: any) {
-    return { hasError: true, msg: String(err?.message || err) };
+
+  static getDerivedStateFromError(err: unknown) {
+    return {
+      hasError: true,
+      msg: err instanceof Error ? err.message : String(err),
+    };
   }
-  componentDidCatch(err: any) {
+
+  componentDidCatch(err: unknown) {
     console.error("SafeBlock error:", err);
   }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -77,12 +83,14 @@ class SafeBlock extends React.Component<
         </div>
       );
     }
+
     return <>{this.props.children}</>;
   }
 }
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const isNativeApp = Capacitor.getPlatform() !== "web";
 
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
@@ -92,8 +100,8 @@ const DashboardPage: React.FC = () => {
   const [milestoneError, setMilestoneError] = useState<string | null>(null);
 
   const displayName = useMemo(() => {
-    const fn = user?.firstName?.trim();
-    if (fn) return fn;
+    const firstName = user?.firstName?.trim();
+    if (firstName) return firstName;
     return user?.email || "User";
   }, [user?.firstName, user?.email]);
 
@@ -123,7 +131,9 @@ const DashboardPage: React.FC = () => {
           return;
         }
 
-        const customerIds: number[] = customers.map((c) => c?.id).filter(Boolean);
+        const customerIds: number[] = customers
+          .map((customer) => customer?.id)
+          .filter(Boolean);
 
         const results = await Promise.allSettled(
           customerIds.map((id) =>
@@ -131,18 +141,18 @@ const DashboardPage: React.FC = () => {
               .get<Review[]>(`/customers/${id}/reviews`, {
                 params: { userEmail: email },
               })
-              .then((r) => r.data ?? [])
+              .then((response) => response.data ?? [])
           )
         );
 
         const reviewedCustomers = new Set<number>();
         const myReviews: Review[] = [];
 
-        results.forEach((res, idx) => {
-          const customerId = customerIds[idx];
-          if (res.status !== "fulfilled") return;
+        results.forEach((result, index) => {
+          const customerId = customerIds[index];
+          if (result.status !== "fulfilled") return;
 
-          const reviews = res.value ?? [];
+          const reviews = result.value ?? [];
           if (reviews.length > 0) {
             reviewedCustomers.add(customerId);
             myReviews.push(...reviews);
@@ -157,8 +167,11 @@ const DashboardPage: React.FC = () => {
         const averageRating =
           completedReviews === 0
             ? 0
-            : myReviews.reduce((acc, r) => acc + (r.ratingOverall ?? 0), 0) /
-              completedReviews;
+            : myReviews.reduce(
+                (accumulator, review) =>
+                  accumulator + (review.ratingOverall ?? 0),
+                0
+              ) / completedReviews;
 
         setStats({
           totalCustomers,
@@ -166,8 +179,8 @@ const DashboardPage: React.FC = () => {
           completedReviews,
           averageRating,
         });
-      } catch (e) {
-        console.error("Error loading dashboard stats", e);
+      } catch (error) {
+        console.error("Error loading dashboard stats", error);
         setStats(EMPTY_STATS);
       } finally {
         setLoading(false);
@@ -185,12 +198,12 @@ const DashboardPage: React.FC = () => {
           return;
         }
 
-        const res = await axios.get("/dashboard/milestone");
-        setMilestone(res.data ?? null);
-      } catch (e: any) {
-        console.error("Error loading milestone", e);
+        const response = await axios.get("/dashboard/milestone");
+        setMilestone(response.data ?? null);
+      } catch (error: any) {
+        console.error("Error loading milestone", error);
         setMilestoneError(
-          e?.response?.data?.message ?? "Failed to load rewards progress"
+          error?.response?.data?.message ?? "Failed to load rewards progress"
         );
         setMilestone(null);
       } finally {
@@ -198,14 +211,15 @@ const DashboardPage: React.FC = () => {
       }
     };
 
-    loadStats();
-    loadMilestone();
+    void loadStats();
+    void loadMilestone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const qualified = milestone?.qualifiedCustomers ?? 0;
   const nextRewardAt = milestone?.nextRewardAt ?? 10;
-  const remaining = milestone?.remaining ?? Math.max(nextRewardAt - qualified, 0);
+  const remaining =
+    milestone?.remaining ?? Math.max(nextRewardAt - qualified, 0);
 
   const progressPct =
     nextRewardAt > 0
@@ -221,9 +235,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="page">
       <div className="dashboard-container">
-        {/* HEADER */}
         <div className="dashboard-user-header">
-          {/* ✅ wrapper con overflow visible para que el badge NO se corte */}
           <div
             className="dashboard-user-photo"
             aria-label="User avatar"
@@ -251,15 +263,20 @@ const DashboardPage: React.FC = () => {
 
           <div className="dashboard-user-meta" style={{ flex: 1 }}>
             <h1>Welcome, {displayName}!</h1>
-            <p>{loading ? "Loading your dashboard…" : "Here’s your latest activity."}</p>
+            <p>
+              {loading
+                ? "Loading your dashboard…"
+                : "Here’s your latest activity."}
+            </p>
           </div>
         </div>
 
-        {/* GRID */}
         <div className="dashboard-grid">
           <div className="dashboard-card">
             <h2>My Customers</h2>
-            <div className="dashboard-number">{loading ? "…" : stats.totalCustomers}</div>
+            <div className="dashboard-number">
+              {loading ? "…" : stats.totalCustomers}
+            </div>
             <p className="dashboard-text">Active customers added by you.</p>
             <Link to="/customers" className="dashboard-link">
               View customers
@@ -268,8 +285,12 @@ const DashboardPage: React.FC = () => {
 
           <div className="dashboard-card">
             <h2>Pending Reviews</h2>
-            <div className="dashboard-number">{loading ? "…" : stats.pendingReviews}</div>
-            <p className="dashboard-text">Customers you haven&apos;t reviewed yet.</p>
+            <div className="dashboard-number">
+              {loading ? "…" : stats.pendingReviews}
+            </div>
+            <p className="dashboard-text">
+              Customers you haven&apos;t reviewed yet.
+            </p>
             <Link to="/customers" className="dashboard-link">
               Rate now
             </Link>
@@ -277,8 +298,12 @@ const DashboardPage: React.FC = () => {
 
           <div className="dashboard-card">
             <h2>Completed Reviews</h2>
-            <div className="dashboard-number">{loading ? "…" : stats.completedReviews}</div>
-            <p className="dashboard-text">Reviews you have already submitted.</p>
+            <div className="dashboard-number">
+              {loading ? "…" : stats.completedReviews}
+            </div>
+            <p className="dashboard-text">
+              Reviews you have already submitted.
+            </p>
             <Link to="/customers" className="dashboard-link">
               See reviews
             </Link>
@@ -295,12 +320,14 @@ const DashboardPage: React.FC = () => {
             >
               {avgText}
             </div>
-            <p className="dashboard-text">Your overall customer rating score.</p>
-            {/* reserva el mismo espacio que las otras cards (pero invisible) */}
-            <span className="dashboard-link dashboard-link--ghost">See reviews</span>
+            <p className="dashboard-text">
+              Your overall customer rating score.
+            </p>
+            <span className="dashboard-link dashboard-link--ghost">
+              See reviews
+            </span>
           </div>
 
-          {/* Rewards */}
           <div className="dashboard-card dashboard-card--rewards">
             <h2>🏆 Rewards Progress</h2>
 
@@ -339,12 +366,16 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* MAP */}
-        <section style={{ marginTop: 32 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+        <section className="dashboard-map-section" style={{ marginTop: 32 }}>
+          <h2
+            className="dashboard-map-title"
+            style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}
+          >
             Customers Map
           </h2>
+
           <p
+            className="dashboard-map-description"
             style={{
               color: "#4b5563",
               fontSize: 14,
@@ -352,13 +383,22 @@ const DashboardPage: React.FC = () => {
               maxWidth: 640,
             }}
           >
-            See all customers with a valid address on the map. Each pin represents one customer.
+            See all customers with a valid address on the map. Each pin
+            represents one customer.
           </p>
 
-          <div className="dashboard-map-wrap">
+          <div
+            className={`dashboard-map-wrap ${
+              isNativeApp ? "native-map-wrap" : ""
+            }`}
+          >
             <SafeBlock title="Map failed to render">
-              <div className="dashboard-map-card">
-                <CustomerMap />
+              <div
+                className={`dashboard-map-card ${
+                  isNativeApp ? "native-map-card" : ""
+                }`}
+              >
+                {isNativeApp ? <CustomersMapNative /> : <CustomerMap />}
               </div>
             </SafeBlock>
           </div>

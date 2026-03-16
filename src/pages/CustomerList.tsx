@@ -1,9 +1,11 @@
 // src/pages/CustomerList.tsx
 import React, { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import CustomerMap from "../components/CustomerMap";
+import CustomersMapNative from "../components/CustomersMapNative";
 
 interface Customer {
   id: number;
@@ -21,21 +23,29 @@ interface Customer {
 const CustomerList: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isNativeApp = Capacitor.getPlatform() !== "web";
 
-  // Mis clientes
   const [myCustomers, setMyCustomers] = useState<Customer[]>([]);
   const [loadingMy, setLoadingMy] = useState(true);
 
-  // Búsqueda global
   const [searchTerm, setSearchTerm] = useState("");
   const [globalResults, setGlobalResults] = useState<Customer[]>([]);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
-  // ============================
-  // Cargar "My Customers"
-  // ============================
+  useEffect(() => {
+    if (!isNativeApp) return;
+
+    document.body.classList.add("native-map-page");
+    document.documentElement.classList.add("native-map-page");
+
+    return () => {
+      document.body.classList.remove("native-map-page");
+      document.documentElement.classList.remove("native-map-page");
+    };
+  }, [isNativeApp]);
+
   useEffect(() => {
     const loadMyCustomers = async () => {
       try {
@@ -44,10 +54,8 @@ const CustomerList: React.FC = () => {
 
         const userEmail = user?.email?.trim();
 
-        // Si no hay email, no dejamos loading infinito
         if (!userEmail) {
           setMyCustomers([]);
-          setLoadingMy(false);
           return;
         }
 
@@ -65,22 +73,17 @@ const CustomerList: React.FC = () => {
       }
     };
 
-    loadMyCustomers();
+    void loadMyCustomers();
   }, [user?.email]);
 
-  // ============================
-  // Click en un cliente
-  // ============================
   const handleCustomerClick = (id?: number) => {
     if (!id) return;
     navigate(`/customers/${id}`);
   };
 
-  // ============================
-  // Búsqueda GLOBAL (reutilizable)
-  // ============================
   const handleSearch = async (query?: string) => {
     const q = (query ?? searchTerm).trim();
+
     if (!q || q.length < 2) {
       setGlobalResults([]);
       return;
@@ -106,13 +109,10 @@ const CustomerList: React.FC = () => {
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      handleSearch();
+      void handleSearch();
     }
   };
 
-  // ============================
-  // 🔍 BÚSQUEDA AUTOMÁTICA (DEBOUNCE)
-  // ============================
   useEffect(() => {
     const q = searchTerm.trim();
 
@@ -122,7 +122,7 @@ const CustomerList: React.FC = () => {
     }
 
     const timeoutId = window.setTimeout(() => {
-      handleSearch(q);
+      void handleSearch(q);
     }, 600);
 
     return () => {
@@ -132,9 +132,10 @@ const CustomerList: React.FC = () => {
   }, [searchTerm]);
 
   return (
-    <div className="page">
-      {/* ✅ Este wrapper es el que centra todo */}
-      <div className="customers-container">
+    <div className={`page ${isNativeApp ? "native-map-page-shell" : ""}`}>
+      <div
+        className={`customers-container ${isNativeApp ? "native-map-page-shell" : ""}`}
+      >
         <h1 style={{ marginTop: 0 }}>Customers</h1>
 
         {error && (
@@ -153,11 +154,9 @@ const CustomerList: React.FC = () => {
           </div>
         )}
 
-        {/* ============================
-            ✅ Search Global Customers (ARRIBA)
-        ============================= */}
         <section className="customers-search-block" style={{ marginTop: 16 }}>
           <h2 style={{ margin: 0 }}>Search Global Customers</h2>
+
           <p className="customers-search-text" style={{ marginTop: 8 }}>
             Find customers already reviewed in Rycus by name, last name, email,
             phone number, address, city, state, ZIP code, industry type or tags.
@@ -173,12 +172,12 @@ const CustomerList: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleSearchKeyDown}
             />
-            <button type="button" onClick={() => handleSearch()}>
+
+            <button type="button" onClick={() => void handleSearch()}>
               Search
             </button>
           </div>
 
-          {/* Resultados globales */}
           <div style={{ marginTop: 12 }}>
             {loadingGlobal && <p>Searching global customers...</p>}
 
@@ -205,6 +204,7 @@ const CustomerList: React.FC = () => {
                     >
                       <strong>{c.fullName || "Unnamed customer"}</strong>
                       {c.customerType && ` · ${c.customerType}`}
+
                       <div
                         style={{
                           fontSize: "0.9rem",
@@ -215,6 +215,7 @@ const CustomerList: React.FC = () => {
                         {c.email && <span>{c.email}</span>}
                         {c.email && c.phone && <span> · </span>}
                         {c.phone && <span>{c.phone}</span>}
+
                         {(c.city || c.state || c.zipCode) && (
                           <>
                             {(c.email || c.phone) && <span> · </span>}
@@ -232,9 +233,6 @@ const CustomerList: React.FC = () => {
           </div>
         </section>
 
-        {/* ============================
-            My Customers
-        ============================= */}
         <section style={{ marginTop: 28, marginBottom: 24 }}>
           <div
             style={{
@@ -275,6 +273,7 @@ const CustomerList: React.FC = () => {
                   >
                     <strong>{c.fullName || "Unnamed customer"}</strong>
                     {c.customerType && ` · ${c.customerType}`}
+
                     <div
                       style={{
                         fontSize: "0.9rem",
@@ -285,6 +284,7 @@ const CustomerList: React.FC = () => {
                       {c.email && <span>{c.email}</span>}
                       {c.email && c.phone && <span> · </span>}
                       {c.phone && <span>{c.phone}</span>}
+
                       {(c.city || c.state || c.zipCode) && (
                         <>
                           {(c.email || c.phone) && <span> · </span>}
@@ -301,23 +301,26 @@ const CustomerList: React.FC = () => {
           )}
         </section>
 
-        {/* ============================
-            Customers Map (beta)
-        ============================= */}
         <section style={{ marginTop: 32 }}>
           <h2 style={{ marginBottom: 6 }}>Customers Map</h2>
+
           <p style={{ fontSize: "0.9rem", color: "#6b7280", marginBottom: 8 }}>
             See all customers with a valid address on the map. Each pin
             represents one customer based on their address, city, state and ZIP
             code.
           </p>
 
-          {/* ✅ mismo look/width que dashboard */}
-          <div className="dashboard-map-wrap">
-            <div className="dashboard-map-card">
-              <CustomerMap />
+          {isNativeApp ? (
+            <div className="native-map-host">
+              <CustomersMapNative />
             </div>
-          </div>
+          ) : (
+            <div className="dashboard-map-wrap">
+              <div className="dashboard-map-card">
+                <CustomerMap />
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </div>

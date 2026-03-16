@@ -1,8 +1,10 @@
-// src/components/CustomersMap.tsx
-import React, { useEffect, useState, useCallback } from "react";
+// src/components/CustomerMap.tsx
+import React, { useEffect, useMemo, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
+import CustomersMapNative from "./CustomersMapNative";
 
 type Customer = {
   id: number;
@@ -11,6 +13,10 @@ type Customer = {
   city?: string;
   state?: string;
   zipCode?: string;
+  lat?: number | null;
+  lng?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 type Coordinates = {
@@ -18,138 +24,259 @@ type Coordinates = {
   lng: number;
 };
 
-/**
- * IMPORTANT:
- * El borde + radius del mapa lo maneja el wrapper del dashboard (.dashboard-map-card).
- * Aquí solo definimos tamaño del contenedor del mapa.
- */
 const containerStyle: React.CSSProperties = {
   width: "100%",
-  height: "300px", // ✅ PROD height
+  height: "300px",
 };
 
-const centerDefault = {
-  lat: 39.8283, // centro USA
+const centerDefault: Coordinates = {
+  lat: 39.8283,
   lng: -98.5795,
 };
 
-const CustomersMap: React.FC = () => {
+function pickCoordinates(customer: Customer): Coordinates | null {
+  const lat =
+    typeof customer.lat === "number"
+      ? customer.lat
+      : typeof customer.latitude === "number"
+      ? customer.latitude
+      : null;
+
+  const lng =
+    typeof customer.lng === "number"
+      ? customer.lng
+      : typeof customer.longitude === "number"
+      ? customer.longitude
+      : null;
+
+  if (lat == null || lng == null) return null;
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+
+  return { lat, lng };
+}
+
+function buildAddress(customer: Customer): string {
+  return [
+    customer.address,
+    customer.city,
+    customer.state,
+    customer.zipCode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+const CustomerMap: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [locations, setLocations] = useState<Record<number, Coordinates>>({});
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
-
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() || "";
+  const isNativeApp = Capacitor.getPlatform() !== "web";
 
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey || "",
+    id: "rycus-google-map-script",
+    googleMapsApiKey: apiKey,
   });
 
-  const handleMarkerClick = (id: number) => {
-    navigate(`/customers/${id}`);
-  };
-
-  // ============================
-  // Cargar clientes
-  // ============================
   useEffect(() => {
     const loadCustomers = async () => {
       try {
         setLoading(true);
         const res = await axios.get("/customers");
-        setCustomers(res.data || []);
+        setCustomers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("Error loading customers for map", err);
+        setCustomers([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadCustomers();
+    void loadCustomers();
   }, []);
 
-  // ============================
-  // Geocoding
-  // ============================
-  const geocodeAddress = useCallback(async (customer: Customer) => {
-    return new Promise<Coordinates | null>((resolve) => {
-      if (!window.google) return resolve(null);
+  const customersWithCoords = useMemo(() => {
+    return customers
+      .map((customer) => ({
+        customer,
+        coord: pickCoordinates(customer),
+      }))
+      .filter(
+        (
+          item
+        ): item is {
+          customer: Customer;
+          coord: Coordinates;
+        } => item.coord !== null
+      );
+  }, [customers]);
 
-      const geocoder = new window.google.maps.Geocoder();
+  const mapCenter = customersWithCoords[0]?.coord ?? centerDefault;
+  const mapZoom = customersWithCoords.length <= 1 ? 14 : 10;
 
-      const fullAddress = `${customer.address ?? ""} ${customer.city ?? ""} ${
-        customer.state ?? ""
-      } ${customer.zipCode ?? ""}`.trim();
+  const handleMarkerClick = (id: number) => {
+    navigate(`/customers/${id}`);
+  };
 
-      if (!fullAddress) return resolve(null);
+  if (isNativeApp) {
+    return <CustomersMapNative />;
+  }
 
-      geocoder.geocode({ address: fullAddress }, (results, status) => {
-        if (status === "OK" && results && results[0]) {
-          resolve({
-            lat: results[0].geometry.location.lat(),
-            lng: results[0].geometry.location.lng(),
-          });
-        } else {
-          // warning normal si hay direcciones incompletas
-          resolve(null);
-        }
-      });
-    });
-  }, []);
+  if (loading) {
+    return (
+      <div
+        style={{
+          height: 300,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 14,
+          color: "#6b7280",
+          background: "#fff",
+          borderRadius: 12,
+        }}
+      >
+        Loading customers…
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    const loadLocations = async () => {
-      if (!isLoaded || customers.length === 0) return;
+  if (customersWithCoords.length === 0) {
+    return (
+      <div
+        style={{
+          height: 300,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          padding: 16,
+          fontSize: 14,
+          color: "#6b7280",
+          background: "#fff",
+          borderRadius: 12,
+        }}
+      >
+        No customers with coordinates available yet.
+      </div>
+    );
+  }
 
-      const newLocations: Record<number, Coordinates> = {};
+  if (!apiKey) {
+    return (
+      <div
+        style={{
+          height: 300,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          padding: 16,
+          fontSize: 14,
+          color: "#b91c1c",
+          background: "#fff",
+          borderRadius: 12,
+        }}
+      >
+        Map unavailable: missing Google Maps API key.
+      </div>
+    );
+  }
 
-      for (const c of customers) {
-        const coord = await geocodeAddress(c);
-        if (coord) newLocations[c.id] = coord;
-      }
+  if (loadError) {
+    console.error("Google Maps loadError:", loadError);
 
-      setLocations(newLocations);
-    };
+    return (
+      <div
+        style={{
+          minHeight: 300,
+          padding: 16,
+          borderRadius: 12,
+          background: "#fff",
+          border: "1px solid rgba(0,0,0,0.08)",
+          color: "#111827",
+        }}
+      >
+        <p style={{ marginTop: 0, marginBottom: 8, fontWeight: 700 }}>
+          Map failed to load.
+        </p>
+        <p
+          style={{
+            marginTop: 0,
+            marginBottom: 12,
+            color: "#6b7280",
+            fontSize: 14,
+          }}
+        >
+          Google Maps could not be initialized in this environment.
+        </p>
 
-    loadLocations();
-  }, [isLoaded, customers, geocodeAddress]);
+        <div style={{ marginTop: 12 }}>
+          {customersWithCoords.slice(0, 8).map(({ customer, coord }) => (
+            <div
+              key={customer.id}
+              onClick={() => handleMarkerClick(customer.id)}
+              style={{
+                padding: "10px 0",
+                borderBottom: "1px solid #e5e7eb",
+                cursor: "pointer",
+              }}
+            >
+              <strong>{customer.fullName || "Customer"}</strong>
+              <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+                {buildAddress(customer) ||
+                  `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  // ============================
-  // Render
-  // ============================
-  if (!apiKey) return <p>Map unavailable: missing Google Maps API key.</p>;
-  if (loadError) return <p>Map failed to load.</p>;
-  if (!isLoaded) return <p>Loading map…</p>;
-  if (loading) return <p>Loading customers…</p>;
+  if (!isLoaded) {
+    return (
+      <div
+        style={{
+          height: 300,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 14,
+          color: "#6b7280",
+          background: "#fff",
+          borderRadius: 12,
+        }}
+      >
+        Loading map…
+      </div>
+    );
+  }
 
   return (
     <GoogleMap
       mapContainerStyle={containerStyle}
-      center={centerDefault}
-      zoom={4} // ✅ un poco más “prod”
+      center={mapCenter}
+      zoom={mapZoom}
       options={{
         fullscreenControl: true,
         streetViewControl: false,
         mapTypeControl: true,
         clickableIcons: false,
+        gestureHandling: "greedy",
       }}
     >
-      {customers.map((c) => {
-        const loc = locations[c.id];
-        if (!loc) return null;
-
-        return (
-          <MarkerF
-            key={c.id}
-            position={loc}
-            title={c.fullName || "Customer"}
-            onClick={() => handleMarkerClick(c.id)}
-          />
-        );
-      })}
+      {customersWithCoords.map(({ customer, coord }) => (
+        <MarkerF
+          key={customer.id}
+          position={coord}
+          title={customer.fullName || "Customer"}
+          onClick={() => handleMarkerClick(customer.id)}
+        />
+      ))}
     </GoogleMap>
   );
 };
 
-export default CustomersMap;
+export default CustomerMap;
