@@ -1,4 +1,3 @@
-// src/components/SidebarNav.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -45,6 +44,9 @@ export default function SidebarNav() {
     if (path === "/users") return location.pathname.startsWith("/users");
     if (path === "/customers/new") return location.pathname === "/customers/new";
     if (path === "/profile") return location.pathname.startsWith("/profile");
+    if (path === "/privacy") return location.pathname.startsWith("/privacy");
+    if (path === "/terms") return location.pathname.startsWith("/terms");
+    if (path === "/support") return location.pathname.startsWith("/support");
     return location.pathname.startsWith(path);
   };
 
@@ -211,6 +213,34 @@ export default function SidebarNav() {
             <PlusSquare size={22} className="sideSvg" />
             <span className="sideLabel">Add Customer</span>
             <span className="tip">Add Customer</span>
+          </Link>
+
+          {/* ===== LEGAL ===== */}
+          <Link
+            to="/privacy"
+            className={`sideItem ${isActive("/privacy") ? "active" : ""}`}
+          >
+            <span className="sideSvg" aria-hidden="true">📄</span>
+            <span className="sideLabel">Privacy</span>
+            <span className="tip">Privacy</span>
+          </Link>
+
+          <Link
+            to="/terms"
+            className={`sideItem ${isActive("/terms") ? "active" : ""}`}
+          >
+            <span className="sideSvg" aria-hidden="true">📘</span>
+            <span className="sideLabel">Terms</span>
+            <span className="tip">Terms</span>
+          </Link>
+
+          <Link
+            to="/support"
+            className={`sideItem ${isActive("/support") ? "active" : ""}`}
+          >
+            <span className="sideSvg" aria-hidden="true">🛟</span>
+            <span className="sideLabel">Support</span>
+            <span className="tip">Support</span>
           </Link>
         </nav>
 

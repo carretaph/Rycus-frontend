@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Capacitor } from "@capacitor/core";
 import { Link } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import CustomerMap from "../components/CustomerMap";
-import CustomersMapNative from "../components/CustomersMapNative";
 import AvatarWithBadge from "../components/AvatarWithBadge";
 
 type Review = {
@@ -90,7 +88,6 @@ class SafeBlock extends React.Component<
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const isNativeApp = Capacitor.getPlatform() !== "web";
 
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
@@ -387,21 +384,13 @@ const DashboardPage: React.FC = () => {
             represents one customer.
           </p>
 
-          <div
-            className={`dashboard-map-wrap ${
-              isNativeApp ? "native-map-wrap" : ""
-            }`}
-          >
-            <SafeBlock title="Map failed to render">
-              <div
-                className={`dashboard-map-card ${
-                  isNativeApp ? "native-map-card" : ""
-                }`}
-              >
-                {isNativeApp ? <CustomersMapNative /> : <CustomerMap />}
+          <SafeBlock title="Map failed to render">
+            <div className="dashboard-map-wrap">
+              <div className="dashboard-map-card">
+                <CustomerMap />
               </div>
-            </SafeBlock>
-          </div>
+            </div>
+          </SafeBlock>
         </section>
       </div>
     </div>

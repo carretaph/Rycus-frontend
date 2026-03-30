@@ -4,31 +4,28 @@ import { Capacitor } from "@capacitor/core";
 
 /**
  * ==========================================================
- * BASE URL STRATEGY
- * ----------------------------------------------------------
+ * BASE URL STRATEGY (STABLE VERSION)
+ *
  * PRIORIDAD:
  *
- * 1) Si existe VITE_API_BASE_URL -> usar esa
- * 2) Si corre en app nativa (iPhone / Android via Capacitor) -> Render
- * 3) Si corre en DEV web -> localhost:8080
- * 4) Si corre en PROD web -> Render
+ * 1) VITE_API_BASE_URL → override manual
+ * 2) DEV (web o simulator) → localhost
+ * 3) PROD → Render
  *
- * Esto evita el error de login en el simulador, porque
- * "localhost:8080" no debe usarse dentro de la app móvil.
+ * 👉 Eliminamos IP fija (causaba errores)
  * ==========================================================
  */
 
 const RENDER_API_BASE = "https://rycus-backend.onrender.com";
 
 const envBase = import.meta.env.VITE_API_BASE_URL?.trim();
-const isNativeApp = Capacitor.isNativePlatform();
+const isDev = import.meta.env.DEV;
 
+// 🔥 CLAVE: usar localhost para TODO en dev (web + iOS simulator)
 const baseURL =
   envBase && envBase.length > 0
     ? envBase
-    : isNativeApp
-    ? RENDER_API_BASE
-    : import.meta.env.DEV
+    : isDev
     ? "http://localhost:8080"
     : RENDER_API_BASE;
 
@@ -107,6 +104,7 @@ axiosClient.interceptors.response.use(
  * ==========================================================
  */
 console.log("🌐 API BASE URL →", baseURL);
-console.log("📱 Native app? →", isNativeApp);
+console.log("📱 Native app? →", Capacitor.isNativePlatform());
+console.log("🧪 DEV mode? →", isDev);
 
 export default axiosClient;

@@ -1,6 +1,6 @@
-// src/App.tsx
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { useAuth } from "./context/AuthContext";
 import axios from "./api/axiosClient";
 
@@ -15,6 +15,9 @@ import SidebarNav from "./components/SidebarNav";
 import HomePage from "./HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
+import SupportPage from "./pages/SupportPage";
 
 // ===== PRIVATE PAGES =====
 import FeedPage from "./pages/FeedPage";
@@ -81,13 +84,7 @@ function ProtectedRoute({
   const vip = isVipUser(user);
 
   if (requireAccess && !vip && user.hasAccess === false) {
-    return (
-      <Navigate
-        to="/activate"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
+    return <Navigate to="/activate" replace state={{ from: location.pathname }} />;
   }
 
   return <>{children}</>;
@@ -113,6 +110,7 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
 export default function App() {
   const { user, updateUser } = useAuth();
   const vip = isVipUser(user);
+  const isNativeApp = Capacitor.getPlatform() !== "web";
 
   const [billingChecked, setBillingChecked] = useState(false);
 
@@ -213,6 +211,22 @@ export default function App() {
     if (!billingChecked) loadBillingStatus();
   }, [billingChecked, loadBillingStatus]);
 
+  // ✅ Marca el body/html para iOS nativo
+  useEffect(() => {
+    if (isNativeApp) {
+      document.documentElement.classList.add("native-map-page");
+      document.body.classList.add("native-map-page");
+    } else {
+      document.documentElement.classList.remove("native-map-page");
+      document.body.classList.remove("native-map-page");
+    }
+
+    return () => {
+      document.documentElement.classList.remove("native-map-page");
+      document.body.classList.remove("native-map-page");
+    };
+  }, [isNativeApp]);
+
   if (user && !billingChecked) {
     return <div className="page">Checking subscription…</div>;
   }
@@ -220,7 +234,10 @@ export default function App() {
   /* ================= UI ================= */
 
   return (
-    <div className={`app ${user ? "appShell" : ""}`}>
+    <div
+      className={`app ${user ? "appShell" : ""} ${isNativeApp ? "native-map-page-shell" : ""}`}
+      style={isNativeApp ? { background: "transparent" } : undefined}
+    >
       {/* ===== SIDEBAR / PUBLIC HEADER ===== */}
       {user ? (
         <SidebarNav />
@@ -236,12 +253,18 @@ export default function App() {
             <Link to="/">🏠 Home</Link>
             <Link to="/login">Sign in</Link>
             <Link to="/register">Create account</Link>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
+            <Link to="/support">Support</Link>
           </nav>
         </header>
       )}
 
       {/* ===== MAIN ===== */}
-      <main className={user ? "main appMain" : "main"}>
+      <main
+        className={user ? "main appMain" : "main"}
+        style={isNativeApp ? { background: "transparent" } : undefined}
+      >
         <Routes>
           {/* ===== PUBLIC ===== */}
           <Route
@@ -270,6 +293,10 @@ export default function App() {
               </PublicOnlyRoute>
             }
           />
+
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/support" element={<SupportPage />} />
 
           {/* ===== PRIVATE ===== */}
           <Route

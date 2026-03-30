@@ -1,11 +1,9 @@
 // src/pages/CustomerList.tsx
 import React, { useEffect, useState } from "react";
-import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import CustomerMap from "../components/CustomerMap";
-import CustomersMapNative from "../components/CustomersMapNative";
 
 interface Customer {
   id: number;
@@ -23,7 +21,6 @@ interface Customer {
 const CustomerList: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isNativeApp = Capacitor.getPlatform() !== "web";
 
   const [myCustomers, setMyCustomers] = useState<Customer[]>([]);
   const [loadingMy, setLoadingMy] = useState(true);
@@ -33,18 +30,6 @@ const CustomerList: React.FC = () => {
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isNativeApp) return;
-
-    document.body.classList.add("native-map-page");
-    document.documentElement.classList.add("native-map-page");
-
-    return () => {
-      document.body.classList.remove("native-map-page");
-      document.documentElement.classList.remove("native-map-page");
-    };
-  }, [isNativeApp]);
 
   useEffect(() => {
     const loadMyCustomers = async () => {
@@ -132,10 +117,8 @@ const CustomerList: React.FC = () => {
   }, [searchTerm]);
 
   return (
-    <div className={`page ${isNativeApp ? "native-map-page-shell" : ""}`}>
-      <div
-        className={`customers-container ${isNativeApp ? "native-map-page-shell" : ""}`}
-      >
+    <div className="page">
+      <div className="customers-container">
         <h1 style={{ marginTop: 0 }}>Customers</h1>
 
         {error && (
@@ -310,17 +293,11 @@ const CustomerList: React.FC = () => {
             code.
           </p>
 
-          {isNativeApp ? (
-            <div className="native-map-host">
-              <CustomersMapNative />
+          <div className="dashboard-map-wrap">
+            <div className="dashboard-map-card">
+              <CustomerMap />
             </div>
-          ) : (
-            <div className="dashboard-map-wrap">
-              <div className="dashboard-map-card">
-                <CustomerMap />
-              </div>
-            </div>
-          )}
+          </div>
         </section>
       </div>
     </div>

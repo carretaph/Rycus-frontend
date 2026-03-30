@@ -1,10 +1,8 @@
 // src/components/CustomerMap.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Capacitor } from "@capacitor/core";
 import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
-import CustomersMapNative from "./CustomersMapNative";
 
 type Customer = {
   id: number;
@@ -56,12 +54,7 @@ function pickCoordinates(customer: Customer): Coordinates | null {
 }
 
 function buildAddress(customer: Customer): string {
-  return [
-    customer.address,
-    customer.city,
-    customer.state,
-    customer.zipCode,
-  ]
+  return [customer.address, customer.city, customer.state, customer.zipCode]
     .filter(Boolean)
     .join(", ");
 }
@@ -72,7 +65,9 @@ const CustomerMap: React.FC = () => {
 
   const navigate = useNavigate();
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() || "";
-  const isNativeApp = Capacitor.getPlatform() !== "web";
+
+  // ✅ TEMPORAL: desactivamos mapa nativo para seguir avanzando en simulator
+  const isNativeApp = false;
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: "rycus-google-map-script",
@@ -119,8 +114,9 @@ const CustomerMap: React.FC = () => {
     navigate(`/customers/${id}`);
   };
 
+  // ✅ Nunca usar el mapa nativo por ahora
   if (isNativeApp) {
-    return <CustomersMapNative />;
+    return null;
   }
 
   if (loading) {

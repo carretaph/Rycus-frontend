@@ -54,6 +54,32 @@ function buildSnippet(customer: Customer): string {
     .join(", ");
 }
 
+const messageBoxStyle: React.CSSProperties = {
+  height: 300,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textAlign: "center",
+  padding: 16,
+  fontSize: 14,
+  color: "#6b7280",
+  background: "#fff",
+  borderRadius: 12,
+};
+
+const errorBoxStyle: React.CSSProperties = {
+  ...messageBoxStyle,
+  color: "#b91c1c",
+};
+
+const hostStyle: React.CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+};
+
 const CustomersMapNative: React.FC = () => {
   const isNativeApp = Capacitor.getPlatform() !== "web";
 
@@ -61,12 +87,13 @@ const CustomersMapNative: React.FC = () => {
   const mapRef = useRef<GoogleMap | null>(null);
   const markerIdsRef = useRef<string[]>([]);
   const mountedRef = useRef(false);
-  const createdRef = useRef(false);
+  const creatingRef = useRef(false);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [hostReady, setHostReady] = useState(false);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() || "";
 
@@ -86,6 +113,13 @@ const CustomersMapNative: React.FC = () => {
       );
   }, [customers]);
 
+  const mapCenter =
+    customersWithCoords.length > 0
+      ? customersWithCoords[0].coord
+      : FALLBACK_CENTER;
+
+  const mapZoom = customersWithCoords.length <= 1 ? 14 : 10;
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -97,13 +131,17 @@ const CustomersMapNative: React.FC = () => {
     const loadCustomers = async () => {
       try {
         setLoadingCustomers(true);
+        setMapError(null);
+
         const res = await axios.get("/customers");
+
         if (!mountedRef.current) return;
         setCustomers(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("Error loading customers for native map", err);
         if (!mountedRef.current) return;
         setCustomers([]);
+        setMapError("Could not load customer locations.");
       } finally {
         if (mountedRef.current) {
           setLoadingCustomers(false);
@@ -116,28 +154,92 @@ const CustomersMapNative: React.FC = () => {
 
   useEffect(() => {
     if (!isNativeApp) return;
-    if (!hostRef.current) return;
+
+    let cancelled = false;
+    let observer: ResizeObserver | null = null;
+    let timeoutId: number | null = null;
+
+    const measure = () => {
+      if (cancelled) return;
+      const host = hostRef.current;
+      if (!host) {
+        setHostReady(false);
+        return;
+      }
+
+      const rect = host.getBoundingClientRect();
+      const ready = rect.width > 0 && rect.height > 0;
+
+      console.log("📐 Native map host size:", rect.width, rect.height);
+      setHostReady(ready);
+    };
+
+    const setup = () => {
+      const host = hostRef.current;
+      if (!host) {
+        timeoutId = window.setTimeout(setup, 150);
+        return;
+      }
+
+      measure();
+
+      observer = new ResizeObserver(() => {
+        measure();
+      });
+
+      observer.observe(host);
+      window.addEventListener("resize", measure);
+    };
+
+    timeoutId = window.setTimeout(setup, 150);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (observer) observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isNativeApp]);
+
+  useEffect(() => {
+    if (!isNativeApp) return;
     if (!apiKey) {
       setMapError("Missing Google Maps API key.");
       return;
     }
-    if (createdRef.current) return;
+    if (!hostReady) return;
+    if (!hostRef.current) return;
+    if (mapRef.current) return;
+    if (creatingRef.current) return;
+    if (loadingCustomers) return;
+    if (customersWithCoords.length === 0) return;
 
-    createdRef.current = true;
     let cancelled = false;
+    creatingRef.current = true;
 
     const createMap = async () => {
       try {
+        const host = hostRef.current;
+        if (!host) {
+          throw new Error("Map host not found.");
+        }
+
+        const rect = host.getBoundingClientRect();
         console.log("📍 Creating native map...");
+        console.log("📐 Final host rect:", rect.width, rect.height);
+
+        if (rect.width <= 0 || rect.height <= 0) {
+          throw new Error("Map host has invalid size.");
+        }
 
         const map = await GoogleMap.create({
-          id: "rycus-native-map",
-          element: hostRef.current as HTMLDivElement,
+          id: `rycus-native-map-${Date.now()}`,
+          element: host,
           apiKey,
           forceCreate: true,
           config: {
-            center: FALLBACK_CENTER,
-            zoom: 10,
+            center: mapCenter,
+            zoom: mapZoom,
           },
         });
 
@@ -149,24 +251,39 @@ const CustomersMapNative: React.FC = () => {
         mapRef.current = map;
         setMapReady(true);
         setMapError(null);
+
         console.log("✅ Native map created");
       } catch (err) {
         console.error("❌ Error creating native map", err);
         if (mountedRef.current) {
-          setMapError("Could not initialize native map.");
+          setMapError(
+            err instanceof Error
+              ? `Could not initialize native map: ${err.message}`
+              : "Could not initialize native map."
+          );
         }
+      } finally {
+        creatingRef.current = false;
       }
     };
 
     const timer = window.setTimeout(() => {
       void createMap();
-    }, 350);
+    }, 400);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [apiKey, isNativeApp]);
+  }, [
+    apiKey,
+    customersWithCoords.length,
+    hostReady,
+    isNativeApp,
+    loadingCustomers,
+    mapCenter,
+    mapZoom,
+  ]);
 
   useEffect(() => {
     if (!isNativeApp) return;
@@ -248,41 +365,52 @@ const CustomersMapNative: React.FC = () => {
   if (!isNativeApp) return null;
 
   if (loadingCustomers) {
-    return (
-      <div className="native-map-loading">
-        Loading customer locations...
-      </div>
-    );
+    return <div style={messageBoxStyle}>Loading customer locations...</div>;
   }
 
   if (!apiKey) {
-    return (
-      <div className="native-map-error">
-        Missing Google Maps API key.
-      </div>
-    );
+    return <div style={errorBoxStyle}>Missing Google Maps API key.</div>;
   }
 
   if (customersWithCoords.length === 0) {
     return (
-      <div className="native-map-loading">
+      <div style={messageBoxStyle}>
         No customers with coordinates available yet.
       </div>
     );
   }
 
   if (mapError) {
-    return <div className="native-map-error">{mapError}</div>;
+    return <div style={errorBoxStyle}>{mapError}</div>;
   }
 
   return (
-    <div className="native-map-shell">
-      <div className="native-map-debug">
-        Native map ready: {mapReady ? "YES" : "NO"} · Pins:{" "}
-        {customersWithCoords.length}
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: 300,
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 6,
+          left: 10,
+          zIndex: 10,
+          fontSize: 12,
+          background: "rgba(255,255,255,0.8)",
+          padding: "4px 6px",
+          borderRadius: 6,
+        }}
+      >
+        Native: {mapReady ? "YES" : "NO"} · Host:{" "}
+        {hostReady ? "YES" : "NO"} · Pins: {customersWithCoords.length}
       </div>
 
-      <div ref={hostRef} className="native-map-canvas" />
+      <div ref={hostRef} id="rycus-native-map-host" style={hostStyle} />
     </div>
   );
 };

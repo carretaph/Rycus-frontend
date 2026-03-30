@@ -11,6 +11,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
+        window?.backgroundColor = .clear
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            self.makeWebViewTransparent()
+        }
+
         return true
     }
 
@@ -52,16 +58,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     private func makeWebViewTransparent() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            guard let window = self.getKeyWindow(),
-                  let rootViewController = window.rootViewController else {
+            guard
+                let window = self.getKeyWindow(),
+                let rootViewController = window.rootViewController
+            else {
                 print("❌ No window/rootViewController found")
                 return
             }
 
-            print("✅ Found root view controller: \(type(of: rootViewController))")
+            window.backgroundColor = .clear
 
-            rootViewController.view.backgroundColor = .clear
-            self.makeViewsTransparent(in: rootViewController.view)
+            print("✅ Found root view controller: \(type(of: rootViewController))")
+            self.configureWebView(in: rootViewController.view)
         }
     }
 
@@ -75,27 +83,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return UIApplication.shared.windows.first(where: { $0.isKeyWindow })
     }
 
-    private func makeViewsTransparent(in view: UIView) {
-        let className = String(describing: type(of: view))
-
-        if let webView = view as? WKWebView {
+    private func configureWebView(in view: UIView) {
+        if let webView = findWebView(in: view) {
             print("✅ WKWebView found")
+
             webView.isOpaque = false
             webView.backgroundColor = .clear
+
+            webView.scrollView.isOpaque = false
             webView.scrollView.backgroundColor = .clear
+
+            if let superview = webView.superview {
+                superview.backgroundColor = .clear
+            }
+
+            view.backgroundColor = .clear
+            return
         }
 
-        if className.contains("WKChildScrollView")
-            || className.contains("WKContentView")
-            || className.contains("CAPBridgeViewController")
-            || className.contains("UIView")
-        {
-            view.isOpaque = false
-            view.backgroundColor = .clear
+        print("❌ WKWebView not found")
+    }
+
+    private func findWebView(in view: UIView) -> WKWebView? {
+        if let webView = view as? WKWebView {
+            return webView
         }
 
         for subview in view.subviews {
-            makeViewsTransparent(in: subview)
+            if let found = findWebView(in: subview) {
+                return found
+            }
         }
+
+        return nil
     }
 }
