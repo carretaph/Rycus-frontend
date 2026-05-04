@@ -31,13 +31,10 @@ const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // ================================
-  // ✅ Referral Fee fields
-  // ================================
   const [offersReferralFee, setOffersReferralFee] = useState(false);
   const [referralFeeType, setReferralFeeType] = useState<"FLAT" | "PERCENT">("FLAT");
-  const [referralFeeValue, setReferralFeeValue] = useState<string>(""); // keep as string for input
-  const [referralFeeNotes, setReferralFeeNotes] = useState<string>("");
+  const [referralFeeValue, setReferralFeeValue] = useState("");
+  const [referralFeeNotes, setReferralFeeNotes] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -46,17 +43,13 @@ const RegisterPage: React.FC = () => {
     return referralFeeType === "PERCENT" ? "Percent (%)" : "Amount ($)";
   }, [referralFeeType]);
 
-  const sanitizeMoneyLike = (raw: string) => {
-    // allow digits + dot only
-    return raw.replace(/[^0-9.]/g, "");
-  };
+  const sanitizeMoneyLike = (raw: string) => raw.replace(/[^0-9.]/g, "");
 
   const parseFeeNumber = (raw: string): number | null => {
     const cleaned = sanitizeMoneyLike(raw);
     if (!cleaned) return null;
     const n = Number.parseFloat(cleaned);
-    if (!Number.isFinite(n)) return null;
-    return n;
+    return Number.isFinite(n) ? n : null;
   };
 
   const validateReferralFee = (): string | null => {
@@ -78,7 +71,6 @@ const RegisterPage: React.FC = () => {
     const emailTrimmed = email.trim().toLowerCase();
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim() || emailTrimmed;
 
-    // ✅ Validate referral fee (client-side)
     const feeErr = validateReferralFee();
     if (feeErr) {
       setError(feeErr);
@@ -89,15 +81,13 @@ const RegisterPage: React.FC = () => {
     const feeNumber = offersReferralFee ? parseFeeNumber(referralFeeValue) : null;
 
     try {
-      // 1) Register
       const response = await axiosClient.post("/auth/register", {
         fullName,
         email: emailTrimmed,
         password,
         phone: phone.trim() || null,
 
-        // ✅ Referral Fee payload (matches AuthRequest)
-        offersReferralFee: offersReferralFee,
+        offersReferralFee,
         referralFeeType: offersReferralFee ? referralFeeType : null,
         referralFeeValue: offersReferralFee ? feeNumber : null,
         referralFeeNotes: offersReferralFee ? (referralFeeNotes || "").trim() || null : null,
@@ -111,16 +101,9 @@ const RegisterPage: React.FC = () => {
         email: apiUser?.email ?? data?.email ?? emailTrimmed,
         name: apiUser?.fullName ?? apiUser?.name ?? data?.fullName ?? fullName,
         phone: apiUser?.phone ?? data?.phone ?? (phone.trim() || undefined),
-        // ✅ card required: empieza bloqueado
         hasAccess: false,
       };
 
-      const token = data?.token ?? data?.accessToken ?? data?.jwt ?? data?.authToken ?? "";
-
-      // 2) Login (aunque token venga vacío, guardamos usuario y seguimos)
-      login(safeUser, token);
-
-      // 3) Save extra profile (local)
       const extraProfile = {
         firstName,
         lastName,
@@ -132,7 +115,6 @@ const RegisterPage: React.FC = () => {
         state: stateValue,
         industry: accountType,
 
-        // ✅ also store referral fee in local extra (optional, helpful for UI)
         offersReferralFee,
         referralFeeType,
         referralFeeValue: offersReferralFee ? feeNumber : null,
@@ -142,7 +124,33 @@ const RegisterPage: React.FC = () => {
       const extraKey = `${EXTRA_KEY_PREFIX}${emailTrimmed}`;
       localStorage.setItem(extraKey, JSON.stringify(extraProfile));
 
-      // 4) Fetch mini profile (best effort)
+      // 🔥 Login real después del registro para obtener JWT válido
+      const loginRes = await axiosClient.post("/auth/login", {
+        email: emailTrimmed,
+        password,
+      });
+
+      const loginData = loginRes.data;
+
+      const realToken =
+        loginData?.token ||
+        loginData?.accessToken ||
+        loginData?.jwt ||
+        loginData?.authToken;
+
+      const realUser = loginData?.user || {
+        ...safeUser,
+        email: emailTrimmed,
+        name: fullName,
+        hasAccess: false,
+      };
+
+      if (!realToken) {
+        throw new Error("Login after register failed: no token returned.");
+      }
+
+      login(realUser, realToken);
+
       try {
         const miniRes = await axiosClient.get<UserMini>("/users/by-email", {
           params: { email: emailTrimmed },
@@ -154,14 +162,13 @@ const RegisterPage: React.FC = () => {
         updateUser({
           name: fetchedFullName || safeUser.name || fullName,
           avatarUrl: fetchedAvatarUrl || undefined,
-          hasAccess: false, // ✅ siempre bloqueado hasta pagar
+          hasAccess: false,
         });
       } catch (e2) {
         console.warn("Could not load mini profile after register:", e2);
         updateUser({ hasAccess: false });
       }
 
-      // ✅ 5) Payment immediately
       updateUser({ hasAccess: false });
       navigate("/activate", { replace: true });
     } catch (err: any) {
@@ -179,6 +186,7 @@ const RegisterPage: React.FC = () => {
       } else if (err instanceof Error) {
         msg = err.message;
       }
+
       setError(msg);
     } finally {
       setLoading(false);
@@ -345,9 +353,6 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            {/* =========================================
-                ✅ Referral Fee section
-               ========================================= */}
             <div className="form-grid-full" style={{ marginTop: 6 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <input
@@ -379,7 +384,9 @@ const RegisterPage: React.FC = () => {
                   <select
                     id="refType"
                     value={referralFeeType}
-                    onChange={(e) => setReferralFeeType((e.target.value as any) || "FLAT")}
+                    onChange={(e) =>
+                      setReferralFeeType((e.target.value as "FLAT" | "PERCENT") || "FLAT")
+                    }
                     required
                   >
                     <option value="FLAT">Flat ($)</option>

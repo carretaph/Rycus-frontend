@@ -17,14 +17,14 @@
    html {
      -webkit-text-size-adjust: 100%;
      height: 100%;
-     background: transparent;
+     background: #ffffff;
    }
    
    body {
      margin: 0;
      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
        Roboto, Helvetica, Arial, sans-serif;
-     background: transparent;
+     background: #ffffff;
      color: #111827;
      height: 100%;
      overflow-x: hidden;
@@ -35,7 +35,7 @@
    #root {
      min-height: 100vh;
      height: 100%;
-     background: transparent;
+     background: #ffffff;
    }
    
    /* evita imÃ¡genes gigantes globales */
@@ -57,7 +57,7 @@
    .app.appShell {
      display: flex;
      min-height: 100vh;
-     background: transparent;
+     background: #ffffff;
    }
    
    /* SIDEBAR legacy */
@@ -80,7 +80,7 @@
      overflow-y: auto;
      -webkit-overflow-scrolling: touch;
      touch-action: pan-y;
-     background: transparent;
+     background: #ffffff;
    }
    
    /* =========================================================
@@ -94,7 +94,7 @@
      justify-content: center;
      min-width: 0;
      touch-action: pan-y;
-     background: transparent;
+     background: #ffffff;
    }
    
    .page > * {
@@ -266,7 +266,7 @@
    .dashboard-map-wrap {
      max-width: 900px;
      margin: 0 auto;
-     background: transparent;
+     background: #ffffff;
    }
    
    .dashboard-map-card {
@@ -282,7 +282,7 @@
       ============================ */
    
    .dashboard-map-card.native-map-card {
-     background: transparent !important;
+     background: #ffffff !important;
      padding: 14px !important;
      border: 1px solid rgba(0, 0, 0, 0.08);
      border-radius: 12px;
@@ -295,15 +295,15 @@
    .dashboard-map-card.native-map-card .native-map-host {
      width: 100%;
      min-height: 340px;
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-host {
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-shell {
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-canvas {
@@ -316,7 +316,7 @@
      border-radius: 12px;
      overflow: hidden;
      border: 1px solid rgba(37, 99, 235, 0.28);
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    /* =========================================================
@@ -1617,14 +1617,14 @@
      .app.appShell .appMain {
        width: 100%;
        margin: 0;
-       padding-top: calc(var(--safe-top) + 16px);
+       padding-top: calc(var(--safe-top) + 54px);
        padding-right: 12px;
        padding-bottom: calc(var(--safe-bottom) + 92px);
        padding-left: 12px;
        overflow-x: hidden;
        overflow-y: auto;
        -webkit-overflow-scrolling: touch;
-       background: transparent;
+       background: #ffffff;
      }
    
      .page {
@@ -1772,7 +1772,7 @@
    
    html.native-map-page,
    body.native-map-page {
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    body.native-map-page #root,
@@ -1781,7 +1781,7 @@
    body.native-map-page .page,
    body.native-map-page .customers-container,
    body.native-map-page .native-map-page-shell {
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-host {
@@ -1790,14 +1790,14 @@
      margin: 0 auto;
      position: relative;
      min-height: 340px;
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-shell {
      width: 100%;
      position: relative;
      min-height: 340px;
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-debug {
@@ -1806,7 +1806,7 @@
      margin-bottom: 8px;
      position: relative;
      z-index: 2;
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-canvas {
@@ -1819,7 +1819,7 @@
      border-radius: 12px;
      overflow: hidden;
      border: 1px solid rgba(37, 99, 235, 0.28);
-     background: transparent !important;
+     background: #ffffff !important;
    }
    
    .native-map-loading,

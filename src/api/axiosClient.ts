@@ -4,27 +4,33 @@ import { Capacitor } from "@capacitor/core";
 
 /**
  * ==========================================================
- * BASE URL STRATEGY (STABLE VERSION)
- *
- * PRIORIDAD:
- *
- * 1) VITE_API_BASE_URL → override manual
- * 2) DEV (web o simulator) → localhost
- * 3) PROD → Render
- *
- * 👉 Eliminamos IP fija (causaba errores)
+ * BASE URL STRATEGY (ANDROID + IOS + WEB + PROD)
  * ==========================================================
  */
 
 const RENDER_API_BASE = "https://rycus-backend.onrender.com";
 
-const envBase = import.meta.env.VITE_API_BASE_URL?.trim();
+const envBaseRaw = import.meta.env.VITE_API_BASE_URL;
+const envBase = envBaseRaw?.trim();
 const isDev = import.meta.env.DEV;
+const isNative = Capacitor.isNativePlatform();
+const platform = Capacitor.getPlatform();
 
-// 🔥 CLAVE: usar localhost para TODO en dev (web + iOS simulator)
+/**
+ * LOGICA FINAL:
+ * - Android emulator → 10.0.2.2:8080 (SIEMPRE prioridad)
+ * - Override manual por env → web / iOS / otros casos
+ * - iOS / native → Render
+ * - Web dev → localhost
+ * - Prod → Render
+ */
 const baseURL =
-  envBase && envBase.length > 0
+  isNative && platform === "android"
+    ? "http://10.0.2.2:8080"
+    : envBase && envBase.length > 0
     ? envBase
+    : isNative
+    ? RENDER_API_BASE
     : isDev
     ? "http://localhost:8080"
     : RENDER_API_BASE;
@@ -45,7 +51,6 @@ const axiosClient = axios.create({
 /**
  * ==========================================================
  * REQUEST INTERCEPTOR
- * - Adjunta JWT automáticamente
  * ==========================================================
  */
 axiosClient.interceptors.request.use(
@@ -69,7 +74,6 @@ axiosClient.interceptors.request.use(
 /**
  * ==========================================================
  * RESPONSE INTERCEPTOR
- * - Maneja 401 global
  * ==========================================================
  */
 axiosClient.interceptors.response.use(
@@ -83,10 +87,8 @@ axiosClient.interceptors.response.use(
       localStorage.removeItem("rycus_token");
       localStorage.removeItem("token");
       localStorage.removeItem("authToken");
-
       localStorage.removeItem("rycus_user");
       localStorage.removeItem("user");
-
       sessionStorage.removeItem("token");
 
       if (window.location.pathname !== "/login") {
@@ -104,7 +106,9 @@ axiosClient.interceptors.response.use(
  * ==========================================================
  */
 console.log("🌐 API BASE URL →", baseURL);
-console.log("📱 Native app? →", Capacitor.isNativePlatform());
+console.log("🧪 ENV BASE URL →", envBaseRaw);
+console.log("📱 Native app? →", isNative);
+console.log("📱 Platform →", platform);
 console.log("🧪 DEV mode? →", isDev);
 
 export default axiosClient;

@@ -1,27 +1,57 @@
 // src/pages/ActivatePage.tsx
-import React, { useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 
 const ActivatePage: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, logout, updateUser } = useAuth();
 
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string>("");
+  const [msg, setMsg] = useState("");
 
   const email = (user?.email || "").trim();
 
-  // si vienes redirigido desde ProtectedRoute con state.from
-  const fromPath = useMemo(() => {
-    const state = location.state as any;
-    return typeof state?.from === "string" ? state.from : "";
-  }, [location.state]);
+  useEffect(() => {
+    let mounted = true;
+
+    const checkAccess = async () => {
+      try {
+        const res = await axios.get("/users/me");
+        const fresh = res.data;
+
+        if (!mounted) return;
+
+        const hasAccess =
+          fresh?.hasAccess === true ||
+          fresh?.subscriptionStatus === "active" ||
+          fresh?.subscriptionStatus === "trialing" ||
+          fresh?.planType === "FREE_LIFETIME" ||
+          String(fresh?.planType || "").toLowerCase() === "owner";
+
+        updateUser(fresh);
+
+        if (hasAccess) {
+          navigate("/home", { replace: true });
+        }
+      } catch (e) {
+        console.warn("Access refresh failed", e);
+      }
+    };
+
+    checkAccess();
+
+    return () => {
+      mounted = false;
+    };
+    // Runs once on page load to avoid redirect loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStartTrial = async () => {
     setMsg("");
+
     if (!email) {
       setMsg("Please log in again.");
       navigate("/login", { replace: true });
@@ -30,34 +60,38 @@ const ActivatePage: React.FC = () => {
 
     try {
       setLoading(true);
-
-      // ✅ aseguramos que siga bloqueado hasta que Stripe confirme
       updateUser({ hasAccess: false });
 
-      // Ajusta este endpoint si tu backend usa otro nombre:
-      // ejemplo: /billing/checkout o /billing/create-checkout-session
-      const res = await axios.post("/billing/checkout", {
-        email,
-        // opcional: manda el return path para que luego de pagar vuelvas ahí
-        returnTo: fromPath || "/dashboard",
+      const token =
+        localStorage.getItem("rycus_token") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("token");
+
+      console.log("Checkout token exists?", !!token);
+
+      const res = await axios.post("/billing/checkout", null, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
       const url = res.data?.url || res.data?.checkoutUrl;
+
       if (!url) {
         setMsg("Could not start checkout. Missing checkout URL.");
         return;
       }
 
-      // redirect a Stripe Checkout
       window.location.href = url;
     } catch (e: any) {
-      console.error(e);
+      console.error("Checkout error:", e);
+
       const serverMsg =
         e?.response?.data?.message ||
         e?.response?.data?.error ||
         (typeof e?.response?.data === "string" ? e.response.data : "") ||
         e?.message ||
         "Checkout failed.";
+
       setMsg(serverMsg);
     } finally {
       setLoading(false);
@@ -65,22 +99,19 @@ const ActivatePage: React.FC = () => {
   };
 
   const handleNotNow = () => {
-    // ✅ como tu regla es “sin tarjeta no hay acceso”, lo más sano es sacarlo
     logout();
     navigate("/login", { replace: true });
   };
 
   const handleGoToProfile = () => {
-    // ✅ como profile está bloqueado por billing, aquí damos feedback real
     setMsg("Profile is locked until you activate your subscription.");
-    // Si prefieres, lo puedes mandar a /activate siempre (ya está aquí)
-    // navigate("/activate", { replace: true });
   };
 
   return (
     <div className="page">
       <div style={{ maxWidth: 920, margin: "0 auto" }}>
         <h1 style={{ fontSize: 34, marginBottom: 6 }}>Unlock Rycus Pro</h1>
+
         <p style={{ marginTop: 0, color: "#555" }}>
           $0.99/month after a <b>30-day free trial</b>. Cancel anytime.
         </p>
@@ -132,8 +163,8 @@ const ActivatePage: React.FC = () => {
                   border: "1px solid #e8e8ff",
                 }}
               >
-                Example: 10 reviews → +1 month, 20 reviews → +2 months, 30 reviews
-                → +3 months.
+                Example: 10 reviews → +1 month, 20 reviews → +2 months, 30
+                reviews → +3 months.
               </div>
             </div>
           </div>
@@ -158,14 +189,16 @@ const ActivatePage: React.FC = () => {
             Not now
           </button>
 
-          {/* Si quieres que sea link real: cámbialo a <Link to="/profile">...
-              pero como profile está bloqueado por billing, aquí damos feedback claro */}
           <button
             className="btn-link"
             type="button"
             onClick={handleGoToProfile}
             disabled={loading}
-            style={{ background: "transparent", border: "none", color: "#2b59ff" }}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#2b59ff",
+            }}
           >
             Go to Profile
           </button>
@@ -175,7 +208,6 @@ const ActivatePage: React.FC = () => {
           Signed in as <b>{email || "unknown"}</b>.
         </p>
 
-        {/* opcional: si quieres ofrecer salida al home público */}
         <div style={{ marginTop: 8 }}>
           <Link to="/login">Switch account</Link>
         </div>

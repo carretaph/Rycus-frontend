@@ -1,8 +1,7 @@
-// src/pages/ProfilePage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../components/AvatarWithBadge";
 
 interface ProfileExtra {
@@ -108,7 +107,7 @@ const ProfilePage: React.FC = () => {
   // Referral fee (BACKEND fields)
   const [offersReferralFee, setOffersReferralFee] = useState<boolean>(false);
   const [referralFeeType, setReferralFeeType] = useState<ReferralFeeType>("FLAT");
-  const [referralFeeValue, setReferralFeeValue] = useState<string>(""); // string for input
+  const [referralFeeValue, setReferralFeeValue] = useState<string>("");
   const [referralFeeNotes, setReferralFeeNotes] = useState<string>("");
 
   // Change Email
@@ -117,18 +116,13 @@ const ProfilePage: React.FC = () => {
   const [changingEmail, setChangingEmail] = useState(false);
   const [changeEmailMsg, setChangeEmailMsg] = useState<string>("");
 
-  // =========================================
-  // Load local extra + visibility; also init referral from Auth user
-  // =========================================
   useEffect(() => {
     const email = user?.email ?? undefined;
     const extraKey = getExtraKey(email);
     const visKey = getVisKey(email);
 
-    // preview: prefer user.avatarUrl
     if (user?.avatarUrl) setPreview(user.avatarUrl);
 
-    // init referral fee from AuthContext user (comes from login)
     setOffersReferralFee(toBool((user as any)?.offersReferralFee, false));
     const t = (user as any)?.referralFeeType as ReferralFeeType | null | undefined;
     if (t === "FLAT" || t === "PERCENT") setReferralFeeType(t);
@@ -137,7 +131,6 @@ const ProfilePage: React.FC = () => {
     else setReferralFeeValue("");
     setReferralFeeNotes(((user as any)?.referralFeeNotes ?? "") as string);
 
-    // load extra from localStorage
     try {
       const stored = localStorage.getItem(extraKey);
       if (stored && stored !== "undefined" && stored !== "null") {
@@ -156,7 +149,6 @@ const ProfilePage: React.FC = () => {
           avatarUrl: parsed.avatarUrl || "",
         });
 
-        // if local extra has avatarUrl, use it
         if (parsed.avatarUrl && parsed.avatarUrl.trim()) {
           setPreview(parsed.avatarUrl.trim());
         }
@@ -165,7 +157,6 @@ const ProfilePage: React.FC = () => {
       console.error("Error reading profile extra from localStorage:", err);
     }
 
-    // load visibility
     try {
       const v = localStorage.getItem(visKey);
       if (v && v !== "undefined" && v !== "null") {
@@ -178,7 +169,6 @@ const ProfilePage: React.FC = () => {
     }
   }, [user?.email, user?.avatarUrl]);
 
-  // keep header avatar synced
   useEffect(() => {
     if (!preview) return;
     if (!user?.email) return;
@@ -206,9 +196,6 @@ const ProfilePage: React.FC = () => {
     }
   }, [isPublicProfile, isSearchable, user?.email]);
 
-  // =========================================
-  // Derived display strings
-  // =========================================
   const fullName = useMemo(() => {
     const fromUser = (user as any)?.name?.trim?.();
     if (fromUser) return fromUser;
@@ -227,9 +214,6 @@ const ProfilePage: React.FC = () => {
     ? `https://rycus.app/u/${(user as any).id}`
     : "https://rycus.app/u/your-profile";
 
-  // =========================================
-  // Upload avatar -> backend
-  // =========================================
   const uploadAvatarToBackend = async (file: File) => {
     const email = user?.email?.trim();
     if (!email) {
@@ -259,7 +243,6 @@ const ProfilePage: React.FC = () => {
       updateAvatar(url);
       updateUser({ avatarUrl: url });
 
-      // store in local extra
       try {
         const extraKey = getExtraKey(email);
         const stored = localStorage.getItem(extraKey);
@@ -298,7 +281,6 @@ const ProfilePage: React.FC = () => {
   const cancelEditing = () => {
     setSavedMsg("");
     setDraft(extra);
-    // reset referral draft from user (avoid accidental changes)
     setOffersReferralFee(toBool((user as any)?.offersReferralFee, false));
     const t = (user as any)?.referralFeeType as ReferralFeeType | null | undefined;
     if (t === "FLAT" || t === "PERCENT") setReferralFeeType(t);
@@ -312,9 +294,6 @@ const ProfilePage: React.FC = () => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
-  // =========================================
-  // Save (localStorage + backend + AuthContext)
-  // =========================================
   const saveProfile = async () => {
     setSavedMsg("");
 
@@ -331,7 +310,6 @@ const ProfilePage: React.FC = () => {
       avatarUrl: (preview || (user as any)?.avatarUrl || "").trim(),
     };
 
-    // local extra save
     try {
       const email = user?.email ?? undefined;
       const extraKey = getExtraKey(email);
@@ -343,7 +321,6 @@ const ProfilePage: React.FC = () => {
       (user as any)?.name ||
       "";
 
-    // referral payload (backend)
     const referralValueNum = offersReferralFee ? numOrNull(referralFeeValue) : null;
 
     try {
@@ -360,8 +337,6 @@ const ProfilePage: React.FC = () => {
         industry: cleaned.industry || null,
         city: cleaned.city || null,
         state: cleaned.state || null,
-
-        // ✅ referral fee fields
         offersReferralFee: !!offersReferralFee,
         referralFeeType: offersReferralFee ? referralFeeType : null,
         referralFeeValue: offersReferralFee ? referralValueNum : null,
@@ -386,8 +361,6 @@ const ProfilePage: React.FC = () => {
         address: cleaned.address,
         avatarUrl: (updated?.avatarUrl ?? cleaned.avatarUrl ?? undefined) || undefined,
         name: updated?.fullName || fullNameToSave || (user as any)?.name,
-
-        // ✅ keep referral fee in auth user
         offersReferralFee:
           typeof updated?.offersReferralFee === "boolean"
             ? updated.offersReferralFee
@@ -405,7 +378,6 @@ const ProfilePage: React.FC = () => {
     } catch (err) {
       console.error("Error saving profile to backend:", err);
 
-      // still save locally
       setExtra(cleaned);
       setIsEditing(false);
 
@@ -418,7 +390,6 @@ const ProfilePage: React.FC = () => {
         address: cleaned.address,
         avatarUrl: cleaned.avatarUrl || (user as any)?.avatarUrl,
         name: fullNameToSave || (user as any)?.name,
-
         offersReferralFee,
         referralFeeType: offersReferralFee ? referralFeeType : null,
         referralFeeValue: offersReferralFee ? referralValueNum : null,
@@ -430,9 +401,6 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  // =========================================
-  // Change Email
-  // =========================================
   const submitChangeEmail = async () => {
     setChangeEmailMsg("");
 
@@ -481,6 +449,17 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    try {
+      logout();
+      navigate("/login");
+    } catch {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+  };
+
   const businessName = extra.businessName?.trim() || "Not set";
   const industry = extra.industry?.trim() || "Not set";
   const phone = extra.phone?.trim() || "Not set";
@@ -522,7 +501,6 @@ const ProfilePage: React.FC = () => {
 
         {/* PHOTO */}
         <div className="profile-photo-row">
-          {/* ✅ NO wrapper con borde extra -> evita el “doble circulo” */}
           <div>
             <AvatarWithBadge
               size={96}
@@ -835,6 +813,30 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
 
+        {/* LEGAL */}
+        <h2 className="card-section-title">Legal & support</h2>
+        <div
+          className="profile-info-full"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            marginTop: 12,
+          }}
+        >
+          <Link to="/privacy" className="btn-secondary" style={{ textAlign: "center", maxWidth: 320 }}>
+            Privacy Policy
+          </Link>
+
+          <Link to="/terms" className="btn-secondary" style={{ textAlign: "center", maxWidth: 320 }}>
+            Terms of Use
+          </Link>
+
+          <Link to="/support" className="btn-secondary" style={{ textAlign: "center", maxWidth: 320 }}>
+            Support
+          </Link>
+        </div>
+
         {/* CHANGE EMAIL */}
         <h2 className="card-section-title">Change Email</h2>
         <p className="dashboard-text" style={{ marginTop: 6 }}>
@@ -896,6 +898,23 @@ const ProfilePage: React.FC = () => {
             {changeEmailMsg}
           </div>
         )}
+
+        {/* LOG OUT */}
+        <h2 className="card-section-title">Session</h2>
+        <div className="profile-info-full" style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleLogout}
+            style={{
+              maxWidth: 320,
+              borderColor: "#dc2626",
+              color: "#dc2626",
+            }}
+          >
+            Log out
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -83,8 +83,17 @@ export default function SidebarNav() {
 
       const n = Number(res.data);
       setUnreadCount(Number.isFinite(n) ? n : 0);
-    } catch {
-      // silencioso
+    } catch (error: any) {
+      const status = error?.response?.status;
+
+      if (status === 401 || status === 403) {
+        console.warn("Unread blocked (auth mismatch) → ignoring");
+        setUnreadCount(0);
+        return;
+      }
+
+      console.error("Unread error", error);
+      setUnreadCount(0);
     }
   };
 
@@ -215,7 +224,6 @@ export default function SidebarNav() {
             <span className="tip">Add Customer</span>
           </Link>
 
-          {/* ===== LEGAL ===== */}
           <Link
             to="/privacy"
             className={`sideItem ${isActive("/privacy") ? "active" : ""}`}

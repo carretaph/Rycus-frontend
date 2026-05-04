@@ -236,7 +236,7 @@ export default function App() {
   return (
     <div
       className={`app ${user ? "appShell" : ""} ${isNativeApp ? "native-map-page-shell" : ""}`}
-      style={isNativeApp ? { background: "transparent" } : undefined}
+      style={isNativeApp ? { background: "#ffffff" } : undefined}
     >
       {/* ===== SIDEBAR / PUBLIC HEADER ===== */}
       {user ? (
@@ -263,7 +263,7 @@ export default function App() {
       {/* ===== MAIN ===== */}
       <main
         className={user ? "main appMain" : "main"}
-        style={isNativeApp ? { background: "transparent" } : undefined}
+        style={isNativeApp ? { background: "#ffffff" } : undefined}
       >
         <Routes>
           {/* ===== PUBLIC ===== */}
@@ -302,7 +302,7 @@ export default function App() {
           <Route
             path="/home"
             element={
-              <ProtectedRoute requireAccess={false}>
+              <ProtectedRoute requireAccess={true}>
                 <FeedPage />
               </ProtectedRoute>
             }
