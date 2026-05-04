@@ -1,17 +1,15 @@
 {
-  "applinks": {
-    "apps": [],
-    "details": [
-      {
-        "appIDs": [
-          "XQN9FP88HZ.com.albertoperez.rycus"
-        ],
-        "components": [
-          { "/": "/billing/success" },
-          { "/": "/billing/cancel" },
-          { "/": "/activate" }
-        ]
-      }
-    ]
+    "applinks": {
+      "apps": [],
+      "details": [
+        {
+          "appID": "XQN9FP88HZ.com.albertoperez.rycus",
+          "paths": [
+            "/billing/success",
+            "/billing/cancel",
+            "/activate"
+          ]
+        }
+      ]
+    }
   }
-}
