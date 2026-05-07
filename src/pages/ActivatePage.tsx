@@ -30,9 +30,8 @@ const ActivatePage: React.FC = () => {
           fresh?.planType === "FREE_LIFETIME" ||
           String(fresh?.planType || "").toLowerCase() === "owner";
 
-        updateUser(fresh);
-
         if (hasAccess) {
+          updateUser(fresh);
           navigate("/home", { replace: true });
         }
       } catch (e) {
@@ -45,7 +44,6 @@ const ActivatePage: React.FC = () => {
     return () => {
       mounted = false;
     };
-    // Runs once on page load to avoid redirect loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
