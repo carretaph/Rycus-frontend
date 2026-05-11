@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 import { useAuth } from "./context/AuthContext";
 import axios from "./api/axiosClient";
 
@@ -8,10 +9,8 @@ import "./App.css";
 
 import { OWNER_EMAILS } from "./config/owners";
 
-// ✅ Sidebar
 import SidebarNav from "./components/SidebarNav";
 
-// ===== PUBLIC PAGES =====
 import HomePage from "./HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -19,7 +18,6 @@ import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import SupportPage from "./pages/SupportPage";
 
-// ===== PRIVATE PAGES =====
 import FeedPage from "./pages/FeedPage";
 import DashboardPage from "./pages/DashboardPage";
 import CustomerCreatePage from "./pages/CustomerCreate";
@@ -33,17 +31,11 @@ import ProfilePage from "./pages/ProfilePage";
 import InboxPage from "./pages/InboxPage";
 import MessagesPage from "./pages/MessagesPage";
 
-// ===== BILLING =====
 import ActivatePage from "./pages/ActivatePage";
 import BillingSuccessPage from "./pages/BillingSuccessPage";
 import BillingCancelPage from "./pages/BillingCancelPage";
 
-// ✅ CAMBIO: usar el logo correcto
 import logo from "./assets/rycus-logo-check.png";
-
-/* =========================================================
-   HELPERS
-========================================================= */
 
 function isOwnerEmail(email?: string | null): boolean {
   if (!email) return false;
@@ -63,10 +55,6 @@ function isVipUser(user: any): boolean {
     String(user?.planType ?? "").toLowerCase() === "owner"
   );
 }
-
-/* =========================================================
-   🔐 Protected Route
-========================================================= */
 
 function ProtectedRoute({
   children,
@@ -90,10 +78,6 @@ function ProtectedRoute({
   return <>{children}</>;
 }
 
-/* =========================================================
-   🌐 Public Only Route
-========================================================= */
-
 function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { user, initializing } = useAuth();
 
@@ -103,10 +87,6 @@ function PublicOnlyRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/* =========================================================
-   APP
-========================================================= */
-
 export default function App() {
   const { user, updateUser } = useAuth();
   const vip = isVipUser(user);
@@ -114,7 +94,59 @@ export default function App() {
 
   const [billingChecked, setBillingChecked] = useState(false);
 
-  /* ================= BILLING STATUS ================= */
+  useEffect(() => {
+    const openDeepLink = (url: string, source: "launch" | "event") => {
+      if (!url) return;
+
+      const lastUrl = sessionStorage.getItem("rycus_last_deep_link");
+
+      if (source === "launch" && lastUrl === url) {
+        console.log("🔁 Launch deep link already handled:", url);
+        return;
+      }
+
+      sessionStorage.setItem("rycus_last_deep_link", url);
+
+      console.log("🔗 Deep link received:", url, "source:", source);
+
+      if (url.includes("billing/success")) {
+        window.history.replaceState({}, "", "/billing/success");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        return;
+      }
+
+      if (url.includes("billing/cancel")) {
+        window.history.replaceState({}, "", "/billing/cancel");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        return;
+      }
+
+      if (url.includes("activate")) {
+        window.history.replaceState({}, "", "/activate");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }
+    };
+
+    CapacitorApp.getLaunchUrl().then((result) => {
+      const url = result?.url || "";
+
+      if (url) {
+        openDeepLink(url, "launch");
+      }
+    });
+
+    const listener = CapacitorApp.addListener("appUrlOpen", (data) => {
+      const url = data?.url || "";
+
+      if (url) {
+        openDeepLink(url, "event");
+      }
+    });
+
+    return () => {
+      void listener.then((h) => h.remove());
+    };
+  }, []);
 
   const loadBillingStatus = useCallback(async () => {
     if (!user?.email) {
@@ -122,7 +154,6 @@ export default function App() {
       return;
     }
 
-    // ✅ VIP bypass
     if (vip) {
       if (user.hasAccess === false) updateUser({ hasAccess: true });
 
@@ -136,14 +167,12 @@ export default function App() {
 
     if (billingChecked) return;
 
-    // ✅ DEV bypass
     if (import.meta.env.DEV) {
       if (user.hasAccess === false) updateUser({ hasAccess: true });
       setBillingChecked(true);
       return;
     }
 
-    // ===== PROD =====
     try {
       const me = await axios.get("/users/me", {
         params: { email: user.email },
@@ -211,7 +240,6 @@ export default function App() {
     if (!billingChecked) loadBillingStatus();
   }, [billingChecked, loadBillingStatus]);
 
-  // ✅ Marca el body/html para iOS nativo
   useEffect(() => {
     if (isNativeApp) {
       document.documentElement.classList.add("native-map-page");
@@ -231,14 +259,13 @@ export default function App() {
     return <div className="page">Checking subscription…</div>;
   }
 
-  /* ================= UI ================= */
-
   return (
     <div
-      className={`app ${user ? "appShell" : ""} ${isNativeApp ? "native-map-page-shell" : ""}`}
+      className={`app ${user ? "appShell" : ""} ${
+        isNativeApp ? "native-map-page-shell" : ""
+      }`}
       style={isNativeApp ? { background: "#ffffff" } : undefined}
     >
-      {/* ===== SIDEBAR / PUBLIC HEADER ===== */}
       {user ? (
         <SidebarNav />
       ) : (
@@ -260,13 +287,11 @@ export default function App() {
         </header>
       )}
 
-      {/* ===== MAIN ===== */}
       <main
         className={user ? "main appMain" : "main"}
         style={isNativeApp ? { background: "#ffffff" } : undefined}
       >
         <Routes>
-          {/* ===== PUBLIC ===== */}
           <Route
             path="/"
             element={
@@ -298,7 +323,6 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/support" element={<SupportPage />} />
 
-          {/* ===== PRIVATE ===== */}
           <Route
             path="/home"
             element={
@@ -317,7 +341,6 @@ export default function App() {
             }
           />
 
-          {/* ===== BILLING ===== */}
           <Route
             path="/activate"
             element={
@@ -345,7 +368,6 @@ export default function App() {
             }
           />
 
-          {/* ===== CUSTOMERS ===== */}
           <Route
             path="/customers"
             element={
@@ -382,7 +404,6 @@ export default function App() {
             }
           />
 
-          {/* ===== USERS ===== */}
           <Route
             path="/users"
             element={
@@ -410,7 +431,6 @@ export default function App() {
             }
           />
 
-          {/* ===== PROFILE ===== */}
           <Route
             path="/profile"
             element={
@@ -420,7 +440,6 @@ export default function App() {
             }
           />
 
-          {/* ===== MESSAGES ===== */}
           <Route
             path="/inbox"
             element={
@@ -439,7 +458,6 @@ export default function App() {
             }
           />
 
-          {/* ===== FALLBACK ===== */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
