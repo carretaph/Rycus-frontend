@@ -30,7 +30,6 @@ interface Review {
 
 const STAR_VALUES = [1, 2, 3, 4, 5];
 
-// 🔹 mismo key que en ProfilePage / Dashboard
 const EXTRA_KEY = "rycus_profile_extra";
 
 interface ProfileExtra {
@@ -49,31 +48,20 @@ const CustomerReviewsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Ratings
   const [ratingOverall, setRatingOverall] = useState<number>(0);
   const [ratingPayment, setRatingPayment] = useState<number>(0);
   const [ratingBehavior, setRatingBehavior] = useState<number>(0);
   const [ratingCommunication, setRatingCommunication] = useState<number>(0);
   const [comment, setComment] = useState<string>("");
 
-  // Mostrar / ocultar formulario
-  const [showForm, setShowForm] = useState<boolean>(true);
-
-  // Checkbox “make my name public”
+  const [showForm, setShowForm] = useState<boolean>(false);
   const [makeNamePublic, setMakeNamePublic] = useState<boolean>(false);
-
   const [submitError, setSubmitError] = useState<string | null>(null);
-
-  // 🔹 nombre completo del perfil (para usarlo como sugerencia)
   const [profileFullName, setProfileFullName] = useState<string | null>(null);
-
-  // 🔹 nombre que se mostrará en ESTE review (cuando es público)
   const [publicName, setPublicName] = useState<string>("");
 
-  // ✅ userEmail (backend lo necesita para filtrar/autorizar)
   const userEmail = (user?.email || "").trim();
 
-  // Cargar datos del cliente + reviews
   useEffect(() => {
     const fetchData = async () => {
       if (!customerId) return;
@@ -82,7 +70,6 @@ const CustomerReviewsPage: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // ✅ Si no hay email, el backend no puede responder bien (y da 500)
         if (!userEmail) {
           setError("Missing user session. Please login again.");
           setCustomer(null);
@@ -94,15 +81,20 @@ const CustomerReviewsPage: React.FC = () => {
           axios.get(`/customers/${customerId}`, {
             params: { userEmail },
           }),
-          axios.get(`/customers/${customerId}/reviews`, {
-            params: { userEmail },
-          }),
+
+          // ✅ CAMBIO CLAVE:
+          // Leer TODOS los reviews del cliente, no solo los del user actual.
+          axios.get(`/customers/${customerId}/reviews`),
         ]);
 
-        setCustomer(customerRes.data);
-        setReviews(reviewsRes.data || []);
+        const loadedReviews = Array.isArray(reviewsRes.data)
+          ? reviewsRes.data
+          : [];
 
-        if (reviewsRes.data && reviewsRes.data.length > 0) {
+        setCustomer(customerRes.data);
+        setReviews(loadedReviews);
+
+        if (loadedReviews.length > 0) {
           setShowForm(false);
         } else {
           setShowForm(true);
@@ -125,7 +117,6 @@ const CustomerReviewsPage: React.FC = () => {
     fetchData();
   }, [customerId, userEmail]);
 
-  // 🔹 Leer firstName + lastName desde localStorage (perfil)
   useEffect(() => {
     try {
       const stored = localStorage.getItem(EXTRA_KEY);
@@ -135,6 +126,7 @@ const CustomerReviewsPage: React.FC = () => {
           .filter(Boolean)
           .join(" ")
           .trim();
+
         if (full) {
           setProfileFullName(full);
         }
@@ -144,8 +136,6 @@ const CustomerReviewsPage: React.FC = () => {
     }
   }, []);
 
-  // 🔹 Cuando marcan / desmarcan “Make my name public”,
-  // pre-llenamos el campo con el mejor nombre que tengamos
   useEffect(() => {
     if (makeNamePublic) {
       const fromUserName = ((user as any)?.name || "").trim();
@@ -182,7 +172,6 @@ const CustomerReviewsPage: React.FC = () => {
       comment,
     };
 
-    // Enviamos siempre userEmail para que el backend pueda vincular
     if (userEmail) {
       reviewData.userEmail = userEmail;
     } else {
@@ -190,15 +179,16 @@ const CustomerReviewsPage: React.FC = () => {
       return;
     }
 
-    // Lógica de nombre público / anónimo
     if (makeNamePublic) {
       const nameToUse = publicName.trim();
+
       if (!nameToUse) {
         setSubmitError(
           "Please enter the name you want to display on this review."
         );
         return;
       }
+
       reviewData.createdBy = nameToUse;
     } else {
       reviewData.createdBy = "Anonymous reviewer";
@@ -209,11 +199,11 @@ const CustomerReviewsPage: React.FC = () => {
         `/customers/${customerId}/reviews`,
         reviewData
       );
+
       const newReview: Review = response.data;
 
       setReviews((prev) => [newReview, ...prev]);
 
-      // reset
       setRatingOverall(0);
       setRatingPayment(0);
       setRatingBehavior(0);
@@ -223,10 +213,12 @@ const CustomerReviewsPage: React.FC = () => {
       setShowForm(false);
     } catch (err: any) {
       console.error("Error creating review", err);
+
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         "Error creating review. Please try again.";
+
       setSubmitError(msg);
     }
   };
@@ -243,7 +235,10 @@ const CustomerReviewsPage: React.FC = () => {
           ★
         </button>
       ))}
-      <span className="star-value">{value === 0 ? "Select" : `${value}/5`}</span>
+
+      <span className="star-value">
+        {value === 0 ? "Select" : `${value}/5`}
+      </span>
     </div>
   );
 
@@ -280,14 +275,18 @@ const CustomerReviewsPage: React.FC = () => {
 
   const displayName = customer.fullName || "Customer";
 
-  const locationParts = [customer.address, customer.city, customer.state, customer.zipCode].filter(Boolean);
+  const locationParts = [
+    customer.address,
+    customer.city,
+    customer.state,
+    customer.zipCode,
+  ].filter(Boolean);
 
   const extraInfoParts = [customer.customerType, customer.tags].filter(Boolean);
 
   return (
     <div className="customer-page">
       <div className="card">
-        {/* HEADER + ACCIONES */}
         <div
           style={{
             display: "flex",
@@ -303,8 +302,12 @@ const CustomerReviewsPage: React.FC = () => {
             </h1>
 
             <p className="card-subtitle">
-              {locationParts.length > 0 ? locationParts.join(", ") : "Location not specified"}
-              {extraInfoParts.length > 0 && <> • {extraInfoParts.join(" • ")}</>}
+              {locationParts.length > 0
+                ? locationParts.join(", ")
+                : "Location not specified"}
+              {extraInfoParts.length > 0 && (
+                <> • {extraInfoParts.join(" • ")}</>
+              )}
             </p>
           </div>
 
@@ -336,7 +339,6 @@ const CustomerReviewsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* FORMULARIO NUEVO REVIEW */}
         {showForm && (
           <>
             <h3 style={{ marginTop: 24, marginBottom: 8 }}>Leave a review</h3>
@@ -360,7 +362,10 @@ const CustomerReviewsPage: React.FC = () => {
 
                 <div>
                   <label>Communication</label>
-                  {renderStarSelector(ratingCommunication, setRatingCommunication)}
+                  {renderStarSelector(
+                    ratingCommunication,
+                    setRatingCommunication
+                  )}
                 </div>
 
                 <div className="form-grid-full">
@@ -387,7 +392,9 @@ const CustomerReviewsPage: React.FC = () => {
 
                 {makeNamePublic && (
                   <div className="form-grid-full">
-                    <label htmlFor="publicName">Name to display on this review</label>
+                    <label htmlFor="publicName">
+                      Name to display on this review
+                    </label>
                     <input
                       id="publicName"
                       type="text"
@@ -399,17 +406,23 @@ const CustomerReviewsPage: React.FC = () => {
                 )}
               </div>
 
-              {submitError && <p style={{ color: "red", marginTop: 8 }}>{submitError}</p>}
+              {submitError && (
+                <p style={{ color: "red", marginTop: 8 }}>{submitError}</p>
+              )}
 
-              <button type="submit" className="btn-primary" style={{ marginTop: 12 }}>
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ marginTop: 12 }}
+              >
                 Submit review
               </button>
             </form>
           </>
         )}
 
-        {/* LISTA DE REVIEWS */}
         <h3 style={{ marginTop: 24, marginBottom: 8 }}>Reviews</h3>
+
         {reviews.length === 0 ? (
           <p>No reviews yet. Be the first to leave one.</p>
         ) : (
@@ -419,7 +432,9 @@ const CustomerReviewsPage: React.FC = () => {
                 <div className="review-header">
                   <div>
                     {rev.createdAt && (
-                      <span>{new Date(rev.createdAt).toLocaleDateString()}</span>
+                      <span>
+                        {new Date(rev.createdAt).toLocaleDateString()}
+                      </span>
                     )}
                     {rev.createdBy && <span> • {rev.createdBy}</span>}
                   </div>
@@ -429,7 +444,9 @@ const CustomerReviewsPage: React.FC = () => {
                   <div>Overall: {renderStars(rev.ratingOverall)}</div>
                   <div>Payment: {renderStars(rev.ratingPayment)}</div>
                   <div>Behavior: {renderStars(rev.ratingBehavior)}</div>
-                  <div>Communication: {renderStars(rev.ratingCommunication)}</div>
+                  <div>
+                    Communication: {renderStars(rev.ratingCommunication)}
+                  </div>
                 </div>
 
                 <div className="review-comment">{rev.comment}</div>
