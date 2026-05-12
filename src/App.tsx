@@ -35,6 +35,8 @@ import ActivatePage from "./pages/ActivatePage";
 import BillingSuccessPage from "./pages/BillingSuccessPage";
 import BillingCancelPage from "./pages/BillingCancelPage";
 
+import AdminDashboardPage from "./pages/AdminDashboardPage";
+
 import logo from "./assets/rycus-logo-check.png";
 
 function isOwnerEmail(email?: string | null): boolean {
@@ -337,6 +339,15 @@ export default function App() {
             element={
               <ProtectedRoute requireAccess={true}>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAccess={false}>
+                <AdminDashboardPage />
               </ProtectedRoute>
             }
           />
