@@ -1845,3 +1845,92 @@
      background: #fff;
      color: #b91c1c;
    }
+   /* =========================================================
+   USERS SEARCH MOBILE FIX
+   ========================================================= */
+
+.users-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.users-card-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.users-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.users-name {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.users-email {
+  color: #666;
+  font-size: 14px;
+  margin-top: 4px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+
+  max-width: 100%;
+}
+
+.users-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .users-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .users-card-left {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .users-meta {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .users-email {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .users-actions {
+    width: 100%;
+    margin-top: 14px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .users-actions .btn-secondary {
+    flex: 1;
+    min-width: 140px;
+    justify-content: center;
+  }
+}
