@@ -9,6 +9,7 @@ import {
   UserSearch,
   PlusSquare,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 
 import axios from "../api/axiosClient";
@@ -18,6 +19,8 @@ import "./Sidebar.css";
 import logoFull from "../assets/rycus-logo-full.png";
 import logoIcon from "../assets/rycus-logo-check.png";
 
+const OWNER_EMAILS = ["carretaph@gmail.com"];
+
 export default function SidebarNav() {
   const auth: any = useAuth();
   const user = auth?.user;
@@ -25,9 +28,14 @@ export default function SidebarNav() {
 
   const location = useLocation();
 
+  const isAdmin =
+    String(user?.role || "").toUpperCase() === "ADMIN" ||
+    OWNER_EMAILS.includes(String(user?.email || "").toLowerCase());
+
   const isActive = (path: string) => {
     if (path === "/home") return location.pathname === "/home";
     if (path === "/dashboard") return location.pathname.startsWith("/dashboard");
+    if (path === "/admin") return location.pathname.startsWith("/admin");
     if (path === "/customers") {
       return (
         location.pathname === "/customers" ||
@@ -140,9 +148,6 @@ export default function SidebarNav() {
 
   return (
     <>
-      {/* =========================
-          DESKTOP / WEB SIDEBAR
-         ========================= */}
       <aside className="side">
         <Link to="/home" className="sideBrand" aria-label="Rycus Home">
           <img className="sideLogoIcon" src={logoIcon} alt="Rycus" />
@@ -150,102 +155,76 @@ export default function SidebarNav() {
         </Link>
 
         <nav className="sideNav">
-          <Link
-            to="/home"
-            className={`sideItem ${isActive("/home") ? "active" : ""}`}
-          >
+          <Link to="/home" className={`sideItem ${isActive("/home") ? "active" : ""}`}>
             <Home size={22} className="sideSvg" />
             <span className="sideLabel">Home</span>
             <span className="tip">Home</span>
           </Link>
 
-          <Link
-            to="/dashboard"
-            className={`sideItem ${isActive("/dashboard") ? "active" : ""}`}
-          >
+          <Link to="/dashboard" className={`sideItem ${isActive("/dashboard") ? "active" : ""}`}>
             <BarChart3 size={22} className="sideSvg" />
             <span className="sideLabel">Dashboard</span>
             <span className="tip">Dashboard</span>
           </Link>
 
-          <Link
-            to="/customers"
-            className={`sideItem ${isActive("/customers") ? "active" : ""}`}
-          >
+          {isAdmin && (
+            <Link to="/admin" className={`sideItem ${isActive("/admin") ? "active" : ""}`}>
+              <ShieldCheck size={22} className="sideSvg" />
+              <span className="sideLabel">Admin</span>
+              <span className="tip">Admin</span>
+            </Link>
+          )}
+
+          <Link to="/customers" className={`sideItem ${isActive("/customers") ? "active" : ""}`}>
             <Users size={22} className="sideSvg" />
             <span className="sideLabel">Customers</span>
             <span className="tip">Customers</span>
           </Link>
 
-          <Link
-            to="/connections"
-            className={`sideItem ${isActive("/connections") ? "active" : ""}`}
-          >
+          <Link to="/connections" className={`sideItem ${isActive("/connections") ? "active" : ""}`}>
             <Handshake size={22} className="sideSvg" />
             <span className="sideLabel">Network</span>
             <span className="tip">Network</span>
           </Link>
 
-          <Link
-            to="/inbox"
-            className={`sideItem ${isActive("/inbox") ? "active" : ""}`}
-          >
+          <Link to="/inbox" className={`sideItem ${isActive("/inbox") ? "active" : ""}`}>
             <span className="sideIconWrap">
               <MessageCircle size={22} className="sideSvg" />
               {unreadCount > 0 && (
-                <span
-                  className="sideBadge"
-                  aria-label={`${unreadCount} unread messages`}
-                >
+                <span className="sideBadge" aria-label={`${unreadCount} unread messages`}>
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
             </span>
-
             <span className="sideLabel">Messages</span>
             <span className="tip">Messages</span>
           </Link>
 
-          <Link
-            to="/users"
-            className={`sideItem ${isActive("/users") ? "active" : ""}`}
-          >
+          <Link to="/users" className={`sideItem ${isActive("/users") ? "active" : ""}`}>
             <UserSearch size={22} className="sideSvg" />
             <span className="sideLabel">Users</span>
             <span className="tip">Users</span>
           </Link>
 
-          <Link
-            to="/customers/new"
-            className={`sideItem ${isActive("/customers/new") ? "active" : ""}`}
-          >
+          <Link to="/customers/new" className={`sideItem ${isActive("/customers/new") ? "active" : ""}`}>
             <PlusSquare size={22} className="sideSvg" />
             <span className="sideLabel">Add Customer</span>
             <span className="tip">Add Customer</span>
           </Link>
 
-          <Link
-            to="/privacy"
-            className={`sideItem ${isActive("/privacy") ? "active" : ""}`}
-          >
+          <Link to="/privacy" className={`sideItem ${isActive("/privacy") ? "active" : ""}`}>
             <span className="sideSvg" aria-hidden="true">📄</span>
             <span className="sideLabel">Privacy</span>
             <span className="tip">Privacy</span>
           </Link>
 
-          <Link
-            to="/terms"
-            className={`sideItem ${isActive("/terms") ? "active" : ""}`}
-          >
+          <Link to="/terms" className={`sideItem ${isActive("/terms") ? "active" : ""}`}>
             <span className="sideSvg" aria-hidden="true">📘</span>
             <span className="sideLabel">Terms</span>
             <span className="tip">Terms</span>
           </Link>
 
-          <Link
-            to="/support"
-            className={`sideItem ${isActive("/support") ? "active" : ""}`}
-          >
+          <Link to="/support" className={`sideItem ${isActive("/support") ? "active" : ""}`}>
             <span className="sideSvg" aria-hidden="true">🛟</span>
             <span className="sideLabel">Support</span>
             <span className="tip">Support</span>
@@ -253,11 +232,7 @@ export default function SidebarNav() {
         </nav>
 
         <div className="sideBottom">
-          <Link
-            to="/profile"
-            className="sideMe"
-            aria-label="Profile"
-          >
+          <Link to="/profile" className="sideMe" aria-label="Profile">
             <div className="sideAvatarRing">
               {user?.avatarUrl ? (
                 <img className="sideAvatarImg" src={user.avatarUrl} alt="Profile" />
@@ -274,12 +249,7 @@ export default function SidebarNav() {
             <span className="tip">Profile</span>
           </Link>
 
-          <button
-            type="button"
-            className="sideItem sideLogout"
-            onClick={handleLogout}
-            aria-label="Log out"
-          >
+          <button type="button" className="sideItem sideLogout" onClick={handleLogout} aria-label="Log out">
             <LogOut size={22} className="sideSvg" />
             <span className="sideLabel">Log out</span>
             <span className="tip">Log out</span>
@@ -287,42 +257,30 @@ export default function SidebarNav() {
         </div>
       </aside>
 
-      {/* =========================
-          MOBILE / APP BOTTOM NAV
-         ========================= */}
       <nav className="mobileBottomNav" aria-label="Mobile navigation">
-        <Link
-          to="/home"
-          className={`mobileBottomItem ${isActive("/home") ? "active" : ""}`}
-        >
+        <Link to="/home" className={`mobileBottomItem ${isActive("/home") ? "active" : ""}`}>
           <Home size={22} />
         </Link>
 
-        <Link
-          to="/dashboard"
-          className={`mobileBottomItem ${isActive("/dashboard") ? "active" : ""}`}
-        >
+        <Link to="/dashboard" className={`mobileBottomItem ${isActive("/dashboard") ? "active" : ""}`}>
           <BarChart3 size={22} />
         </Link>
 
-        <Link
-          to="/customers"
-          className={`mobileBottomItem ${isActive("/customers") ? "active" : ""}`}
-        >
+        {isAdmin && (
+          <Link to="/admin" className={`mobileBottomItem ${isActive("/admin") ? "active" : ""}`}>
+            <ShieldCheck size={22} />
+          </Link>
+        )}
+
+        <Link to="/customers" className={`mobileBottomItem ${isActive("/customers") ? "active" : ""}`}>
           <Users size={22} />
         </Link>
 
-        <Link
-          to="/connections"
-          className={`mobileBottomItem ${isActive("/connections") ? "active" : ""}`}
-        >
+        <Link to="/connections" className={`mobileBottomItem ${isActive("/connections") ? "active" : ""}`}>
           <Handshake size={22} />
         </Link>
 
-        <Link
-          to="/inbox"
-          className={`mobileBottomItem ${isActive("/inbox") ? "active" : ""}`}
-        >
+        <Link to="/inbox" className={`mobileBottomItem ${isActive("/inbox") ? "active" : ""}`}>
           <span className="sideIconWrap">
             <MessageCircle size={22} />
             {unreadCount > 0 && (
@@ -333,24 +291,15 @@ export default function SidebarNav() {
           </span>
         </Link>
 
-        <Link
-          to="/users"
-          className={`mobileBottomItem ${isActive("/users") ? "active" : ""}`}
-        >
+        <Link to="/users" className={`mobileBottomItem ${isActive("/users") ? "active" : ""}`}>
           <UserSearch size={22} />
         </Link>
 
-        <Link
-          to="/customers/new"
-          className={`mobileBottomItem ${isActive("/customers/new") ? "active" : ""}`}
-        >
+        <Link to="/customers/new" className={`mobileBottomItem ${isActive("/customers/new") ? "active" : ""}`}>
           <PlusSquare size={22} />
         </Link>
 
-        <Link
-          to="/profile"
-          className={`mobileBottomItem mobileProfileItem ${isActive("/profile") ? "active" : ""}`}
-        >
+        <Link to="/profile" className={`mobileBottomItem mobileProfileItem ${isActive("/profile") ? "active" : ""}`}>
           {user?.avatarUrl ? (
             <img className="mobileProfileAvatar" src={user.avatarUrl} alt="Profile" />
           ) : (
