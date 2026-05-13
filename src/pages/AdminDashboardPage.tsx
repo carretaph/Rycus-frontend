@@ -13,6 +13,7 @@ type AdminUser = {
   fullName?: string | null;
   email?: string | null;
   role?: string | null;
+  accountStatus?: string | null;
   businessName?: string | null;
   industry?: string | null;
   city?: string | null;
@@ -34,6 +35,8 @@ function badgeClass(value?: string | null) {
   if (v.includes("admin")) return "admin-badge admin-badge-blue";
   if (v.includes("lifetime")) return "admin-badge admin-badge-purple";
   if (v.includes("trial")) return "admin-badge admin-badge-gray";
+  if (v.includes("suspended")) return "admin-badge admin-badge-orange";
+  if (v.includes("banned")) return "admin-badge admin-badge-red";
   if (v.includes("past_due")) return "admin-badge admin-badge-orange";
   if (v.includes("cancel")) return "admin-badge admin-badge-red";
 
@@ -61,6 +64,7 @@ const AdminDashboardPage: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [planFilter, setPlanFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [accountFilter, setAccountFilter] = useState("ALL");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -110,10 +114,58 @@ const AdminDashboardPage: React.FC = () => {
     ];
   }, [users]);
 
+  const availableAccountStatuses = useMemo(() => {
+    return [
+      "ALL",
+      ...Array.from(
+        new Set(
+          users
+            .map((u) => clean(u.accountStatus || "ACTIVE").toUpperCase())
+            .filter(Boolean)
+        )
+      ),
+    ];
+  }, [users]);
+
+  const updateAccountStatus = async (
+    userId: number,
+    status: "ACTIVE" | "SUSPENDED" | "BANNED"
+  ) => {
+    const label =
+      status === "ACTIVE"
+        ? "reactivate"
+        : status === "SUSPENDED"
+        ? "suspend"
+        : "ban";
+
+    const ok = window.confirm(`Are you sure you want to ${label} this user?`);
+
+    if (!ok) return;
+
+    try {
+      const res = await axios.patch<AdminUser>(
+        `/admin/users/${userId}/status`,
+        null,
+        {
+          params: { status },
+        }
+      );
+
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? res.data : u))
+      );
+    } catch (e) {
+      console.error(e);
+      alert(`Could not ${label} user.`);
+    }
+  };
+
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
 
     return users.filter((u) => {
+      const accountStatus = clean(u.accountStatus || "ACTIVE");
+
       const haystack = [
         u.fullName,
         u.email,
@@ -124,6 +176,7 @@ const AdminDashboardPage: React.FC = () => {
         u.planType,
         u.subscriptionStatus,
         u.role,
+        accountStatus,
         u.createdAt,
       ]
         .filter(Boolean)
@@ -133,8 +186,7 @@ const AdminDashboardPage: React.FC = () => {
       const matchesQuery = !q || haystack.includes(q);
 
       const matchesRole =
-        roleFilter === "ALL" ||
-        clean(u.role).toUpperCase() === roleFilter;
+        roleFilter === "ALL" || clean(u.role).toUpperCase() === roleFilter;
 
       const matchesPlan =
         planFilter === "ALL" ||
@@ -144,23 +196,23 @@ const AdminDashboardPage: React.FC = () => {
         statusFilter === "ALL" ||
         clean(u.subscriptionStatus).toUpperCase() === statusFilter;
 
+      const matchesAccount =
+        accountFilter === "ALL" ||
+        accountStatus.toUpperCase() === accountFilter;
+
       return (
         matchesQuery &&
         matchesRole &&
         matchesPlan &&
-        matchesStatus
+        matchesStatus &&
+        matchesAccount
       );
     });
-  }, [users, query, roleFilter, planFilter, statusFilter]);
+  }, [users, query, roleFilter, planFilter, statusFilter, accountFilter]);
 
-  const activeUsers = users.filter((u) => {
-    const status = clean(u.subscriptionStatus).toLowerCase();
-
-    return (
-      status === "active" ||
-      status === "trialing" ||
-      status === "paid"
-    );
+  const suspendedOrBannedUsers = users.filter((u) => {
+    const status = clean(u.accountStatus || "ACTIVE").toUpperCase();
+    return status === "SUSPENDED" || status === "BANNED";
   }).length;
 
   return (
@@ -173,8 +225,8 @@ const AdminDashboardPage: React.FC = () => {
             <h1>Admin Dashboard</h1>
 
             <p>
-              Monitor users, plans, profile data, referral fee activity and
-              account status from one place.
+              Monitor users, plans, profile data, referral fee activity,
+              subscriptions and moderation status from one place.
             </p>
           </div>
 
@@ -205,9 +257,9 @@ const AdminDashboardPage: React.FC = () => {
           </div>
 
           <div className="admin-stat-card">
-            <span>Active Subscriptions</span>
-            <strong>{activeUsers}</strong>
-            <small>Marked active</small>
+            <span>Moderated Accounts</span>
+            <strong>{suspendedOrBannedUsers}</strong>
+            <small>Suspended or banned</small>
           </div>
         </div>
 
@@ -259,7 +311,19 @@ const AdminDashboardPage: React.FC = () => {
             >
               {availableStatuses.map((status) => (
                 <option key={status} value={status}>
-                  {status === "ALL" ? "All status" : status}
+                  {status === "ALL" ? "All subscription" : status}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="admin-select"
+              value={accountFilter}
+              onChange={(e) => setAccountFilter(e.target.value)}
+            >
+              {availableAccountStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {status === "ALL" ? "All accounts" : status}
                 </option>
               ))}
             </select>
@@ -276,76 +340,132 @@ const AdminDashboardPage: React.FC = () => {
                   <th>Registered</th>
                   <th>Role</th>
                   <th>Plan</th>
-                  <th>Status</th>
+                  <th>Subscription</th>
+                  <th>Account</th>
                   <th>Referral</th>
-                  <th></th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredUsers.map((u) => (
-                  <tr key={u.id}>
-                    <td>
-                      <div className="admin-user-cell">
-                        <strong>{u.fullName || "Unknown"}</strong>
-                        <span>{u.email || "—"}</span>
-                      </div>
-                    </td>
+                {filteredUsers.map((u) => {
+                  const accountStatus = clean(
+                    u.accountStatus || "ACTIVE"
+                  ).toUpperCase();
 
-                    <td>{u.businessName || "—"}</td>
+                  return (
+                    <tr key={u.id}>
+                      <td>
+                        <div className="admin-user-cell">
+                          <strong>{u.fullName || "Unknown"}</strong>
+                          <span>{u.email || "—"}</span>
+                        </div>
+                      </td>
 
-                    <td>{u.industry || "—"}</td>
+                      <td>{u.businessName || "—"}</td>
 
-                    <td>
-                      {[u.city, u.state].filter(Boolean).join(", ") || "—"}
-                    </td>
+                      <td>{u.industry || "—"}</td>
 
-                    <td>{formatDate(u.createdAt)}</td>
+                      <td>
+                        {[u.city, u.state].filter(Boolean).join(", ") || "—"}
+                      </td>
 
-                    <td>
-                      <span className={badgeClass(u.role)}>
-                        {u.role || "USER"}
-                      </span>
-                    </td>
+                      <td>{formatDate(u.createdAt)}</td>
 
-                    <td>
-                      <span className={badgeClass(u.planType)}>
-                        {u.planType || "—"}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span className={badgeClass(u.subscriptionStatus)}>
-                        {u.subscriptionStatus || "—"}
-                      </span>
-                    </td>
-
-                    <td>
-                      {u.offersReferralFee ? (
-                        <span className="admin-badge admin-badge-green">
-                          Yes
+                      <td>
+                        <span className={badgeClass(u.role)}>
+                          {u.role || "USER"}
                         </span>
-                      ) : (
-                        <span className="admin-badge">
-                          No
-                        </span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td>
-                      <Link
-                        to={`/users/${u.id}`}
-                        className="admin-link-btn"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        <span className={badgeClass(u.planType)}>
+                          {u.planType || "—"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className={badgeClass(u.subscriptionStatus)}>
+                          {u.subscriptionStatus || "—"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className={badgeClass(accountStatus)}>
+                          {accountStatus}
+                        </span>
+                      </td>
+
+                      <td>
+                        {u.offersReferralFee ? (
+                          <span className="admin-badge admin-badge-green">
+                            Yes
+                          </span>
+                        ) : (
+                          <span className="admin-badge">No</span>
+                        )}
+                      </td>
+
+                      <td>
+                        <details className="admin-actions-dropdown">
+                          <summary className="admin-actions-trigger">
+                          <span>Actions</span>
+                          <span>▾</span>
+                          </summary>
+
+                          <div className="admin-actions-menu">
+                            <Link
+                              to={`/users/${u.id}`}
+                              className="admin-dropdown-item"
+                            >
+                              View
+                            </Link>
+
+                            {accountStatus !== "SUSPENDED" && (
+                              <button
+                                type="button"
+                                className="admin-dropdown-item admin-warning-btn"
+                                onClick={() =>
+                                  updateAccountStatus(u.id, "SUSPENDED")
+                                }
+                              >
+                                Suspend
+                              </button>
+                            )}
+
+                            {accountStatus !== "BANNED" && (
+                              <button
+                                type="button"
+                                className="admin-dropdown-item admin-danger-btn"
+                                onClick={() =>
+                                  updateAccountStatus(u.id, "BANNED")
+                                }
+                              >
+                                Ban
+                              </button>
+                            )}
+
+                            {accountStatus !== "ACTIVE" && (
+                              <button
+                                type="button"
+                                className="admin-dropdown-item admin-success-btn"
+                                onClick={() =>
+                                  updateAccountStatus(u.id, "ACTIVE")
+                                }
+                              >
+                                Reactivate
+                              </button>
+                            )}
+                          </div>
+                        </details>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {filteredUsers.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="admin-empty">
+                    <td colSpan={11} className="admin-empty">
                       No users match your filters.
                     </td>
                   </tr>
