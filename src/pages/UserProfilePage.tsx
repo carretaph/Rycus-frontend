@@ -22,16 +22,13 @@ type UserProfile = {
   id: number;
   fullName: string;
   email: string;
-
   phone?: string | null;
   businessName?: string | null;
   industry?: string | null;
   city?: string | null;
   state?: string | null;
   avatarUrl?: string | null;
-
   offersReferralFee?: boolean | null;
-
   totalReviews: number;
   averageRating: number;
   reviews: UserReview[];
@@ -44,6 +41,12 @@ type ConnectionDto = {
   status: string;
 };
 
+type UserPhoto = {
+  postId: number;
+  imageUrl: string;
+  createdAt: string | null;
+};
+
 const normalizePhoneForTel = (raw?: string | null) => {
   if (!raw) return "";
   return raw.replace(/[^\d+]/g, "");
@@ -54,6 +57,7 @@ const UserProfilePage: React.FC = () => {
   const { user: currentUser } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [photos, setPhotos] = useState<UserPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,13 +76,23 @@ const UserProfilePage: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const res = await axios.get<UserProfile>(`/users/${id}`);
-        const data = res.data as any;
+        const profileRes = await axios.get<UserProfile>(`/users/${id}`);
+        const data = profileRes.data as any;
 
         setProfile({
           ...data,
           reviews: Array.isArray(data.reviews) ? data.reviews : [],
+          totalReviews: Number(data.totalReviews ?? 0),
+          averageRating: Number(data.averageRating ?? 0),
         });
+
+        try {
+          const photosRes = await axios.get<UserPhoto[]>(`/users/${id}/photos`);
+          setPhotos(Array.isArray(photosRes.data) ? photosRes.data : []);
+        } catch (photoErr) {
+          console.warn("Photos endpoint unavailable", photoErr);
+          setPhotos([]);
+        }
       } catch (err) {
         console.error("Error loading user profile", err);
         setError("Could not load this user profile.");
@@ -135,44 +149,27 @@ const UserProfilePage: React.FC = () => {
     if (!profile) return;
 
     if (!currentUser) {
-      alert("You must be logged in to send a connection request.");
-      return;
-    }
-
-    if (!currentUser.email) {
-      alert("We could not find your email. Please log out and log in again.");
+      alert("You must be logged in.");
       return;
     }
 
     if (currentUser.id === profile.id) {
-      alert("You cannot add yourself to your own network.");
+      alert("You cannot add yourself.");
       return;
     }
 
     try {
       setSendingRequest(true);
 
-      const body = {
+      await axios.post("/connections/request", {
         fromEmail: currentUser.email,
         toEmail: profile.email,
-      };
+      });
 
-      const res = await axios.post("/connections/request", body);
-      console.log("Connection request OK:", res.data);
       alert("Connection request sent!");
     } catch (err: any) {
-      console.error("Error sending connection request", err);
-      const status = err?.response?.status;
-      const backendMessage =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message;
-
-      if (status) {
-        alert(`Error ${status}: ${backendMessage || "Could not send request."}`);
-      } else {
-        alert("Could not send connection request (network error).");
-      }
+      console.error(err);
+      alert("Could not send request.");
     } finally {
       setSendingRequest(false);
     }
@@ -189,10 +186,11 @@ const UserProfilePage: React.FC = () => {
   const businessName = (profile?.businessName ?? "").trim();
   const city = (profile?.city ?? "").trim();
   const state = (profile?.state ?? "").trim();
-  const location = [city, state].filter(Boolean).join(", ");
 
+  const location = [city, state].filter(Boolean).join(", ");
   const reviews = profile?.reviews ?? [];
   const showRF = !!profile?.offersReferralFee;
+  const isOwner = (currentUser as any)?.email === "carretaph@gmail.com";
 
   if (loading) {
     return (
@@ -208,7 +206,8 @@ const UserProfilePage: React.FC = () => {
     return (
       <div className="page">
         <div className="userprofile-container">
-          <p className="users-error">{error || "User not found."}</p>
+          <p className="users-error">{error}</p>
+
           <Link to="/users" className="dashboard-link">
             ← Back to Users
           </Link>
@@ -235,19 +234,35 @@ const UserProfilePage: React.FC = () => {
 
             <div className="userprofile-main">
               <h1 className="userprofile-name">{profile.fullName}</h1>
+
               <div className="userprofile-email">{profile.email}</div>
 
-              <div className="userprofile-chips">
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                  marginTop: 10,
+                  marginBottom: 14,
+                }}
+              >
                 {industry && (
-                  <span className="userprofile-chip">🛠️ {industry}</span>
+                  <span className="userprofile-chip">
+                    🛠️ {industry}
+                  </span>
                 )}
 
                 {businessName && (
-                  <span className="userprofile-chip">🏢 {businessName}</span>
+                  <span className="userprofile-chip">
+                    🏢 {businessName}
+                  </span>
                 )}
 
                 {location && (
-                  <span className="userprofile-chip">📍 {location}</span>
+                  <span className="userprofile-chip">
+                    📍 {location}
+                  </span>
                 )}
 
                 {tel && (
@@ -258,34 +273,116 @@ const UserProfilePage: React.FC = () => {
                     📞 {phone}
                   </a>
                 )}
-
-                {showRF && (
-                  <span
-                    className="userprofile-rf-badge-big"
-                    title="Offers referral fee"
-                  >
-                    <img src={rfBadge} alt="RF badge" />
-                  </span>
-                )}
               </div>
-            </div>
 
-            <div className="userprofile-actions">
-              {showAddToNetwork ? (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleAddToNetwork}
-                  disabled={sendingRequest}
+              {isMe && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexWrap: "nowrap",
+                    marginTop: 2,
+                    marginBottom: 0,
+                  }}
                 >
-                  {sendingRequest ? "Sending..." : "+ Add to My Network"}
-                </button>
-              ) : isMe ? (
-                <span className="userprofile-pill">This is you</span>
-              ) : isAlreadyConnected ? (
-                <span className="userprofile-pill">Connected</span>
-              ) : (
-                <span className="userprofile-pill">View only</span>
+                  <span
+                    className="userprofile-pill"
+                    style={{
+                      margin: 0,
+                      whiteSpace: "nowrap",
+                      height: 42,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 14px",
+                    }}
+                  >
+                    You
+                  </span>
+
+                  <Link
+                    to="/profile"
+                    className="btn-primary"
+                    style={{
+                      minWidth: 78,
+                      width: 78,
+                      height: 42,
+                      padding: 0,
+                      borderRadius: 999,
+                      textAlign: "center",
+                      textDecoration: "none",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                    }}
+                  >
+                    Edit
+                  </Link>
+
+                  {isOwner && (
+                    <Link
+                      to="/admin"
+                      className="btn-secondary"
+                      style={{
+                        minWidth: 78,
+                        width: 78,
+                        height: 42,
+                        padding: 0,
+                        borderRadius: 999,
+                        textAlign: "center",
+                        textDecoration: "none",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >
+                      Admin
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {!isMe && showAddToNetwork && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginTop: 16,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleAddToNetwork}
+                    disabled={sendingRequest}
+                  >
+                    {sendingRequest
+                      ? "Sending..."
+                      : "+ Add to My Network"}
+                  </button>
+                </div>
+              )}
+
+              {!isMe && isAlreadyConnected && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginTop: 16,
+                  }}
+                >
+                  <span className="userprofile-pill">
+                    Connected
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -294,7 +391,11 @@ const UserProfilePage: React.FC = () => {
         <div className="userprofile-stats">
           <div className="dashboard-card">
             <h2>Total Reviews</h2>
-            <div className="dashboard-number">{profile.totalReviews}</div>
+
+            <div className="dashboard-number">
+              {profile.totalReviews}
+            </div>
+
             <p className="dashboard-text">
               Number of customer reviews written by this user.
             </p>
@@ -302,19 +403,53 @@ const UserProfilePage: React.FC = () => {
 
           <div className="dashboard-card">
             <h2>Average Rating</h2>
+
             <div className="dashboard-number">
               {profile.totalReviews > 0
                 ? profile.averageRating.toFixed(1)
                 : "0.0"}
             </div>
+
             <p className="dashboard-text">
-              Average overall / payment rating of their reviews.
+              Average overall rating.
             </p>
           </div>
         </div>
 
         <div className="userprofile-section">
-          <h2 className="userprofile-section-title">Customer Reviews</h2>
+          <h2 className="userprofile-section-title">
+            Photo Grid
+          </h2>
+
+          {photos.length === 0 ? (
+            <p className="dashboard-text">
+              No photos posted yet.
+            </p>
+          ) : (
+            <div className="userprofile-photo-grid">
+              {photos.map((photo, index) => (
+                <a
+                  key={`${photo.postId}-${index}`}
+                  href={photo.imageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="userprofile-photo-item"
+                >
+                  <img
+                    src={photo.imageUrl}
+                    alt="Post"
+                    className="userprofile-photo"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="userprofile-section">
+          <h2 className="userprofile-section-title">
+            Customer Reviews
+          </h2>
 
           {reviews.length === 0 && (
             <p className="dashboard-text">
@@ -324,7 +459,10 @@ const UserProfilePage: React.FC = () => {
 
           <div className="userprofile-reviews">
             {reviews.map((r) => (
-              <div key={r.id} className="dashboard-card userprofile-review-card">
+              <div
+                key={r.id}
+                className="dashboard-card userprofile-review-card"
+              >
                 <h3 className="userprofile-review-title">
                   Customer:{" "}
                   {r.customerId ? (
@@ -337,18 +475,12 @@ const UserProfilePage: React.FC = () => {
                 </h3>
 
                 <p className="dashboard-text">
-                  Overall: <strong>{r.ratingOverall ?? "-"}</strong> · Payment:{" "}
-                  <strong>{r.ratingPayment ?? "-"}</strong> · Behavior:{" "}
-                  <strong>{r.ratingBehavior ?? "-"}</strong> · Communication:{" "}
-                  <strong>{r.ratingCommunication ?? "-"}</strong>
+                  Overall:{" "}
+                  <strong>{r.ratingOverall ?? "-"}</strong>
                 </p>
 
-                {r.comment && <p className="dashboard-text">{r.comment}</p>}
-
-                {r.createdAt && (
-                  <p className="dashboard-text userprofile-review-date">
-                    {r.createdAt}
-                  </p>
+                {r.comment && (
+                  <p className="dashboard-text">{r.comment}</p>
                 )}
               </div>
             ))}

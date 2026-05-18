@@ -32,29 +32,44 @@ export default function SidebarNav() {
     String(user?.role || "").toUpperCase() === "ADMIN" ||
     OWNER_EMAILS.includes(String(user?.email || "").toLowerCase());
 
+  const socialProfilePath = user?.id ? `/users/${user.id}` : "/profile";
+  const mobileProfilePath = socialProfilePath;
+
   const isActive = (path: string) => {
     if (path === "/home") return location.pathname === "/home";
     if (path === "/dashboard") return location.pathname.startsWith("/dashboard");
     if (path === "/admin") return location.pathname.startsWith("/admin");
+
     if (path === "/customers") {
       return (
         location.pathname === "/customers" ||
         location.pathname.startsWith("/customers/")
       );
     }
-    if (path === "/connections") return location.pathname.startsWith("/connections");
+
+    if (path === "/connections") {
+      return location.pathname.startsWith("/connections");
+    }
+
     if (path === "/inbox") {
       return (
         location.pathname.startsWith("/inbox") ||
         location.pathname.startsWith("/messages")
       );
     }
-    if (path === "/users") return location.pathname.startsWith("/users");
-    if (path === "/customers/new") return location.pathname === "/customers/new";
-    if (path === "/profile") return location.pathname.startsWith("/profile");
-    if (path === "/privacy") return location.pathname.startsWith("/privacy");
-    if (path === "/terms") return location.pathname.startsWith("/terms");
-    if (path === "/support") return location.pathname.startsWith("/support");
+
+    if (path === "/users") {
+      return location.pathname.startsWith("/users");
+    }
+
+    if (path === "/customers/new") {
+      return location.pathname === "/customers/new";
+    }
+
+    if (path === "/profile") {
+      return location.pathname.startsWith("/profile");
+    }
+
     return location.pathname.startsWith(path);
   };
 
@@ -91,16 +106,7 @@ export default function SidebarNav() {
 
       const n = Number(res.data);
       setUnreadCount(Number.isFinite(n) ? n : 0);
-    } catch (error: any) {
-      const status = error?.response?.status;
-
-      if (status === 401 || status === 403) {
-        console.warn("Unread blocked (auth mismatch) → ignoring");
-        setUnreadCount(0);
-        return;
-      }
-
-      console.error("Unread error", error);
+    } catch {
       setUnreadCount(0);
     }
   };
@@ -108,20 +114,21 @@ export default function SidebarNav() {
   useEffect(() => {
     fetchUnread();
 
-    if (pollRef.current) window.clearInterval(pollRef.current);
+    if (pollRef.current) {
+      window.clearInterval(pollRef.current);
+    }
+
     pollRef.current = window.setInterval(() => {
       fetchUnread();
     }, 12000);
 
-    const onRefresh = () => fetchUnread();
-    window.addEventListener("rycus:refresh-badges", onRefresh);
-
     return () => {
-      window.removeEventListener("rycus:refresh-badges", onRefresh);
-      if (pollRef.current) window.clearInterval(pollRef.current);
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+      }
+
       pollRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userEmail, inInbox]);
 
   const initial = (
@@ -137,9 +144,7 @@ export default function SidebarNav() {
         logoutFn();
         return;
       }
-    } catch {
-      // fallback abajo
-    }
+    } catch {}
 
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -191,7 +196,7 @@ export default function SidebarNav() {
             <span className="sideIconWrap">
               <MessageCircle size={22} className="sideSvg" />
               {unreadCount > 0 && (
-                <span className="sideBadge" aria-label={`${unreadCount} unread messages`}>
+                <span className="sideBadge">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
@@ -211,28 +216,10 @@ export default function SidebarNav() {
             <span className="sideLabel">Add Customer</span>
             <span className="tip">Add Customer</span>
           </Link>
-
-          <Link to="/privacy" className={`sideItem ${isActive("/privacy") ? "active" : ""}`}>
-            <span className="sideSvg" aria-hidden="true">📄</span>
-            <span className="sideLabel">Privacy</span>
-            <span className="tip">Privacy</span>
-          </Link>
-
-          <Link to="/terms" className={`sideItem ${isActive("/terms") ? "active" : ""}`}>
-            <span className="sideSvg" aria-hidden="true">📘</span>
-            <span className="sideLabel">Terms</span>
-            <span className="tip">Terms</span>
-          </Link>
-
-          <Link to="/support" className={`sideItem ${isActive("/support") ? "active" : ""}`}>
-            <span className="sideSvg" aria-hidden="true">🛟</span>
-            <span className="sideLabel">Support</span>
-            <span className="tip">Support</span>
-          </Link>
         </nav>
 
         <div className="sideBottom">
-          <Link to="/profile" className="sideMe" aria-label="Profile">
+          <Link to={socialProfilePath} className="sideMe" aria-label="Profile">
             <div className="sideAvatarRing">
               {user?.avatarUrl ? (
                 <img className="sideAvatarImg" src={user.avatarUrl} alt="Profile" />
@@ -249,7 +236,7 @@ export default function SidebarNav() {
             <span className="tip">Profile</span>
           </Link>
 
-          <button type="button" className="sideItem sideLogout" onClick={handleLogout} aria-label="Log out">
+          <button type="button" className="sideItem sideLogout" onClick={handleLogout}>
             <LogOut size={22} className="sideSvg" />
             <span className="sideLabel">Log out</span>
             <span className="tip">Log out</span>
@@ -266,12 +253,6 @@ export default function SidebarNav() {
           <BarChart3 size={22} />
         </Link>
 
-        {isAdmin && (
-          <Link to="/admin" className={`mobileBottomItem ${isActive("/admin") ? "active" : ""}`}>
-            <ShieldCheck size={22} />
-          </Link>
-        )}
-
         <Link to="/customers" className={`mobileBottomItem ${isActive("/customers") ? "active" : ""}`}>
           <Users size={22} />
         </Link>
@@ -284,7 +265,7 @@ export default function SidebarNav() {
           <span className="sideIconWrap">
             <MessageCircle size={22} />
             {unreadCount > 0 && (
-              <span className="sideBadge" aria-label={`${unreadCount} unread messages`}>
+              <span className="sideBadge">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
@@ -299,7 +280,12 @@ export default function SidebarNav() {
           <PlusSquare size={22} />
         </Link>
 
-        <Link to="/profile" className={`mobileBottomItem mobileProfileItem ${isActive("/profile") ? "active" : ""}`}>
+        <Link
+          to={mobileProfilePath}
+          className={`mobileBottomItem mobileProfileItem ${
+            isActive("/profile") ? "active" : ""
+          }`}
+        >
           {user?.avatarUrl ? (
             <img className="mobileProfileAvatar" src={user.avatarUrl} alt="Profile" />
           ) : (

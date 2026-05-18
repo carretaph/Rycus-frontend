@@ -2421,3 +2421,37 @@
     grid-template-columns: 1fr;
   }
 }
+.userprofile-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.userprofile-photo-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #f3f6fb;
+  border: 1px solid #e4e9f2;
+  aspect-ratio: 1 / 1;
+  transition: all 0.2s ease;
+}
+
+.userprofile-photo-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.userprofile-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.userprofile-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
