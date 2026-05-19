@@ -308,7 +308,7 @@ const UserProfilePage: React.FC = () => {
                     style={{
                       minWidth: 78,
                       width: 78,
-                      height: 42,
+                      height: 38,
                       padding: 0,
                       borderRadius: 999,
                       textAlign: "center",
