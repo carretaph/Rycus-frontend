@@ -319,6 +319,7 @@ const UserProfilePage: React.FC = () => {
                       alignItems: "center",
                       justifyContent: "center",
                       lineHeight: 1,
+                      marginTop:"-4px"
                     }}
                   >
                     Edit
