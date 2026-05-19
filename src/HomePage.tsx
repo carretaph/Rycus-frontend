@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import rycusLogo from "./assets/rycus-logo-full.png";
+import rycusHeroCover from "./assets/rycus-hero-cover.png";
 
 const HomePage: React.FC = () => {
   return (
@@ -10,7 +11,15 @@ const HomePage: React.FC = () => {
           <img src={rycusLogo} alt="Rycus" className="home-logo" />
         </div>
 
-        <div className="home-hero-badge">PROFESSIONAL REFERRAL NETWORK</div>
+        <div className="home-hero-badge">
+          PROFESSIONAL REFERRAL NETWORK
+        </div>
+
+        <img
+          src={rycusHeroCover}
+          alt="Rycus professional network"
+          className="home-hero-image"
+        />
 
         <h1 className="home-title">
           Trusted Connections.
@@ -120,6 +129,7 @@ const HomePage: React.FC = () => {
 
       <section className="home-cta">
         <h2>Your network is your income.</h2>
+
         <p>
           Join a growing professional community focused on trust, referrals and
           real business relationships.
@@ -152,8 +162,8 @@ const HomePage: React.FC = () => {
         </p>
 
         <p>
-          Rycus exists to protect businesses, improve decision-making and promote
-          transparency — not to defame or harm any individual.
+          Rycus exists to protect businesses, improve decision-making and
+          promote transparency — not to defame or harm any individual.
         </p>
 
         <div className="home-legal-links">
