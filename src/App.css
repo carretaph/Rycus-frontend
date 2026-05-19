@@ -362,7 +362,7 @@
    
    .avatar {
      width: 42px;
-     height: 42px;
+     height: 38px;
      border-radius: 999px;
      overflow: hidden;
      background: #2563eb;
@@ -2848,4 +2848,23 @@
     .home-logo {
       width: 220px;
     }
+  }
+  .userprofile-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+  
+  .userprofile-actions a,
+  .userprofile-actions button,
+  .userprofile-actions span,
+  .userprofile-actions .userprofile-pill {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 14px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    margin: 0 !important;
   }
