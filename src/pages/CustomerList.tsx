@@ -29,36 +29,41 @@ const CustomerList: React.FC = () => {
   const [globalResults, setGlobalResults] = useState<Customer[]>([]);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadMyCustomers = async () => {
-      try {
-        setLoadingMy(true);
-        setError(null);
+  const loadMyCustomers = async () => {
+    try {
+      setLoadingMy(true);
+      setError(null);
 
-        const userEmail = user?.email?.trim();
+      const userEmail = user?.email?.trim();
 
-        if (!userEmail) {
-          setMyCustomers([]);
-          return;
-        }
-
-        const res = await axios.get<Customer[]>("/customers", {
-          params: { userEmail },
-        });
-
-        setMyCustomers(res.data ?? []);
-      } catch (err) {
-        console.error("Error loading customers:", err);
+      if (!userEmail) {
         setMyCustomers([]);
-        setError("Could not load your customers.");
-      } finally {
-        setLoadingMy(false);
+        return;
       }
-    };
 
+      const res = await axios.get<Customer[]>("/customers", {
+        params: { userEmail },
+      });
+
+      setMyCustomers(res.data ?? []);
+    } catch (err) {
+      console.error("Error loading customers:", err);
+      setMyCustomers([]);
+      setError("Could not load your customers.");
+    } finally {
+      setLoadingMy(false);
+    }
+  };
+
+  useEffect(() => {
     void loadMyCustomers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
 
   const handleCustomerClick = (id?: number) => {
@@ -98,6 +103,46 @@ const CustomerList: React.FC = () => {
     }
   };
 
+  const handleImportCustomers = async () => {
+    const userEmail = user?.email?.trim();
+
+    if (!userEmail) {
+      setError("You must be logged in to import customers.");
+      return;
+    }
+
+    if (!importFile) {
+      setError("Please choose a CSV file first.");
+      return;
+    }
+
+    try {
+      setImporting(true);
+      setError(null);
+      setImportMessage(null);
+
+      const formData = new FormData();
+      formData.append("file", importFile);
+
+      const res = await axios.post("/customers/import", formData, {
+        params: { userEmail },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      setImportMessage(String(res.data || "Customers imported successfully."));
+      setImportFile(null);
+
+      await loadMyCustomers();
+    } catch (err) {
+      console.error("Error importing customers:", err);
+      setError("Could not import customers. Please check the CSV format.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   useEffect(() => {
     const q = searchTerm.trim();
 
@@ -134,6 +179,23 @@ const CustomerList: React.FC = () => {
             }}
           >
             {error}
+          </div>
+        )}
+
+        {importMessage && (
+          <div
+            style={{
+              marginTop: 12,
+              marginBottom: 12,
+              padding: "8px 12px",
+              borderRadius: 8,
+              backgroundColor: "#dcfce7",
+              color: "#166534",
+              fontSize: "0.9rem",
+              fontWeight: 700,
+            }}
+          >
+            {importMessage}
           </div>
         )}
 
@@ -216,6 +278,88 @@ const CustomerList: React.FC = () => {
           </div>
         </section>
 
+        <section style={{ marginTop: 28, marginBottom: 28 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0 }}>Customers Map</h2>
+              <p
+                style={{
+                  fontSize: "0.9rem",
+                  color: "#6b7280",
+                  marginTop: 6,
+                  marginBottom: 0,
+                }}
+              >
+                See your customer network by location. Each pin represents one
+                customer based on their address, city, state and ZIP code.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                style={{ maxWidth: 220 }}
+              />
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleImportCustomers}
+                disabled={importing}
+              >
+                {importing ? "Importing..." : "Import CSV"}
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => navigate("/customers/new")}
+              >
+                + Add new customer
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="dashboard-map-wrap"
+            style={{
+              width: "100%",
+              maxWidth: "100%",
+            }}
+          >
+            <div
+              className="dashboard-map-card"
+              style={{
+                minHeight: "650px",
+                height: "72vh",
+                width: "100%",
+                overflow: "hidden",
+                borderRadius: 16,
+              }}
+            >
+              <CustomerMap />
+            </div>
+          </div>
+        </section>
+
         <section style={{ marginTop: 28, marginBottom: 24 }}>
           <div
             style={{
@@ -224,17 +368,22 @@ const CustomerList: React.FC = () => {
               alignItems: "center",
               gap: "12px",
               marginBottom: "8px",
+              flexWrap: "wrap",
             }}
           >
-            <h2 style={{ margin: 0 }}>My Customers</h2>
-
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => navigate("/customers/new")}
-            >
-              + Add new customer
-            </button>
+            <div>
+              <h2 style={{ margin: 0 }}>My Customers</h2>
+              <p
+                style={{
+                  fontSize: "0.9rem",
+                  color: "#6b7280",
+                  marginTop: 6,
+                  marginBottom: 0,
+                }}
+              >
+                {myCustomers.length} customer{myCustomers.length === 1 ? "" : "s"} linked to your account.
+              </p>
+            </div>
           </div>
 
           {loadingMy ? (
@@ -284,21 +433,7 @@ const CustomerList: React.FC = () => {
           )}
         </section>
 
-        <section style={{ marginTop: 32 }}>
-          <h2 style={{ marginBottom: 6 }}>Customers Map</h2>
 
-          <p style={{ fontSize: "0.9rem", color: "#6b7280", marginBottom: 8 }}>
-            See all customers with a valid address on the map. Each pin
-            represents one customer based on their address, city, state and ZIP
-            code.
-          </p>
-
-          <div className="dashboard-map-wrap">
-            <div className="dashboard-map-card">
-              <CustomerMap />
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );

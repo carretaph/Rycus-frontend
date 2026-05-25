@@ -24,7 +24,7 @@ type Coordinates = {
 
 const containerStyle: React.CSSProperties = {
   width: "100%",
-  height: "300px",
+  height: "100%",
 };
 
 const centerDefault: Coordinates = {
@@ -66,7 +66,6 @@ const CustomerMap: React.FC = () => {
   const navigate = useNavigate();
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() || "";
 
-  // ✅ TEMPORAL: desactivamos mapa nativo para seguir avanzando en simulator
   const isNativeApp = false;
 
   const { isLoaded, loadError } = useJsApiLoader({
@@ -108,13 +107,12 @@ const CustomerMap: React.FC = () => {
   }, [customers]);
 
   const mapCenter = customersWithCoords[0]?.coord ?? centerDefault;
-  const mapZoom = customersWithCoords.length <= 1 ? 14 : 10;
+  const mapZoom = customersWithCoords.length <= 1 ? 14 : 9;
 
   const handleMarkerClick = (id: number) => {
     navigate(`/customers/${id}`);
   };
 
-  // ✅ Nunca usar el mapa nativo por ahora
   if (isNativeApp) {
     return null;
   }
@@ -123,7 +121,7 @@ const CustomerMap: React.FC = () => {
     return (
       <div
         style={{
-          height: 300,
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -142,7 +140,7 @@ const CustomerMap: React.FC = () => {
     return (
       <div
         style={{
-          height: 300,
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -163,7 +161,7 @@ const CustomerMap: React.FC = () => {
     return (
       <div
         style={{
-          height: 300,
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -197,16 +195,6 @@ const CustomerMap: React.FC = () => {
         <p style={{ marginTop: 0, marginBottom: 8, fontWeight: 700 }}>
           Map failed to load.
         </p>
-        <p
-          style={{
-            marginTop: 0,
-            marginBottom: 12,
-            color: "#6b7280",
-            fontSize: 14,
-          }}
-        >
-          Google Maps could not be initialized in this environment.
-        </p>
 
         <div style={{ marginTop: 12 }}>
           {customersWithCoords.slice(0, 8).map(({ customer, coord }) => (
@@ -235,7 +223,7 @@ const CustomerMap: React.FC = () => {
     return (
       <div
         style={{
-          height: 300,
+          height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
