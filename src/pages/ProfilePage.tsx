@@ -61,10 +61,10 @@ function numOrNull(v: string) {
 }
 
 const ProfilePage: React.FC = () => {
-  const { user, updateAvatar, updateUser, logout, moveExtrasToNewEmail } = useAuth();
+  const { user, updateUser, logout, moveExtrasToNewEmail } = useAuth();
   const navigate = useNavigate();
 
-  const [preview, setPreview] = useState<string | null>(null);
+  const preview = (user as any)?.avatarUrl || null;
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(SOUND_KEY);
@@ -95,7 +95,6 @@ const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<ProfileExtra>(extra);
   const [savedMsg, setSavedMsg] = useState<string>("");
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [offersReferralFee, setOffersReferralFee] = useState<boolean>(false);
   const [referralFeeType, setReferralFeeType] = useState<ReferralFeeType>("FLAT");
@@ -106,13 +105,13 @@ const ProfilePage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingEmail, setChangingEmail] = useState(false);
   const [changeEmailMsg, setChangeEmailMsg] = useState<string>("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountMsg, setDeleteAccountMsg] = useState<string>("");
 
   useEffect(() => {
     const email = user?.email ?? undefined;
     const extraKey = getExtraKey(email);
     const visKey = getVisKey(email);
-
-    if (user?.avatarUrl) setPreview(user.avatarUrl);
 
     setOffersReferralFee(toBool((user as any)?.offersReferralFee, false));
 
@@ -143,9 +142,6 @@ const ProfilePage: React.FC = () => {
           avatarUrl: parsed.avatarUrl || "",
         });
 
-        if (parsed.avatarUrl && parsed.avatarUrl.trim()) {
-          setPreview(parsed.avatarUrl.trim());
-        }
       }
     } catch (err) {
       console.error("Error reading profile extra from localStorage:", err);
@@ -171,19 +167,6 @@ const ProfilePage: React.FC = () => {
       console.error("Error reading visibility to localStorage:", err);
     }
   }, [user?.email, user?.avatarUrl]);
-
-  useEffect(() => {
-    if (!preview) return;
-    if (!user?.email) return;
-
-    const current = ((user as any).avatarUrl || "").trim();
-    const next = preview.trim();
-
-    if (next && next !== current) {
-      updateAvatar(next);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preview, user?.email]);
 
   useEffect(() => {
     if (!isEditing) setDraft(extra);
@@ -217,64 +200,6 @@ const ProfilePage: React.FC = () => {
   const profileUrl = (user as any)?.id
     ? `https://rycus.app/users/${(user as any).id}`
     : "https://rycus.app/users/your-profile";
-
-  const uploadAvatarToBackend = async (file: File) => {
-    const email = user?.email?.trim();
-    if (!email) {
-      setSavedMsg("Missing email. Please log in again.");
-      return;
-    }
-
-    const form = new FormData();
-    form.append("file", file);
-
-    setUploadingAvatar(true);
-    setSavedMsg("");
-
-    try {
-      const res = await axios.post<UserMiniDto>("/users/avatar", form, {
-        params: { email },
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const url = (res.data?.avatarUrl || "").trim();
-      if (!url) {
-        setSavedMsg("Upload failed (missing avatarUrl).");
-        return;
-      }
-
-      setPreview(url);
-      updateAvatar(url);
-      updateUser({ avatarUrl: url });
-
-      try {
-        const extraKey = getExtraKey(email);
-        const stored = localStorage.getItem(extraKey);
-        const parsed = stored ? (JSON.parse(stored) as ProfileExtra) : {};
-        localStorage.setItem(extraKey, JSON.stringify({ ...parsed, avatarUrl: url }));
-      } catch {}
-
-      setSavedMsg("Photo updated ✅");
-      setTimeout(() => setSavedMsg(""), 2500);
-    } catch (err: any) {
-      console.error("Avatar upload failed:", err);
-      const msg =
-        err?.response?.data?.message ??
-        err?.response?.data?.error ??
-        err?.response?.data ??
-        err?.message ??
-        "Avatar upload failed. Please try again.";
-      setSavedMsg(String(msg));
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    void uploadAvatarToBackend(file);
-  };
 
   const startEditing = () => {
     setSavedMsg("");
@@ -451,6 +376,49 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setDeleteAccountMsg("");
+
+    const firstConfirm = window.confirm(
+      "Are you sure you want to permanently delete your Rycus account? This action cannot be undone."
+    );
+
+    if (!firstConfirm) return;
+
+    const secondConfirm = window.confirm(
+      "Final confirmation: your account will be permanently deleted. Do you want to continue?"
+    );
+
+    if (!secondConfirm) return;
+
+    try {
+      setDeletingAccount(true);
+
+      await axios.delete("/users/me");
+
+      try {
+        const email = user?.email ?? undefined;
+        localStorage.removeItem(getExtraKey(email));
+        localStorage.removeItem(getVisKey(email));
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } catch {}
+
+      logout();
+      navigate("/login");
+    } catch (err: any) {
+      console.error("Delete account failed:", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.response?.data ||
+        "Could not delete account. Please try again.";
+      setDeleteAccountMsg(String(msg));
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   const handleLogout = () => {
     try {
       logout();
@@ -534,22 +502,17 @@ const ProfilePage: React.FC = () => {
               This picture will be shown across the app, messages, inbox and public profile.
             </p>
 
-            <label
+            <div
               className="btn-secondary"
               style={{
-                cursor: uploadingAvatar ? "not-allowed" : "pointer",
-                opacity: uploadingAvatar ? 0.6 : 1,
+                opacity: 0.6,
+                cursor: "not-allowed",
+                maxWidth: "240px",
+                textAlign: "center",
               }}
             >
-              {uploadingAvatar ? "Uploading..." : "Upload new photo"}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                style={{ display: "none" }}
-                disabled={uploadingAvatar}
-              />
-            </label>
+              Profile photo upload coming soon
+            </div>
           </div>
         </div>
 
@@ -794,6 +757,36 @@ const ProfilePage: React.FC = () => {
             {changeEmailMsg}
           </div>
         )}
+
+        <h2 className="card-section-title">Account</h2>
+
+        <div className="profile-info-full" style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleDeleteAccount}
+            disabled={deletingAccount}
+            style={{
+              maxWidth: 320,
+              borderColor: "#dc2626",
+              color: "#dc2626",
+              opacity: deletingAccount ? 0.6 : 1,
+              cursor: deletingAccount ? "not-allowed" : "pointer",
+            }}
+          >
+            {deletingAccount ? "Deleting account..." : "Delete Account"}
+          </button>
+
+          <p className="card-subtitle" style={{ maxWidth: 520, marginTop: 10 }}>
+            Permanently delete your Rycus account and remove your profile access. This action cannot be undone.
+          </p>
+
+          {deleteAccountMsg && (
+            <div className="profile-save-msg" style={{ marginTop: 10 }}>
+              {deleteAccountMsg}
+            </div>
+          )}
+        </div>
 
         <h2 className="card-section-title">Session</h2>
 

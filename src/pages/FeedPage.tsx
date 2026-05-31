@@ -193,11 +193,11 @@ export default function FeedPage() {
     const picked = Array.from(e.target.files || []);
     if (!picked.length) return;
 
-    const merged = [...files, ...picked];
+    const next = picked.slice(0, 1);
 
-    if (merged.length > 6) setError("Max 6 photos per post.");
-
-    const next = merged.slice(0, 6);
+if (picked.length > 1) {
+  setError("Only 1 photo per post is allowed in this version.");
+}
 
     const tooBig = next.find((f) => f.size > 5 * 1024 * 1024);
     if (tooBig) {
@@ -227,7 +227,9 @@ export default function FeedPage() {
     args.files.forEach((f) => fd.append("files", f));
 
     const res = await axios.post("/posts", fd, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
 
     return res.data as PostDto;
@@ -267,8 +269,14 @@ export default function FeedPage() {
       setFilesWithPreviews([]);
 
       void loadFeed({ silent: true });
-    } catch {
-      setError("Failed to create post.");
+    } catch (err: any) {
+      console.error("POST ERROR:", err);
+      console.error("POST STATUS:", err?.response?.status);
+      console.error("POST DATA:", err?.response?.data);
+    
+      setError(
+        `Failed to create post (${err?.response?.status || "unknown"})`
+      );
     } finally {
       setLoading(false);
     }
@@ -479,10 +487,9 @@ export default function FeedPage() {
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <label className="feed-btn feed-btnOutline" style={{ cursor: "pointer" }}>
-                📷 Photos (max 6)
+                📷 Photos (max 1)
                 <input
                   type="file"
-                  multiple
                   accept="image/*"
                   onChange={handleFileChange}
                   style={{ display: "none" }}
