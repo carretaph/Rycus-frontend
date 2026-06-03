@@ -30,6 +30,7 @@ const RegisterPage: React.FC = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [offersReferralFee, setOffersReferralFee] = useState(false);
   const [referralFeeType, setReferralFeeType] = useState<"FLAT" | "PERCENT">("FLAT");
@@ -79,6 +80,14 @@ const RegisterPage: React.FC = () => {
     }
 
     const feeNumber = offersReferralFee ? parseFeeNumber(referralFeeValue) : null;
+
+    if (!acceptedTerms) {
+      setError(
+        "You must agree to the Terms of Use and Community Guidelines before creating an account."
+      );
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await axiosClient.post("/auth/register", {
@@ -358,6 +367,12 @@ const RegisterPage: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={offersReferralFee}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    minWidth: 22,
+                    accentColor: "#1d4ed8",
+                  }}
                   onChange={(e) => {
                     const on = e.target.checked;
                     setOffersReferralFee(on);
@@ -421,6 +436,34 @@ const RegisterPage: React.FC = () => {
                 </div>
               </>
             )}
+
+            <div className="form-grid-full" style={{ marginTop: 12 }}>
+              <label style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  required
+                  style={{
+                    marginTop: 3,
+                    width: 22,
+                    height: 22,
+                    minWidth: 22,
+                    accentColor: "#1d4ed8",
+                  }}
+                />
+
+                <span style={{ fontSize: 14, lineHeight: 1.45 }}>
+                  I agree to the{" "}
+                  <Link to="/terms">Terms of Use</Link> and{" "}
+                  <Link to="/community-guidelines">Community Guidelines</Link>.
+                  Rycus has zero tolerance for harassment, hate speech, threats,
+                  illegal activity, spam, objectionable content, or abusive behavior.
+                  Violations may result in content removal, account suspension, or
+                  permanent removal from the platform.
+                </span>
+              </label>
+            </div>
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>

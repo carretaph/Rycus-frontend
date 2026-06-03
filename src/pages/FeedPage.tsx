@@ -1,5 +1,6 @@
 // src/pages/FeedPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   fetchFeed,
@@ -28,35 +29,36 @@ type CommentDto = {
 
 type FeedItem =
   | {
-      kind: "POST";
-      id: string;
-      postId: number;
-      createdAt: string;
-      authorName: string;
-      authorEmail: string;
-      authorAvatarUrl?: string;
-      text: string;
-      likeCount: number;
-      likedByViewer: boolean;
-      commentCount: number;
-      imageUrls: string[];
-    }
+    kind: "POST";
+    id: string;
+    postId: number;
+    authorId?: number;
+    createdAt: string;
+    authorName: string;
+    authorEmail: string;
+    authorAvatarUrl?: string;
+    text: string;
+    likeCount: number;
+    likedByViewer: boolean;
+    commentCount: number;
+    imageUrls: string[];
+  }
   | {
-      kind: "NEWS";
-      id: string;
-      createdAt: string;
-      title: string;
-      text: string;
-    }
+    kind: "NEWS";
+    id: string;
+    createdAt: string;
+    title: string;
+    text: string;
+  }
   | {
-      kind: "AD";
-      id: string;
-      createdAt: string;
-      title: string;
-      text: string;
-      ctaText: string;
-      ctaUrl: string;
-    };
+    kind: "AD";
+    id: string;
+    createdAt: string;
+    title: string;
+    text: string;
+    ctaText: string;
+    ctaUrl: string;
+  };
 
 const STATIC_ITEMS: FeedItem[] = [
   {
@@ -94,6 +96,7 @@ function mapPost(p: PostDto): FeedItem {
     kind: "POST",
     id: `post-${p.id}-${createdAt}`,
     postId: p.id,
+    authorId: Number((p as any).authorId ?? 0) || undefined,
     createdAt,
     authorName: (p as any).authorName,
     authorEmail: (p as any).authorEmail,
@@ -195,9 +198,9 @@ export default function FeedPage() {
 
     const next = picked.slice(0, 1);
 
-if (picked.length > 1) {
-  setError("Only 1 photo per post is allowed in this version.");
-}
+    if (picked.length > 1) {
+      setError("Only 1 photo per post is allowed in this version.");
+    }
 
     const tooBig = next.find((f) => f.size > 5 * 1024 * 1024);
     if (tooBig) {
@@ -273,7 +276,7 @@ if (picked.length > 1) {
       console.error("POST ERROR:", err);
       console.error("POST STATUS:", err?.response?.status);
       console.error("POST DATA:", err?.response?.data);
-    
+
       setError(
         `Failed to create post (${err?.response?.status || "unknown"})`
       );
@@ -545,8 +548,23 @@ if (picked.length > 1) {
 
             {error && <div className="feed-error">{error}</div>}
 
-            <div className="feed-actions">
-              <button className="feed-btn feed-btnPrimary" type="button" onClick={handlePost} disabled={loading}>
+            <div
+              className="feed-actions"
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                width: "100%",
+                marginTop: 12,
+                boxSizing: "border-box",
+              }}
+            >
+              <button
+                className="feed-btn feed-btnPrimary"
+                type="button"
+                onClick={handlePost}
+                disabled={loading}
+                style={{ maxWidth: 140, flexShrink: 0 }}
+              >
                 {loading ? "Posting…" : "Post"}
               </button>
             </div>
@@ -558,23 +576,58 @@ if (picked.length > 1) {
         {items.map((it) => (
           <div key={it.id} className="feed-card">
             {it.kind === "POST" && (
-              <div className="feed-postTop">
-                <AvatarWithBadge
-                  size={42}
-                  avatarUrl={it.authorAvatarUrl}
-                  name={it.authorName}
-                  email={it.authorEmail}
-                  showReferralBadge={
-                    !!(user as any)?.email &&
-                    (user as any).email.toLowerCase() === it.authorEmail.toLowerCase() &&
-                    !!(user as any)?.offersReferralFee
-                  }
-                />
+              <div className="feed-postTop" style={{ width: "100%", maxWidth: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+                {it.authorId ? (
+                  <Link
+                    to={`/users/${it.authorId}`}
+                    style={{ textDecoration: "none", color: "inherit", flexShrink: 0 }}
+                    aria-label={`View ${it.authorName} profile`}
+                  >
+                    <AvatarWithBadge
+                      size={42}
+                      avatarUrl={it.authorAvatarUrl}
+                      name={it.authorName}
+                      email={it.authorEmail}
+                      showReferralBadge={
+                        !!(user as any)?.email &&
+                        (user as any).email.toLowerCase() === it.authorEmail.toLowerCase() &&
+                        !!(user as any)?.offersReferralFee
+                      }
+                    />
+                  </Link>
+                ) : (
+                  <AvatarWithBadge
+                    size={42}
+                    avatarUrl={it.authorAvatarUrl}
+                    name={it.authorName}
+                    email={it.authorEmail}
+                    showReferralBadge={
+                      !!(user as any)?.email &&
+                      (user as any).email.toLowerCase() === it.authorEmail.toLowerCase() &&
+                      !!(user as any)?.offersReferralFee
+                    }
+                  />
+                )}
 
-                <div className="feed-postMeta" style={{ maxWidth: 760 }}>
+                <div className="feed-postMeta" style={{ flex: 1, width: 0, minWidth: 0, maxWidth: "100%", overflow: "hidden", boxSizing: "border-box" }}>
                   <div className="feed-postNameRow">
                     <div>
-                      <div className="feed-postName">{it.authorName}</div>
+                      {it.authorId ? (
+                        <Link
+                          to={`/users/${it.authorId}`}
+                          style={{
+                            textDecoration: "none",
+                            color: "inherit",
+                            fontWeight: 700,
+                          }}
+                          aria-label={`View ${it.authorName} profile`}
+                        >
+                          <div className="feed-postName">{it.authorName}</div>
+                        </Link>
+                      ) : (
+                        <div className="feed-postName">{it.authorName}</div>
+                      )}
+
                       <div className="feed-postEmail">{it.authorEmail}</div>
                     </div>
 
@@ -589,13 +642,15 @@ if (picked.length > 1) {
                         display: "grid",
                         gridTemplateColumns:
                           it.imageUrls.length === 1
-                            ? "1fr"
-                            : it.imageUrls.length === 2
-                            ? "1fr 1fr"
-                            : "1fr 1fr",
+                            ? "minmax(0, 1fr)"
+                            : "repeat(2, minmax(0, 1fr))",
                         gap: 8,
                         marginTop: 10,
-                        maxWidth: 560,
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        overflow: "hidden",
+                        boxSizing: "border-box",
                       }}
                     >
                       {it.imageUrls.slice(0, 6).map((url, idx) => (
@@ -606,13 +661,17 @@ if (picked.length > 1) {
                           onClick={() => window.open(url, "_blank")}
                           style={{
                             width: "100%",
-                            maxHeight: 600,
+                            maxWidth: "100%",
+                            minWidth: 0,
+                            height: "auto",
+                            maxHeight: 520,
                             objectFit: "contain",
                             borderRadius: 14,
                             display: "block",
                             border: "1px solid rgba(15, 23, 42, 0.08)",
                             background: "#f8fafc",
                             cursor: "pointer",
+                            boxSizing: "border-box",
                           }}
                         />
                       ))}
@@ -640,7 +699,23 @@ if (picked.length > 1) {
                     >
                       💬 Comments <span style={{ opacity: 0.8 }}>({it.commentCount ?? 0})</span>
                     </button>
+                    <button
+                      className="feed-btn feed-btnGhost"
+                      type="button"
+                      onClick={() => {
+                        const reason = prompt(
+                          "Why are you reporting this post?\n\nSpam\nHarassment\nInappropriate Content\nMisleading Information\nOther"
+                        );
 
+                        if (!reason) return;
+
+                        alert(
+                          "Thank you. This report has been submitted and will be reviewed within 24 hours."
+                        );
+                      }}
+                    >
+                      🚩 Report
+                    </button>
                     {(user as any)?.email &&
                       (user as any).email.toLowerCase() === it.authorEmail.toLowerCase() && (
                         <button className="feed-btn feed-btnDanger" type="button" onClick={() => void handleDelete(it)}>

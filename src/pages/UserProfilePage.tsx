@@ -63,6 +63,7 @@ const UserProfilePage: React.FC = () => {
 
   const [sendingRequest, setSendingRequest] = useState(false);
   const [isAlreadyConnected, setIsAlreadyConnected] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -145,6 +146,22 @@ const UserProfilePage: React.FC = () => {
     void checkConnection();
   }, [currentUser?.email, currentUser?.id, profile]);
 
+  useEffect(() => {
+    const loadBlockStatus = async () => {
+      if (!profile?.id) return;
+
+      try {
+        const res = await axios.get(`/users/block/${profile.id}`);
+        setIsBlocked(!!res.data);
+      } catch (err) {
+        console.error("Error loading block status", err);
+        setIsBlocked(false);
+      }
+    };
+
+    void loadBlockStatus();
+  }, [profile?.id]);
+
   const handleAddToNetwork = async () => {
     if (!profile) return;
 
@@ -175,327 +192,391 @@ const UserProfilePage: React.FC = () => {
     }
   };
 
+  const handleBlockUser = async () => {
+    if (!profile) return;
+
+    if (isBlocked) {
+      const ok = window.confirm(`Unblock ${profile.fullName}?`);
+      if (!ok) return;
+
+      try {
+        await axios.delete(
+          `https://rycus-backend.onrender.com/users/block/${profile.id}`
+        );
+
+        setIsBlocked(false);
+        alert("User unblocked.");
+      } catch (err) {
+        console.error("Error unblocking user", err);
+        alert("Could not unblock user.");
+      }
+
+      return;
+    }
+
+    const ok = window.confirm(
+      `Block ${profile.fullName}?\n\nYou will no longer see this user's content or receive contact from them.`
+    );
+
+    if (!ok) return;
+
+    try {
+      await axios.post(
+        `https://rycus-backend.onrender.com/users/block/${profile.id}`
+      );
+
+      setIsBlocked(true);
+      alert("User blocked.");
+    } catch (err) {
+      console.error("Error blocking user", err);
+      alert("Could not block user.");
+    }
+  };
+
   const isMe = currentUser?.id === profile?.id;
-  const isLoggedIn = !!currentUser;
-  const showAddToNetwork = isLoggedIn && !isMe && !isAlreadyConnected;
+      const isLoggedIn = !!currentUser;
+      const showAddToNetwork = isLoggedIn && !isMe && !isAlreadyConnected;
 
-  const phone = (profile?.phone ?? "").trim();
-  const tel = normalizePhoneForTel(phone);
+      const phone = (profile?.phone ?? "").trim();
+      const tel = normalizePhoneForTel(phone);
 
-  const industry = (profile?.industry ?? "").trim();
-  const businessName = (profile?.businessName ?? "").trim();
-  const city = (profile?.city ?? "").trim();
-  const state = (profile?.state ?? "").trim();
+      const industry = (profile?.industry ?? "").trim();
+      const businessName = (profile?.businessName ?? "").trim();
+      const city = (profile?.city ?? "").trim();
+      const state = (profile?.state ?? "").trim();
 
-  const location = [city, state].filter(Boolean).join(", ");
-  const reviews = profile?.reviews ?? [];
-  const showRF = !!profile?.offersReferralFee;
-  const isOwner = (currentUser as any)?.email === "carretaph@gmail.com";
+      const location = [city, state].filter(Boolean).join(", ");
+      const reviews = profile?.reviews ?? [];
+      const showRF = !!profile?.offersReferralFee;
+      const isOwner = (currentUser as any)?.email === "carretaph@gmail.com";
 
-  if (loading) {
-    return (
-      <div className="page">
-        <div className="userprofile-container">
-          <p>Loading user profile...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !profile) {
-    return (
-      <div className="page">
-        <div className="userprofile-container">
-          <p className="users-error">{error}</p>
-
-          <Link to="/users" className="dashboard-link">
-            ← Back to Users
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="page">
-      <div className="userprofile-container">
-        <div className="userprofile-header-card">
-          <div className="userprofile-header">
-            <div className="userprofile-avatar-wrap">
-              <AvatarWithBadge
-                size={96}
-                avatarUrl={profile.avatarUrl || null}
-                name={profile.fullName}
-                email={profile.email}
-                showReferralBadge={showRF}
-                badgeSrc={rfBadge}
-              />
+      if (loading) {
+        return (
+          <div className="page">
+            <div className="userprofile-container">
+              <p>Loading user profile...</p>
             </div>
+          </div>
+        );
+      }
 
-            <div className="userprofile-main">
-              <h1 className="userprofile-name">{profile.fullName}</h1>
+      if (error || !profile) {
+        return (
+          <div className="page">
+            <div className="userprofile-container">
+              <p className="users-error">{error}</p>
 
-              <div className="userprofile-email">{profile.email}</div>
+              <Link to="/users" className="dashboard-link">
+                ← Back to Users
+              </Link>
+            </div>
+          </div>
+        );
+      }
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                  justifyContent: "center",
-                  marginTop: 10,
-                  marginBottom: 14,
-                }}
-              >
-                {industry && (
-                  <span className="userprofile-chip">
-                    🛠️ {industry}
-                  </span>
-                )}
+      return (
+        <div className="page">
+          <div className="userprofile-container">
+            <div className="userprofile-header-card">
+              <div className="userprofile-header">
+                <div className="userprofile-avatar-wrap">
+                  <AvatarWithBadge
+                    size={96}
+                    avatarUrl={profile.avatarUrl || null}
+                    name={profile.fullName}
+                    email={profile.email}
+                    showReferralBadge={showRF}
+                    badgeSrc={rfBadge}
+                  />
+                </div>
 
-                {businessName && (
-                  <span className="userprofile-chip">
-                    🏢 {businessName}
-                  </span>
-                )}
+                <div className="userprofile-main">
+                  <h1 className="userprofile-name">{profile.fullName}</h1>
 
-                {location && (
-                  <span className="userprofile-chip">
-                    📍 {location}
-                  </span>
-                )}
+                  <div className="userprofile-email">{profile.email}</div>
 
-                {tel && (
-                  <a
-                    className="userprofile-chip userprofile-chip-link"
-                    href={`tel:${tel}`}
-                  >
-                    📞 {phone}
-                  </a>
-                )}
-              </div>
-
-              {isMe && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexWrap: "nowrap",
-                    marginTop: 2,
-                    marginBottom: 0,
-                  }}
-                >
-                  <span
-                    className="userprofile-pill"
-                    style={{
-                      margin: 0,
-                      whiteSpace: "nowrap",
-                      height: 42,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "0 14px",
-                    }}
-                  >
-                    You
-                  </span>
-
-                  <Link
-                    to="/profile"
-                    className="btn-primary"
-                    style={{
-                      minWidth: 78,
-                      width: 78,
-                      height: 38,
-                      padding: 0,
-                      borderRadius: 999,
-                      textAlign: "center",
-                      textDecoration: "none",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      lineHeight: 1,
-                      marginTop:"-4px"
-                    }}
-                  >
-                    Edit
-                  </Link>
-
-                  {isOwner && (
-                    <Link
-                      to="/admin"
-                      className="btn-secondary"
+                  {!isMe && (
+                    <div
                       style={{
-                        minWidth: 78,
-                        width: 78,
-                        height: 42,
-                        padding: 0,
-                        borderRadius: 999,
-                        textAlign: "center",
-                        textDecoration: "none",
-                        fontSize: 14,
-                        fontWeight: 700,
                         display: "flex",
-                        alignItems: "center",
                         justifyContent: "center",
-                        lineHeight: 1,
+                        marginTop: 12,
+                        marginBottom: 12,
                       }}
                     >
-                      Admin
-                    </Link>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={handleBlockUser}
+                        style={{
+                          borderColor: isBlocked ? "#16a34a" : "#dc2626",
+                          color: isBlocked ? "#16a34a" : "#dc2626",
+                        }}
+                      >
+                        {isBlocked ? "🔓 Unblock User" : "🚫 Block User"}
+                      </button>
+                    </div>
                   )}
-                </div>
-              )}
 
-              {!isMe && showAddToNetwork && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    marginTop: 16,
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleAddToNetwork}
-                    disabled={sendingRequest}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      justifyContent: "center",
+                      marginTop: 10,
+                      marginBottom: 14,
+                    }}
                   >
-                    {sendingRequest
-                      ? "Sending..."
-                      : "+ Add to My Network"}
-                  </button>
-                </div>
-              )}
+                    {industry && (
+                      <span className="userprofile-chip">
+                        🛠️ {industry}
+                      </span>
+                    )}
 
-              {!isMe && isAlreadyConnected && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    marginTop: 16,
-                  }}
-                >
-                  <span className="userprofile-pill">
-                    Connected
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+                    {businessName && (
+                      <span className="userprofile-chip">
+                        🏢 {businessName}
+                      </span>
+                    )}
 
-        <div className="userprofile-stats">
-          <div className="dashboard-card">
-            <h2>Total Reviews</h2>
+                    {location && (
+                      <span className="userprofile-chip">
+                        📍 {location}
+                      </span>
+                    )}
 
-            <div className="dashboard-number">
-              {profile.totalReviews}
-            </div>
+                    {tel && (
+                      <a
+                        className="userprofile-chip userprofile-chip-link"
+                        href={`tel:${tel}`}
+                      >
+                        📞 {phone}
+                      </a>
+                    )}
+                  </div>
 
-            <p className="dashboard-text">
-              Number of customer reviews written by this user.
-            </p>
-          </div>
+                  {isMe && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexWrap: "nowrap",
+                        marginTop: 2,
+                        marginBottom: 0,
+                      }}
+                    >
+                      <span
+                        className="userprofile-pill"
+                        style={{
+                          margin: 0,
+                          whiteSpace: "nowrap",
+                          height: 42,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "0 14px",
+                        }}
+                      >
+                        You
+                      </span>
 
-          <div className="dashboard-card">
-            <h2>Average Rating</h2>
+                      <Link
+                        to="/profile"
+                        className="btn-primary"
+                        style={{
+                          minWidth: 78,
+                          width: 78,
+                          height: 38,
+                          padding: 0,
+                          borderRadius: 999,
+                          textAlign: "center",
+                          textDecoration: "none",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 1,
+                          marginTop: "-4px"
+                        }}
+                      >
+                        Edit
+                      </Link>
 
-            <div className="dashboard-number">
-              {profile.totalReviews > 0
-                ? profile.averageRating.toFixed(1)
-                : "0.0"}
-            </div>
-
-            <p className="dashboard-text">
-              Average overall rating.
-            </p>
-          </div>
-        </div>
-
-        <div className="userprofile-section">
-          <h2 className="userprofile-section-title">
-            Photo Grid
-          </h2>
-
-          {photos.length === 0 ? (
-            <p className="dashboard-text">
-              No photos posted yet.
-            </p>
-          ) : (
-            <div className="userprofile-photo-grid">
-              {photos.map((photo, index) => (
-                <a
-                  key={`${photo.postId}-${index}`}
-                  href={photo.imageUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="userprofile-photo-item"
-                >
-                  <img
-                    src={photo.imageUrl}
-                    alt="Post"
-                    className="userprofile-photo"
-                  />
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="userprofile-section">
-          <h2 className="userprofile-section-title">
-            Customer Reviews
-          </h2>
-
-          {reviews.length === 0 && (
-            <p className="dashboard-text">
-              This user hasn&apos;t written any reviews yet.
-            </p>
-          )}
-
-          <div className="userprofile-reviews">
-            {reviews.map((r) => (
-              <div
-                key={r.id}
-                className="dashboard-card userprofile-review-card"
-              >
-                <h3 className="userprofile-review-title">
-                  Customer:{" "}
-                  {r.customerId ? (
-                    <Link to={`/customers/${r.customerId}`}>
-                      {r.customerName}
-                    </Link>
-                  ) : (
-                    r.customerName
+                      {isOwner && (
+                        <Link
+                          to="/admin"
+                          className="btn-secondary"
+                          style={{
+                            minWidth: 78,
+                            width: 78,
+                            height: 42,
+                            padding: 0,
+                            borderRadius: 999,
+                            textAlign: "center",
+                            textDecoration: "none",
+                            fontSize: 14,
+                            fontWeight: 700,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            lineHeight: 1,
+                          }}
+                        >
+                          Admin
+                        </Link>
+                      )}
+                    </div>
                   )}
-                </h3>
+
+                  {!isMe && showAddToNetwork && (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        marginTop: 16,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={handleAddToNetwork}
+                        disabled={sendingRequest}
+                      >
+                        {sendingRequest
+                          ? "Sending..."
+                          : "+ Add to My Network"}
+                      </button>
+                    </div>
+                  )}
+
+                  {!isMe && isAlreadyConnected && (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        marginTop: 16,
+                      }}
+                    >
+                      <span className="userprofile-pill">
+                        Connected
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="userprofile-stats">
+              <div className="dashboard-card">
+                <h2>Total Reviews</h2>
+
+                <div className="dashboard-number">
+                  {profile.totalReviews}
+                </div>
 
                 <p className="dashboard-text">
-                  Overall:{" "}
-                  <strong>{r.ratingOverall ?? "-"}</strong>
+                  Number of customer reviews written by this user.
                 </p>
-
-                {r.comment && (
-                  <p className="dashboard-text">{r.comment}</p>
-                )}
               </div>
-            ))}
+
+              <div className="dashboard-card">
+                <h2>Average Rating</h2>
+
+                <div className="dashboard-number">
+                  {profile.totalReviews > 0
+                    ? profile.averageRating.toFixed(1)
+                    : "0.0"}
+                </div>
+
+                <p className="dashboard-text">
+                  Average overall rating.
+                </p>
+              </div>
+            </div>
+
+            <div className="userprofile-section">
+              <h2 className="userprofile-section-title">
+                Photo Grid
+              </h2>
+
+              {photos.length === 0 ? (
+                <p className="dashboard-text">
+                  No photos posted yet.
+                </p>
+              ) : (
+                <div className="userprofile-photo-grid">
+                  {photos.map((photo, index) => (
+                    <a
+                      key={`${photo.postId}-${index}`}
+                      href={photo.imageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="userprofile-photo-item"
+                    >
+                      <img
+                        src={photo.imageUrl}
+                        alt="Post"
+                        className="userprofile-photo"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="userprofile-section">
+              <h2 className="userprofile-section-title">
+                Customer Reviews
+              </h2>
+
+              {reviews.length === 0 && (
+                <p className="dashboard-text">
+                  This user hasn&apos;t written any reviews yet.
+                </p>
+              )}
+
+              <div className="userprofile-reviews">
+                {reviews.map((r) => (
+                  <div
+                    key={r.id}
+                    className="dashboard-card userprofile-review-card"
+                  >
+                    <h3 className="userprofile-review-title">
+                      Customer:{" "}
+                      {r.customerId ? (
+                        <Link to={`/customers/${r.customerId}`}>
+                          {r.customerName}
+                        </Link>
+                      ) : (
+                        r.customerName
+                      )}
+                    </h3>
+
+                    <p className="dashboard-text">
+                      Overall:{" "}
+                      <strong>{r.ratingOverall ?? "-"}</strong>
+                    </p>
+
+                    {r.comment && (
+                      <p className="dashboard-text">{r.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="userprofile-footer">
+              <Link to="/users" className="dashboard-link">
+                ← Back to Users
+              </Link>
+            </div>
           </div>
         </div>
+      );
+    };
 
-        <div className="userprofile-footer">
-          <Link to="/users" className="dashboard-link">
-            ← Back to Users
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default UserProfilePage;
+    export default UserProfilePage;
