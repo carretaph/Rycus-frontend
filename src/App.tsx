@@ -16,6 +16,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
+import CommunityGuidelinesPage from "./pages/CommunityGuidelinesPage";
 import SupportPage from "./pages/SupportPage";
 
 import FeedPage from "./pages/FeedPage";
@@ -323,6 +324,7 @@ export default function App() {
 
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/community-guidelines" element={<CommunityGuidelinesPage />} />
           <Route path="/support" element={<SupportPage />} />
 
           <Route

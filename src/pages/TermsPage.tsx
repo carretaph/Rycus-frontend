@@ -1,6 +1,8 @@
-
+import { useNavigate } from "react-router-dom";
 
 export default function TermsPage() {
+  const navigate = useNavigate();
+
   return (
     <div
       style={{
@@ -21,6 +23,23 @@ export default function TermsPage() {
           lineHeight: 1.7,
         }}
       >
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          style={{
+            marginBottom: "20px",
+            padding: "10px 16px",
+            borderRadius: "999px",
+            border: "1px solid #cbd5e1",
+            background: "#ffffff",
+            color: "#0f172a",
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
+        >
+          ← Back to Sign Up
+        </button>
+
         <h1 style={{ marginTop: 0, fontSize: "2rem" }}>Terms of Use – Rycus</h1>
 
         <p>

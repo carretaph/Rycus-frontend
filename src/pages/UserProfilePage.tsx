@@ -233,6 +233,18 @@ const UserProfilePage: React.FC = () => {
     }
   };
 
+  const handleReportUser = () => {
+    if (!profile) return;
+
+    const reason = window.prompt(
+      `Why are you reporting ${profile.fullName}?\n\nSpam\nHarassment\nFake Profile\nInappropriate Content\nOther`
+    );
+
+    if (!reason) return;
+
+    alert("Report submitted. Rycus will review this user within 24 hours.");
+  };
+
   const isMe = currentUser?.id === profile?.id;
       const isLoggedIn = !!currentUser;
       const showAddToNetwork = isLoggedIn && !isMe && !isAlreadyConnected;
@@ -300,6 +312,9 @@ const UserProfilePage: React.FC = () => {
                       style={{
                         display: "flex",
                         justifyContent: "center",
+                        alignItems: "center",
+                        gap: 10,
+                        flexWrap: "wrap",
                         marginTop: 12,
                         marginBottom: 12,
                       }}
@@ -314,6 +329,18 @@ const UserProfilePage: React.FC = () => {
                         }}
                       >
                         {isBlocked ? "🔓 Unblock User" : "🚫 Block User"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={handleReportUser}
+                        style={{
+                          borderColor: "#f59e0b",
+                          color: "#b45309",
+                        }}
+                      >
+                        🚩 Report User
                       </button>
                     </div>
                   )}

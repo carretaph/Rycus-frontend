@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
@@ -65,6 +65,8 @@ const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
 
   const preview = (user as any)?.avatarUrl || null;
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     const raw = localStorage.getItem(SOUND_KEY);
@@ -331,6 +333,72 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    e.currentTarget.value = "";
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image is too large. Max 5MB.");
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      setSavedMsg("");
+
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await axios.post<UserMiniDto>("/users/me/avatar", fd, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const updated = res.data as any;
+      const nextAvatarUrl = updated?.avatarUrl || "";
+
+      if (!nextAvatarUrl) {
+        throw new Error("Avatar upload did not return avatarUrl.");
+      }
+
+      const cleaned: ProfileExtra = {
+        ...extra,
+        avatarUrl: nextAvatarUrl,
+      };
+
+      try {
+        const email = user?.email ?? undefined;
+        const extraKey = getExtraKey(email);
+        localStorage.setItem(extraKey, JSON.stringify(cleaned));
+      } catch {}
+
+      setExtra(cleaned);
+      setDraft((prev) => ({ ...prev, avatarUrl: nextAvatarUrl }));
+
+      updateUser({
+        avatarUrl: nextAvatarUrl,
+        name: updated?.fullName || (user as any)?.name,
+      });
+
+      setSavedMsg("Profile photo updated ✅");
+      setTimeout(() => setSavedMsg(""), 2500);
+    } catch (err) {
+      console.error("Avatar upload failed:", err);
+      alert("Could not upload profile photo.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const submitChangeEmail = async () => {
     setChangeEmailMsg("");
 
@@ -502,17 +570,28 @@ const ProfilePage: React.FC = () => {
               This picture will be shown across the app, messages, inbox and public profile.
             </p>
 
-            <div
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarFileChange}
+              style={{ display: "none" }}
+            />
+
+            <button
+              type="button"
               className="btn-secondary"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
               style={{
-                opacity: 0.6,
-                cursor: "not-allowed",
                 maxWidth: "240px",
                 textAlign: "center",
+                opacity: uploadingAvatar ? 0.7 : 1,
+                cursor: uploadingAvatar ? "not-allowed" : "pointer",
               }}
             >
-              Profile photo upload coming soon
-            </div>
+              {uploadingAvatar ? "Uploading..." : "Change Profile Photo"}
+            </button>
           </div>
         </div>
 
