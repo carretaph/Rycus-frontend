@@ -165,10 +165,10 @@ const DashboardPage: React.FC = () => {
           completedReviews === 0
             ? 0
             : myReviews.reduce(
-                (accumulator, review) =>
-                  accumulator + (review.ratingOverall ?? 0),
-                0
-              ) / completedReviews;
+              (accumulator, review) =>
+                accumulator + (review.ratingOverall ?? 0),
+              0
+            ) / completedReviews;
 
         setStats({
           totalCustomers,
@@ -226,8 +226,8 @@ const DashboardPage: React.FC = () => {
   const avgText = loading
     ? "…"
     : stats.averageRating
-    ? stats.averageRating.toFixed(1)
-    : "0.0";
+      ? stats.averageRating.toFixed(1)
+      : "0.0";
 
   return (
     <div className="page">
@@ -364,6 +364,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <section className="dashboard-map-section" style={{ marginTop: 32 }}>
+          
           <h2
             className="dashboard-map-title"
             style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}
@@ -385,8 +386,23 @@ const DashboardPage: React.FC = () => {
           </p>
 
           <SafeBlock title="Map failed to render">
-            <div className="dashboard-map-wrap">
-              <div className="dashboard-map-card">
+            <div
+              className="dashboard-map-wrap"
+              style={{
+                width: "100%",
+                maxWidth: "100%",
+              }}
+            >
+              <div
+                className="dashboard-map-card"
+                style={{
+                  minHeight: "650px",
+                  height: "72vh",
+                  width: "100%",
+                  overflow: "hidden",
+                  borderRadius: 16,
+                }}
+              >
                 <CustomerMap />
               </div>
             </div>
