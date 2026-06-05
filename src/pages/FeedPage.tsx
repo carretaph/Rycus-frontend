@@ -13,6 +13,7 @@ import {
 
 import axios from "../api/axiosClient";
 import AvatarWithBadge from "../components/AvatarWithBadge";
+import imageCompression from "browser-image-compression";
 import "./FeedPage.css";
 
 type FeedFilter = "ALL" | "POST" | "NEWS" | "AD";
@@ -192,20 +193,27 @@ export default function FeedPage() {
     setPreviews(urls);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files || []);
     if (!picked.length) return;
 
-    const next = picked.slice(0, 1);
-
-    if (picked.length > 1) {
-      setError("Only 1 photo per post is allowed in this version.");
-    }
-
-    const tooBig = next.find((f) => f.size > 5 * 1024 * 1024);
-    if (tooBig) {
-      setError("One of the photos is too large (max 5MB each).");
-      return;
+    const next = picked.slice(0, 6);
+    
+    const compressedFiles = await Promise.all(
+      next.map(async (file) => {
+        return await imageCompression(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1600,
+          useWebWorker: true,
+        });
+      })
+    );
+    
+    setFilesWithPreviews(compressedFiles);
+    e.currentTarget.value = "";
+    return;
+    if (picked.length > 6) {
+      setError("Maximum 6 photos per post.");
     }
 
     setFilesWithPreviews(next);
@@ -490,10 +498,11 @@ export default function FeedPage() {
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <label className="feed-btn feed-btnOutline" style={{ cursor: "pointer" }}>
-                📷 Photos (max 1)
+                📷 Add Photos (max 6)
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleFileChange}
                   style={{ display: "none" }}
                 />
