@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
+import { industries } from "../assets/industriesList";
 
 interface Customer {
   id: number;
@@ -26,6 +27,10 @@ interface Review {
   comment: string;
   createdAt?: string;
   createdBy?: string;
+
+  outcome?: string | null;
+  serviceQuoted?: string | null;
+  reasonNotSold?: string | null;
 }
 
 const STAR_VALUES = [1, 2, 3, 4, 5];
@@ -36,6 +41,54 @@ interface ProfileExtra {
   firstName?: string;
   lastName?: string;
 }
+
+const formatOutcome = (value?: string | null) => {
+  switch (value) {
+    case "SOLD":
+      return "Sold";
+    case "NOT_SOLD":
+      return "Not Sold";
+    case "NO_SHOW":
+      return "No Show";
+    case "CANCELLED":
+      return "Cancelled";
+    case "RESCHEDULED":
+      return "Rescheduled";
+    case "BAD_LEAD":
+      return "Bad Lead";
+    case "STILL_THINKING":
+      return "Still Thinking";
+    default:
+      return "";
+  }
+};
+
+const formatReasonNotSold = (value?: string | null) => {
+  switch (value) {
+    case "PRICE":
+      return "Price";
+    case "NEEDED_SPOUSE":
+      return "Needed Spouse";
+    case "CREDIT_ISSUE":
+      return "Credit Issue";
+    case "JUST_SHOPPING":
+      return "Just Shopping";
+    case "NOT_READY":
+      return "Not Ready";
+    case "WENT_WITH_ANOTHER_COMPANY":
+      return "Went With Another Company";
+    case "OTHER":
+      return "Other";
+    default:
+      return "";
+  }
+};
+
+const getIndustryLabel = (value?: string | null) => {
+  if (!value) return "";
+  const found = industries.find((ind) => ind.value === value);
+  return found?.label || value;
+};
 
 const CustomerReviewsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -53,6 +106,10 @@ const CustomerReviewsPage: React.FC = () => {
   const [ratingBehavior, setRatingBehavior] = useState<number>(0);
   const [ratingCommunication, setRatingCommunication] = useState<number>(0);
   const [comment, setComment] = useState<string>("");
+
+  const [outcome, setOutcome] = useState<string>("");
+  const [serviceQuoted, setServiceQuoted] = useState<string>("");
+  const [reasonNotSold, setReasonNotSold] = useState<string>("");
 
   const [showForm, setShowForm] = useState<boolean>(false);
   const [makeNamePublic, setMakeNamePublic] = useState<boolean>(false);
@@ -81,9 +138,6 @@ const CustomerReviewsPage: React.FC = () => {
           axios.get(`/customers/${customerId}`, {
             params: { userEmail },
           }),
-
-          // ✅ CAMBIO CLAVE:
-          // Leer TODOS los reviews del cliente, no solo los del user actual.
           axios.get(`/customers/${customerId}/reviews`),
         ]);
 
@@ -93,12 +147,7 @@ const CustomerReviewsPage: React.FC = () => {
 
         setCustomer(customerRes.data);
         setReviews(loadedReviews);
-
-        if (loadedReviews.length > 0) {
-          setShowForm(false);
-        } else {
-          setShowForm(true);
-        }
+        setShowForm(loadedReviews.length === 0);
       } catch (err: any) {
         console.error("Error loading customer or reviews", err);
 
@@ -146,6 +195,12 @@ const CustomerReviewsPage: React.FC = () => {
     }
   }, [makeNamePublic, profileFullName, (user as any)?.name]);
 
+  useEffect(() => {
+    if (outcome !== "NOT_SOLD") {
+      setReasonNotSold("");
+    }
+  }, [outcome]);
+
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId) return;
@@ -164,12 +219,30 @@ const CustomerReviewsPage: React.FC = () => {
       return;
     }
 
+    if (!outcome) {
+      setSubmitError("Please select an outcome.");
+      return;
+    }
+
+    if (!serviceQuoted) {
+      setSubmitError("Please select an industry/service.");
+      return;
+    }
+
+    if (outcome === "NOT_SOLD" && !reasonNotSold) {
+      setSubmitError("Please select a reason not sold.");
+      return;
+    }
+
     const reviewData: any = {
       ratingOverall,
       ratingPayment,
       ratingBehavior,
       ratingCommunication,
       comment,
+      outcome,
+      serviceQuoted,
+      reasonNotSold: outcome === "NOT_SOLD" ? reasonNotSold : null,
     };
 
     if (userEmail) {
@@ -209,6 +282,9 @@ const CustomerReviewsPage: React.FC = () => {
       setRatingBehavior(0);
       setRatingCommunication(0);
       setComment("");
+      setOutcome("");
+      setServiceQuoted("");
+      setReasonNotSold("");
       setMakeNamePublic(false);
       setShowForm(false);
     } catch (err: any) {
@@ -368,6 +444,62 @@ const CustomerReviewsPage: React.FC = () => {
                   )}
                 </div>
 
+                <div>
+                  <label>Outcome</label>
+                  <select
+                    value={outcome}
+                    onChange={(e) => setOutcome(e.target.value)}
+                    required
+                  >
+                    <option value="">Select outcome</option>
+                    <option value="SOLD">Sold</option>
+                    <option value="NOT_SOLD">Not Sold</option>
+                    <option value="NO_SHOW">No Show</option>
+                    <option value="CANCELLED">Cancelled</option>
+                    <option value="RESCHEDULED">Rescheduled</option>
+                    <option value="BAD_LEAD">Bad Lead</option>
+                    <option value="STILL_THINKING">Still Thinking</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Industry / Service</label>
+                  <select
+                    value={serviceQuoted}
+                    onChange={(e) => setServiceQuoted(e.target.value)}
+                    required
+                  >
+                    <option value="">Select industry</option>
+                    {industries.map((ind) => (
+                      <option key={ind.value} value={ind.value}>
+                        {ind.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {outcome === "NOT_SOLD" && (
+                  <div className="form-grid-full">
+                    <label>Reason Not Sold</label>
+                    <select
+                      value={reasonNotSold}
+                      onChange={(e) => setReasonNotSold(e.target.value)}
+                      required
+                    >
+                      <option value="">Select reason</option>
+                      <option value="PRICE">Price</option>
+                      <option value="NEEDED_SPOUSE">Needed Spouse</option>
+                      <option value="CREDIT_ISSUE">Credit Issue</option>
+                      <option value="JUST_SHOPPING">Just Shopping</option>
+                      <option value="NOT_READY">Not Ready</option>
+                      <option value="WENT_WITH_ANOTHER_COMPANY">
+                        Went With Another Company
+                      </option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                )}
+
                 <div className="form-grid-full">
                   <label htmlFor="comment">Comment</label>
                   <textarea
@@ -448,6 +580,42 @@ const CustomerReviewsPage: React.FC = () => {
                     Communication: {renderStars(rev.ratingCommunication)}
                   </div>
                 </div>
+
+                {(rev.outcome || rev.serviceQuoted || rev.reasonNotSold) && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      marginBottom: 10,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      background: "#f9fafb",
+                      border: "1px solid #e5e7eb",
+                      fontSize: 14,
+                      display: "grid",
+                      gap: 4,
+                    }}
+                  >
+                    {rev.outcome && (
+                      <div>
+                        <strong>Outcome:</strong> {formatOutcome(rev.outcome)}
+                      </div>
+                    )}
+
+                    {rev.serviceQuoted && (
+                      <div>
+                        <strong>Industry / Service:</strong>{" "}
+                        {getIndustryLabel(rev.serviceQuoted)}
+                      </div>
+                    )}
+
+                    {rev.reasonNotSold && (
+                      <div>
+                        <strong>Reason Not Sold:</strong>{" "}
+                        {formatReasonNotSold(rev.reasonNotSold)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="review-comment">{rev.comment}</div>
               </div>
