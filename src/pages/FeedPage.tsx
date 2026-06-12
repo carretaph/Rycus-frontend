@@ -198,7 +198,7 @@ export default function FeedPage() {
     if (!picked.length) return;
 
     const next = picked.slice(0, 6);
-    
+
     const compressedFiles = await Promise.all(
       next.map(async (file) => {
         return await imageCompression(file, {
@@ -208,7 +208,7 @@ export default function FeedPage() {
         });
       })
     );
-    
+
     setFilesWithPreviews(compressedFiles);
     e.currentTarget.value = "";
     return;
@@ -594,7 +594,11 @@ export default function FeedPage() {
                   >
                     <AvatarWithBadge
                       size={42}
-                      avatarUrl={it.authorAvatarUrl}
+                      avatarUrl={
+                        it.authorName === "Anonymous reviewer"
+                          ? "/rycus-anonymous-avatar.png"
+                          : it.authorAvatarUrl
+                      }
                       name={it.authorName}
                       email={it.authorEmail}
                       showReferralBadge={
@@ -607,7 +611,11 @@ export default function FeedPage() {
                 ) : (
                   <AvatarWithBadge
                     size={42}
-                    avatarUrl={it.authorAvatarUrl}
+                    avatarUrl={
+                      it.authorName === "Anonymous reviewer"
+                        ? "/rycus-anonymous-avatar.png"
+                        : it.authorAvatarUrl
+                    }
                     name={it.authorName}
                     email={it.authorEmail}
                     showReferralBadge={
@@ -637,7 +645,10 @@ export default function FeedPage() {
                         <div className="feed-postName">{it.authorName}</div>
                       )}
 
-                      <div className="feed-postEmail">{it.authorEmail}</div>
+                      {it.authorName !== "Anonymous reviewer" &&
+                        it.authorEmail !== "anonymous@rycus.app" && (
+                          <div className="feed-postEmail">{it.authorEmail}</div>
+                        )}
                     </div>
 
                     <div className="feed-postTime">{formatTime(it.createdAt)}</div>

@@ -8,7 +8,7 @@ import { Capacitor } from "@capacitor/core";
  * ==========================================================
  */
 
-const RENDER_API_BASE = "https://rycus-backend.onrender.com";
+const RENDER_API_BASE = "http://localhost8080";
 
 const envBaseRaw = import.meta.env.VITE_API_BASE_URL;
 const envBase = envBaseRaw?.trim();
