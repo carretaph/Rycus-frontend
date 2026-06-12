@@ -27,8 +27,15 @@ type UserProfile = {
   industry?: string | null;
   city?: string | null;
   state?: string | null;
-  avatarUrl?: string | null;
+  serviceTerritory?: string | null;
+
   offersReferralFee?: boolean | null;
+  referralFeeType?: string | null;
+  referralFeeValue?: string | null;
+  referralFeeNotes?: string | null;
+
+  avatarUrl?: string | null;
+
   totalReviews: number;
   averageRating: number;
   reviews: UserReview[];
@@ -246,364 +253,419 @@ const UserProfilePage: React.FC = () => {
   };
 
   const isMe = currentUser?.id === profile?.id;
-      const isLoggedIn = !!currentUser;
-      const showAddToNetwork = isLoggedIn && !isMe && !isAlreadyConnected;
+  const isLoggedIn = !!currentUser;
+  const showAddToNetwork = isLoggedIn && !isMe && !isAlreadyConnected;
 
-      const phone = (profile?.phone ?? "").trim();
-      const tel = normalizePhoneForTel(phone);
+  const phone = (profile?.phone ?? "").trim();
+  const tel = normalizePhoneForTel(phone);
 
-      const industry = (profile?.industry ?? "").trim();
-      const businessName = (profile?.businessName ?? "").trim();
-      const city = (profile?.city ?? "").trim();
-      const state = (profile?.state ?? "").trim();
+  const industry = (profile?.industry ?? "").trim();
+  const businessName = (profile?.businessName ?? "").trim();
+  const city = (profile?.city ?? "").trim();
+  const state = (profile?.state ?? "").trim();
+  const serviceTerritory =
+    (profile?.serviceTerritory ?? "").trim();
 
-      const location = [city, state].filter(Boolean).join(", ");
-      const reviews = profile?.reviews ?? [];
-      const showRF = !!profile?.offersReferralFee;
-      const isOwner = (currentUser as any)?.email === "carretaph@gmail.com";
+  const referralFeeValue =
+    profile?.referralFeeValue ?? "";
 
-      if (loading) {
-        return (
-          <div className="page">
-            <div className="userprofile-container">
-              <p>Loading user profile...</p>
+  const referralFeeNotes =
+    (profile?.referralFeeNotes ?? "").trim();
+
+  const location = [city, state].filter(Boolean).join(", ");
+  const reviews = profile?.reviews ?? [];
+  const showRF = !!profile?.offersReferralFee;
+  const isOwner = (currentUser as any)?.email === "carretaph@gmail.com";
+
+  if (loading) {
+    return (
+      <div className="page">
+        <div className="userprofile-container">
+          <p>Loading user profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="page">
+        <div className="userprofile-container">
+          <p className="users-error">{error}</p>
+
+          <Link to="/users" className="dashboard-link">
+            ← Back to Users
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page">
+      <div className="userprofile-container">
+        <div className="userprofile-header-card">
+          <div className="userprofile-header">
+            <div className="userprofile-avatar-wrap">
+              <AvatarWithBadge
+                size={96}
+                avatarUrl={profile.avatarUrl || null}
+                name={profile.fullName}
+                email={profile.email}
+                showReferralBadge={showRF}
+                badgeSrc={rfBadge}
+              />
             </div>
-          </div>
-        );
-      }
 
-      if (error || !profile) {
-        return (
-          <div className="page">
-            <div className="userprofile-container">
-              <p className="users-error">{error}</p>
+            <div className="userprofile-main">
+              <h1 className="userprofile-name">{profile.fullName}</h1>
 
-              <Link to="/users" className="dashboard-link">
-                ← Back to Users
-              </Link>
-            </div>
-          </div>
-        );
-      }
+              <div className="userprofile-email">{profile.email}</div>
 
-      return (
-        <div className="page">
-          <div className="userprofile-container">
-            <div className="userprofile-header-card">
-              <div className="userprofile-header">
-                <div className="userprofile-avatar-wrap">
-                  <AvatarWithBadge
-                    size={96}
-                    avatarUrl={profile.avatarUrl || null}
-                    name={profile.fullName}
-                    email={profile.email}
-                    showReferralBadge={showRF}
-                    badgeSrc={rfBadge}
-                  />
-                </div>
-
-                <div className="userprofile-main">
-                  <h1 className="userprofile-name">{profile.fullName}</h1>
-
-                  <div className="userprofile-email">{profile.email}</div>
-
-                  {!isMe && (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginTop: 12,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={handleBlockUser}
-                        style={{
-                          borderColor: isBlocked ? "#16a34a" : "#dc2626",
-                          color: isBlocked ? "#16a34a" : "#dc2626",
-                        }}
-                      >
-                        {isBlocked ? "🔓 Unblock User" : "🚫 Block User"}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={handleReportUser}
-                        style={{
-                          borderColor: "#f59e0b",
-                          color: "#b45309",
-                        }}
-                      >
-                        🚩 Report User
-                      </button>
-                    </div>
-                  )}
-
-                  <div
+              {!isMe && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    marginTop: 12,
+                    marginBottom: 12,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleBlockUser}
                     style={{
-                      display: "flex",
-                      gap: 8,
-                      flexWrap: "wrap",
-                      justifyContent: "center",
-                      marginTop: 10,
-                      marginBottom: 14,
+                      borderColor: isBlocked ? "#16a34a" : "#dc2626",
+                      color: isBlocked ? "#16a34a" : "#dc2626",
                     }}
                   >
-                    {industry && (
-                      <span className="userprofile-chip">
-                        🛠️ {industry}
-                      </span>
-                    )}
+                    {isBlocked ? "🔓 Unblock User" : "🚫 Block User"}
+                  </button>
 
-                    {businessName && (
-                      <span className="userprofile-chip">
-                        🏢 {businessName}
-                      </span>
-                    )}
-
-                    {location && (
-                      <span className="userprofile-chip">
-                        📍 {location}
-                      </span>
-                    )}
-
-                    {tel && (
-                      <a
-                        className="userprofile-chip userprofile-chip-link"
-                        href={`tel:${tel}`}
-                      >
-                        📞 {phone}
-                      </a>
-                    )}
-                  </div>
-
-                  {isMe && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 6,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexWrap: "nowrap",
-                        marginTop: 2,
-                        marginBottom: 0,
-                      }}
-                    >
-                      <span
-                        className="userprofile-pill"
-                        style={{
-                          margin: 0,
-                          whiteSpace: "nowrap",
-                          height: 42,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "0 14px",
-                        }}
-                      >
-                        You
-                      </span>
-
-                      <Link
-                        to="/profile"
-                        className="btn-primary"
-                        style={{
-                          minWidth: 78,
-                          width: 78,
-                          height: 38,
-                          padding: 0,
-                          borderRadius: 999,
-                          textAlign: "center",
-                          textDecoration: "none",
-                          fontSize: 14,
-                          fontWeight: 700,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          lineHeight: 1,
-                          marginTop: "-4px"
-                        }}
-                      >
-                        Edit
-                      </Link>
-
-                      {isOwner && (
-                        <Link
-                          to="/admin"
-                          className="btn-secondary"
-                          style={{
-                            minWidth: 78,
-                            width: 78,
-                            height: 42,
-                            padding: 0,
-                            borderRadius: 999,
-                            textAlign: "center",
-                            textDecoration: "none",
-                            fontSize: 14,
-                            fontWeight: 700,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            lineHeight: 1,
-                          }}
-                        >
-                          Admin
-                        </Link>
-                      )}
-                    </div>
-                  )}
-
-                  {!isMe && showAddToNetwork && (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        marginTop: 16,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={handleAddToNetwork}
-                        disabled={sendingRequest}
-                      >
-                        {sendingRequest
-                          ? "Sending..."
-                          : "+ Add to My Network"}
-                      </button>
-                    </div>
-                  )}
-
-                  {!isMe && isAlreadyConnected && (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        marginTop: 16,
-                      }}
-                    >
-                      <span className="userprofile-pill">
-                        Connected
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="userprofile-stats">
-              <div className="dashboard-card">
-                <h2>Total Reviews</h2>
-
-                <div className="dashboard-number">
-                  {profile.totalReviews}
-                </div>
-
-                <p className="dashboard-text">
-                  Number of customer reviews written by this user.
-                </p>
-              </div>
-
-              <div className="dashboard-card">
-                <h2>Average Rating</h2>
-
-                <div className="dashboard-number">
-                  {profile.totalReviews > 0
-                    ? profile.averageRating.toFixed(1)
-                    : "0.0"}
-                </div>
-
-                <p className="dashboard-text">
-                  Average overall rating.
-                </p>
-              </div>
-            </div>
-
-            <div className="userprofile-section">
-              <h2 className="userprofile-section-title">
-                Photo Grid
-              </h2>
-
-              {photos.length === 0 ? (
-                <p className="dashboard-text">
-                  No photos posted yet.
-                </p>
-              ) : (
-                <div className="userprofile-photo-grid">
-                  {photos.map((photo, index) => (
-                    <a
-                      key={`${photo.postId}-${index}`}
-                      href={photo.imageUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="userprofile-photo-item"
-                    >
-                      <img
-                        src={photo.imageUrl}
-                        alt="Post"
-                        className="userprofile-photo"
-                      />
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="userprofile-section">
-              <h2 className="userprofile-section-title">
-                Customer Reviews
-              </h2>
-
-              {reviews.length === 0 && (
-                <p className="dashboard-text">
-                  This user hasn&apos;t written any reviews yet.
-                </p>
-              )}
-
-              <div className="userprofile-reviews">
-                {reviews.map((r) => (
-                  <div
-                    key={r.id}
-                    className="dashboard-card userprofile-review-card"
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleReportUser}
+                    style={{
+                      borderColor: "#f59e0b",
+                      color: "#b45309",
+                    }}
                   >
-                    <h3 className="userprofile-review-title">
-                      Customer:{" "}
-                      {r.customerId ? (
-                        <Link to={`/customers/${r.customerId}`}>
-                          {r.customerName}
-                        </Link>
-                      ) : (
-                        r.customerName
-                      )}
-                    </h3>
+                    🚩 Report User
+                  </button>
+                </div>
+              )}
 
-                    <p className="dashboard-text">
-                      Overall:{" "}
-                      <strong>{r.ratingOverall ?? "-"}</strong>
-                    </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                  marginTop: 10,
+                  marginBottom: 14,
+                }}
+              >
+                {industry && (
+                  <span className="userprofile-chip">
+                    🛠️ {industry}
+                  </span>
+                )}
 
-                    {r.comment && (
-                      <p className="dashboard-text">{r.comment}</p>
-                    )}
-                  </div>
-                ))}
+                {businessName && (
+                  <span className="userprofile-chip">
+                    🏢 {businessName}
+                  </span>
+                )}
+
+                {location && (
+                  <span className="userprofile-chip">
+                    📍 {location}
+                  </span>
+                )}
+
+                {serviceTerritory && (
+                  <span className="userprofile-chip">
+                    🌎 {serviceTerritory}
+                  </span>
+                )}
+
+                {tel && (
+                  <a
+                    className="userprofile-chip userprofile-chip-link"
+                    href={`tel:${tel}`}
+                  >
+                    📞 {phone}
+                  </a>
+                )}
               </div>
+
+              {showRF && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: "#16a34a",
+                    }}
+                  >
+                    💰 Referral Fee Available
+                  </div>
+
+                  {referralFeeValue && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontWeight: 600,
+                      }}
+                    >
+                      ${referralFeeValue}
+                    </div>
+                  )}
+
+                  {referralFeeNotes && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        color: "#6b7280",
+                        fontSize: 14,
+                      }}
+                    >
+                      {referralFeeNotes}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="userprofile-footer">
-              <Link to="/users" className="dashboard-link">
-                ← Back to Users
-              </Link>
-            </div>
+            {isMe && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexWrap: "nowrap",
+                  marginTop: 2,
+                  marginBottom: 0,
+                }}
+              >
+                <span
+                  className="userprofile-pill"
+                  style={{
+                    margin: 0,
+                    whiteSpace: "nowrap",
+                    height: 42,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 14px",
+                  }}
+                >
+                  You
+                </span>
+
+                <Link
+                  to="/profile"
+                  className="btn-primary"
+                  style={{
+                    minWidth: 78,
+                    width: 78,
+                    height: 38,
+                    padding: 0,
+                    borderRadius: 999,
+                    textAlign: "center",
+                    textDecoration: "none",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    lineHeight: 1,
+                    marginTop: "-4px"
+                  }}
+                >
+                  Edit
+                </Link>
+
+                {isOwner && (
+                  <Link
+                    to="/admin"
+                    className="btn-secondary"
+                    style={{
+                      minWidth: 78,
+                      width: 78,
+                      height: 42,
+                      padding: 0,
+                      borderRadius: 999,
+                      textAlign: "center",
+                      textDecoration: "none",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                    }}
+                  >
+                    Admin
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {!isMe && showAddToNetwork && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 16,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleAddToNetwork}
+                  disabled={sendingRequest}
+                >
+                  {sendingRequest
+                    ? "Sending..."
+                    : "+ Add to My Network"}
+                </button>
+              </div>
+            )}
+
+            {!isMe && isAlreadyConnected && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 16,
+                }}
+              >
+                <span className="userprofile-pill">
+                  Connected
+                </span>
+              </div>
+            )}
           </div>
         </div>
-      );
-    };
+      </div>
 
-    export default UserProfilePage;
+      <div className="userprofile-stats">
+        <div className="dashboard-card">
+          <h2>Total Reviews</h2>
+
+          <div className="dashboard-number">
+            {profile.totalReviews}
+          </div>
+
+          <p className="dashboard-text">
+            Number of customer reviews written by this user.
+          </p>
+        </div>
+
+        <div className="dashboard-card">
+          <h2>Average Rating</h2>
+
+          <div className="dashboard-number">
+            {profile.totalReviews > 0
+              ? profile.averageRating.toFixed(1)
+              : "0.0"}
+          </div>
+
+          <p className="dashboard-text">
+            Average overall rating.
+          </p>
+        </div>
+      </div>
+
+      <div className="userprofile-section">
+        <h2 className="userprofile-section-title">
+          Photo Grid
+        </h2>
+
+        {photos.length === 0 ? (
+          <p className="dashboard-text">
+            No photos posted yet.
+          </p>
+        ) : (
+          <div className="userprofile-photo-grid">
+            {photos.map((photo, index) => (
+              <a
+                key={`${photo.postId}-${index}`}
+                href={photo.imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="userprofile-photo-item"
+              >
+                <img
+                  src={photo.imageUrl}
+                  alt="Post"
+                  className="userprofile-photo"
+                />
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="userprofile-section">
+        <h2 className="userprofile-section-title">
+          Customer Reviews
+        </h2>
+
+        {reviews.length === 0 && (
+          <p className="dashboard-text">
+            This user hasn&apos;t written any reviews yet.
+          </p>
+        )}
+
+        <div className="userprofile-reviews">
+          {reviews.map((r) => (
+            <div
+              key={r.id}
+              className="dashboard-card userprofile-review-card"
+            >
+              <h3 className="userprofile-review-title">
+                Customer:{" "}
+                {r.customerId ? (
+                  <Link to={`/customers/${r.customerId}`}>
+                    {r.customerName}
+                  </Link>
+                ) : (
+                  r.customerName
+                )}
+              </h3>
+
+              <p className="dashboard-text">
+                Overall:{" "}
+                <strong>{r.ratingOverall ?? "-"}</strong>
+              </p>
+
+              {r.comment && (
+                <p className="dashboard-text">{r.comment}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="userprofile-footer">
+        <Link to="/users" className="dashboard-link">
+          ← Back to Users
+        </Link>
+      </div>
+    </div>    
+  );
+};
+
+export default UserProfilePage;
