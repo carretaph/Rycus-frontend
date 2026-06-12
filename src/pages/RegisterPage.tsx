@@ -96,7 +96,11 @@ const RegisterPage: React.FC = () => {
         email: emailTrimmed,
         password,
         phone: phone.trim() || null,
-
+        businessName: businessName.trim() || null,
+        industry: accountType || null,
+        city: city.trim() || null,
+        state: stateValue || null,
+        
         offersReferralFee,
         referralFeeType: offersReferralFee ? referralFeeType : null,
         referralFeeValue: offersReferralFee ? feeNumber : null,
