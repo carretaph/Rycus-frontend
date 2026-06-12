@@ -444,7 +444,8 @@ const UserProfilePage: React.FC = () => {
                   )}
                 </div>
               )}
-            </div>
+              </div>
+            
 
             {isMe && (
               <div
