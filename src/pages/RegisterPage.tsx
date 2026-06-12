@@ -23,6 +23,7 @@ const RegisterPage: React.FC = () => {
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [address, setAddress] = useState("");
+  const [serviceTerritory, setServiceTerritory] = useState("");
   const [city, setCity] = useState("");
   const [zipcode, setZipcode] = useState("");
   const [stateValue, setStateValue] = useState("");
@@ -119,6 +120,7 @@ const RegisterPage: React.FC = () => {
         phone,
         businessName,
         address,
+        serviceTerritory,
         city,
         zipcode,
         state: stateValue,
@@ -265,7 +267,7 @@ const RegisterPage: React.FC = () => {
 
             <div className="form-grid-full">
               <label htmlFor="address">
-                Address <span style={{ color: "#9ca3af" }}>(optional)</span>
+                Business Address <span style={{ color: "#9ca3af" }}>(optional)</span>
               </label>
               <input
                 id="address"
@@ -276,15 +278,42 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
+            <div className="form-grid-full">
+              <label htmlFor="serviceTerritory">
+                Service Territory <span style={{ color: "#9ca3af" }}>(optional)</span>
+              </label>
+
+              <input
+                id="serviceTerritory"
+                name="serviceTerritory"
+                type="text"
+                value={serviceTerritory}
+                onChange={(e) => setServiceTerritory(e.target.value)}
+                placeholder="Orlando, Central Florida, South Florida, Tampa Bay"
+              />
+
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: "#6b7280",
+                }}
+              >
+                Example: Orlando, Central Florida, South Florida, Tampa Bay
+              </div>
+            </div>
+
             <div>
-              <label htmlFor="city">City</label>
+              <label htmlFor="city">
+                City <span style={{ color: "#9ca3af" }}>(optional)</span>
+              </label>
               <input
                 id="city"
                 name="city"
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                required
+
               />
             </div>
 
@@ -296,7 +325,7 @@ const RegisterPage: React.FC = () => {
                 type="text"
                 value={zipcode}
                 onChange={(e) => setZipcode(e.target.value)}
-                required
+
               />
             </div>
 
@@ -307,7 +336,7 @@ const RegisterPage: React.FC = () => {
                 name="state"
                 value={stateValue}
                 onChange={(e) => setStateValue(e.target.value)}
-                required
+
               >
                 <option value="">Select state</option>
                 {usStates.map((st) => (
