@@ -2880,3 +2880,65 @@
     border: 1px solid rgba(37, 99, 235, 0.12);
     display: block;
   }
+  /* ================================
+   USER PROFILE FINAL LAYOUT FIX
+================================ */
+
+.userprofile-container {
+  display: block !important;
+  width: 100% !important;
+  max-width: 1120px !important;
+  margin: 0 auto !important;
+}
+
+.userprofile-header-card,
+.userprofile-stats,
+.userprofile-section,
+.userprofile-footer {
+  width: 100% !important;
+}
+
+.userprofile-header {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 96px minmax(0, 1fr) 220px !important;
+  gap: 16px !important;
+  align-items: start !important;
+}
+
+.userprofile-main {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.userprofile-email {
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+}
+
+.userprofile-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+}
+
+.userprofile-actions .btn-secondary,
+.userprofile-actions .btn-primary,
+.userprofile-actions .userprofile-pill {
+  width: fit-content !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 980px) {
+  .userprofile-header {
+    grid-template-columns: 84px minmax(0, 1fr) !important;
+  }
+
+  .userprofile-actions {
+    grid-column: 1 / -1 !important;
+    align-items: flex-start !important;
+  }
+}
