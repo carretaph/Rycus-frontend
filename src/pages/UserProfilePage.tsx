@@ -322,44 +322,6 @@ const UserProfilePage: React.FC = () => {
 
               <div className="userprofile-email">{profile.email}</div>
 
-              {!isMe && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    gap: 10,
-                    flexWrap: "wrap",
-                    marginTop: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleBlockUser}
-                    style={{
-                      borderColor: isBlocked ? "#16a34a" : "#dc2626",
-                      color: isBlocked ? "#16a34a" : "#dc2626",
-                    }}
-                  >
-                    {isBlocked ? "🔓 Unblock User" : "🚫 Block User"}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleReportUser}
-                    style={{
-                      borderColor: "#f59e0b",
-                      color: "#b45309",
-                    }}
-                  >
-                    🚩 Report User
-                  </button>
-                </div>
-              )}
-
               <div
                 style={{
                   display: "flex",
@@ -408,7 +370,7 @@ const UserProfilePage: React.FC = () => {
                 <div
                   style={{
                     marginTop: 12,
-                    textAlign: "center",
+                    textAlign: "left",
                   }}
                 >
                   <div
@@ -444,10 +406,38 @@ const UserProfilePage: React.FC = () => {
                   )}
                 </div>
               )}
-              </div>
-            
+            </div>
 
-            {isMe && (
+            <div className="userprofile-actions">
+              {!isMe && (
+                <>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleBlockUser}
+                    style={{
+                      borderColor: isBlocked ? "#16a34a" : "#dc2626",
+                      color: isBlocked ? "#16a34a" : "#dc2626",
+                    }}
+                  >
+                    {isBlocked ? "🔓 Unblock User" : "🚫 Block User"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleReportUser}
+                    style={{
+                      borderColor: "#f59e0b",
+                      color: "#b45309",
+                    }}
+                  >
+                    🚩 Report User
+                  </button>
+                </>
+              )}
+
+              {isMe && (
               <div
                 style={{
                   display: "flex",
@@ -523,14 +513,7 @@ const UserProfilePage: React.FC = () => {
               </div>
             )}
 
-            {!isMe && showAddToNetwork && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginTop: 16,
-                }}
-              >
+              {!isMe && showAddToNetwork && (
                 <button
                   type="button"
                   className="btn-secondary"
@@ -541,22 +524,14 @@ const UserProfilePage: React.FC = () => {
                     ? "Sending..."
                     : "+ Add to My Network"}
                 </button>
-              </div>
-            )}
+              )}
 
-            {!isMe && isAlreadyConnected && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginTop: 16,
-                }}
-              >
+              {!isMe && isAlreadyConnected && (
                 <span className="userprofile-pill">
                   Connected
                 </span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -38,7 +38,7 @@
      background: #ffffff;
    }
    
-   /* evita imÃ¡genes gigantes globales */
+   /* evita imÃƒÂ¡genes gigantes globales */
    img {
      max-width: 100%;
      height: auto;
@@ -84,7 +84,7 @@
    }
    
    /* =========================================================
-      GLOBAL PAGE CENTERING (SAFE â€” sidebar friendly)
+      GLOBAL PAGE CENTERING (SAFE Ã¢â‚¬â€ sidebar friendly)
       ========================================================= */
    
    .page {
@@ -357,7 +357,7 @@
    }
    
    /* =========================================================
-      AVATARS (GLOBAL â€” FEED / NETWORK / ETC)
+      AVATARS (GLOBAL Ã¢â‚¬â€ FEED / NETWORK / ETC)
       ========================================================= */
    
    .avatar {
@@ -1272,8 +1272,11 @@
    
    .userprofile-actions {
      display: flex;
-     justify-content: flex-end;
+     flex-direction: column;
+     align-items: flex-end;
+     justify-content: center;
      gap: 10px;
+     min-width: 180px;
    }
    
    .userprofile-pill {
