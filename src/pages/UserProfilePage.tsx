@@ -323,6 +323,7 @@ const UserProfilePage: React.FC = () => {
               <div className="userprofile-email">{profile.email}</div>
 
               <div
+                className="userprofile-chips"
                 style={{
                   display: "flex",
                   gap: 8,
@@ -438,63 +439,39 @@ const UserProfilePage: React.FC = () => {
               )}
 
               {isMe && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 6,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexWrap: "nowrap",
-                  marginTop: 2,
-                  marginBottom: 0,
-                }}
-              >
-                <span
-                  className="userprofile-pill"
+                <div
                   style={{
-                    margin: 0,
-                    whiteSpace: "nowrap",
-                    height: 42,
                     display: "flex",
+                    gap: 6,
                     alignItems: "center",
                     justifyContent: "center",
-                    padding: "0 14px",
+                    flexWrap: "nowrap",
+                    marginTop: 2,
+                    marginBottom: 0,
                   }}
                 >
-                  You
-                </span>
+                  <span
+                    className="userprofile-pill"
+                    style={{
+                      margin: 0,
+                      whiteSpace: "nowrap",
+                      height: 42,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 14px",
+                    }}
+                  >
+                    You
+                  </span>
 
-                <Link
-                  to="/profile"
-                  className="btn-primary"
-                  style={{
-                    minWidth: 78,
-                    width: 78,
-                    height: 38,
-                    padding: 0,
-                    borderRadius: 999,
-                    textAlign: "center",
-                    textDecoration: "none",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    lineHeight: 1,
-                    marginTop: "-4px"
-                  }}
-                >
-                  Edit
-                </Link>
-
-                {isOwner && (
                   <Link
-                    to="/admin"
-                    className="btn-secondary"
+                    to="/profile"
+                    className="btn-primary"
                     style={{
                       minWidth: 78,
                       width: 78,
-                      height: 42,
+                      height: 38,
                       padding: 0,
                       borderRadius: 999,
                       textAlign: "center",
@@ -505,13 +482,37 @@ const UserProfilePage: React.FC = () => {
                       alignItems: "center",
                       justifyContent: "center",
                       lineHeight: 1,
+                      marginTop: "-4px"
                     }}
                   >
-                    Admin
+                    Edit
                   </Link>
-                )}
-              </div>
-            )}
+
+                  {isOwner && (
+                    <Link
+                      to="/admin"
+                      className="btn-secondary"
+                      style={{
+                        minWidth: 78,
+                        width: 78,
+                        height: 42,
+                        padding: 0,
+                        borderRadius: 999,
+                        textAlign: "center",
+                        textDecoration: "none",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >
+                      Admin
+                    </Link>
+                  )}
+                </div>
+              )}
 
               {!isMe && showAddToNetwork && (
                 <button
@@ -534,114 +535,114 @@ const UserProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="userprofile-stats">
-        <div className="dashboard-card">
-          <h2>Total Reviews</h2>
+        <div className="userprofile-stats">
+          <div className="dashboard-card">
+            <h2>Total Reviews</h2>
 
-          <div className="dashboard-number">
-            {profile.totalReviews}
+            <div className="dashboard-number">
+              {profile.totalReviews}
+            </div>
+
+            <p className="dashboard-text">
+              Number of customer reviews written by this user.
+            </p>
           </div>
 
-          <p className="dashboard-text">
-            Number of customer reviews written by this user.
-          </p>
-        </div>
+          <div className="dashboard-card">
+            <h2>Average Rating</h2>
 
-        <div className="dashboard-card">
-          <h2>Average Rating</h2>
+            <div className="dashboard-number">
+              {profile.totalReviews > 0
+                ? profile.averageRating.toFixed(1)
+                : "0.0"}
+            </div>
 
-          <div className="dashboard-number">
-            {profile.totalReviews > 0
-              ? profile.averageRating.toFixed(1)
-              : "0.0"}
+            <p className="dashboard-text">
+              Average overall rating.
+            </p>
           </div>
-
-          <p className="dashboard-text">
-            Average overall rating.
-          </p>
         </div>
-      </div>
 
-      <div className="userprofile-section">
-        <h2 className="userprofile-section-title">
-          Photo Grid
-        </h2>
+        <div className="userprofile-section">
+          <h2 className="userprofile-section-title">
+            Photo Grid
+          </h2>
 
-        {photos.length === 0 ? (
-          <p className="dashboard-text">
-            No photos posted yet.
-          </p>
-        ) : (
-          <div className="userprofile-photo-grid">
-            {photos.map((photo, index) => (
-              <a
-                key={`${photo.postId}-${index}`}
-                href={photo.imageUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="userprofile-photo-item"
+          {photos.length === 0 ? (
+            <p className="dashboard-text">
+              No photos posted yet.
+            </p>
+          ) : (
+            <div className="userprofile-photo-grid">
+              {photos.map((photo, index) => (
+                <a
+                  key={`${photo.postId}-${index}`}
+                  href={photo.imageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="userprofile-photo-item"
+                >
+                  <img
+                    src={photo.imageUrl}
+                    alt="Post"
+                    className="userprofile-photo"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="userprofile-section">
+          <h2 className="userprofile-section-title">
+            Customer Reviews
+          </h2>
+
+          {reviews.length === 0 && (
+            <p className="dashboard-text">
+              This user hasn&apos;t written any reviews yet.
+            </p>
+          )}
+
+          <div className="userprofile-reviews">
+            {reviews.map((r) => (
+              <div
+                key={r.id}
+                className="dashboard-card userprofile-review-card"
               >
-                <img
-                  src={photo.imageUrl}
-                  alt="Post"
-                  className="userprofile-photo"
-                />
-              </a>
+                <h3 className="userprofile-review-title">
+                  Customer:{" "}
+                  {r.customerId ? (
+                    <Link to={`/customers/${r.customerId}`}>
+                      {r.customerName}
+                    </Link>
+                  ) : (
+                    r.customerName
+                  )}
+                </h3>
+
+                <p className="dashboard-text">
+                  Overall:{" "}
+                  <strong>{r.ratingOverall ?? "-"}</strong>
+                </p>
+
+                {r.comment && (
+                  <p className="dashboard-text">{r.comment}</p>
+                )}
+              </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className="userprofile-section">
-        <h2 className="userprofile-section-title">
-          Customer Reviews
-        </h2>
-
-        {reviews.length === 0 && (
-          <p className="dashboard-text">
-            This user hasn&apos;t written any reviews yet.
-          </p>
-        )}
-
-        <div className="userprofile-reviews">
-          {reviews.map((r) => (
-            <div
-              key={r.id}
-              className="dashboard-card userprofile-review-card"
-            >
-              <h3 className="userprofile-review-title">
-                Customer:{" "}
-                {r.customerId ? (
-                  <Link to={`/customers/${r.customerId}`}>
-                    {r.customerName}
-                  </Link>
-                ) : (
-                  r.customerName
-                )}
-              </h3>
-
-              <p className="dashboard-text">
-                Overall:{" "}
-                <strong>{r.ratingOverall ?? "-"}</strong>
-              </p>
-
-              {r.comment && (
-                <p className="dashboard-text">{r.comment}</p>
-              )}
-            </div>
-          ))}
+        <div className="userprofile-footer">
+          <Link to="/users" className="dashboard-link">
+            ← Back to Users
+          </Link>
         </div>
       </div>
-
-      <div className="userprofile-footer">
-        <Link to="/users" className="dashboard-link">
-          ← Back to Users
-        </Link>
-      </div>
-    </div>    
+    </div>
   );
 };
 
-export default UserProfilePage;
+      export default UserProfilePage;
