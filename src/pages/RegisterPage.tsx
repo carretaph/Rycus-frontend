@@ -318,7 +318,9 @@ const RegisterPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="zipcode">ZIP code</label>
+              <label htmlFor="zipcode">
+                ZIP code <span style={{ color: "#9ca3af" }}>(optional)</span>
+              </label>
               <input
                 id="zipcode"
                 name="zipcode"
@@ -330,7 +332,9 @@ const RegisterPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="state">State</label>
+              <label htmlFor="state">
+                State <span style={{ color: "#9ca3af" }}>(optional)</span>
+              </label>
               <select
                 id="state"
                 name="state"
