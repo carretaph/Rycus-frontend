@@ -100,7 +100,8 @@ const RegisterPage: React.FC = () => {
         industry: accountType || null,
         city: city.trim() || null,
         state: stateValue || null,
-        
+        serviceTerritory: serviceTerritory.trim() || null,
+
         offersReferralFee,
         referralFeeType: offersReferralFee ? referralFeeType : null,
         referralFeeValue: offersReferralFee ? feeNumber : null,
