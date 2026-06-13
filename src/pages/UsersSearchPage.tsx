@@ -101,8 +101,7 @@ const UsersSearchPage: React.FC = () => {
 
             <div className="users-search-intro">
               <p>
-                Search by name, industry, city or state and connect with other
-                professionals in your market.
+              Search by name, industry, city, state or service territory and connect with other professionals in your market.
               </p>
 
               <p className="users-search-tagline">
@@ -141,7 +140,7 @@ const UsersSearchPage: React.FC = () => {
             className="users-search-input"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="Search city or state..."
+            placeholder="Search city, state or service territory..."
             autoComplete="off"
           />
         </div>
