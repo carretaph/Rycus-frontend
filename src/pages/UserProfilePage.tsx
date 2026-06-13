@@ -335,25 +335,25 @@ const UserProfilePage: React.FC = () => {
               >
                 {industry && (
                   <span className="userprofile-chip">
-                    🛠️ {industry}
+                    🛠️ Industry: {industry}
                   </span>
                 )}
 
                 {businessName && (
                   <span className="userprofile-chip">
-                    🏢 {businessName}
+                    🏢 Company: {businessName}
                   </span>
                 )}
 
                 {location && (
                   <span className="userprofile-chip">
-                    📍 {location}
+                    📍 City: {location}
                   </span>
                 )}
 
                 {serviceTerritory && (
                   <span className="userprofile-chip">
-                    🌎 {serviceTerritory}
+                    🌎 Service Territory: {serviceTerritory}
                   </span>
                 )}
 
@@ -362,7 +362,7 @@ const UserProfilePage: React.FC = () => {
                     className="userprofile-chip userprofile-chip-link"
                     href={`tel:${tel}`}
                   >
-                    📞 {phone}
+                    📞 Phone: {phone}
                   </a>
                 )}
               </div>
@@ -645,4 +645,4 @@ const UserProfilePage: React.FC = () => {
   );
 };
 
-      export default UserProfilePage;
+export default UserProfilePage;
