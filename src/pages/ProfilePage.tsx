@@ -3,6 +3,7 @@ import axios from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../components/AvatarWithBadge";
+import { industries } from "../assets/industriesList";
 
 interface ProfileExtra {
   firstName?: string;
@@ -15,6 +16,7 @@ interface ProfileExtra {
   zipcode?: string;
   state?: string;
   avatarUrl?: string;
+  serviceTerritory?: string;
 }
 
 type ReferralFeeType = "FLAT" | "PERCENT";
@@ -92,6 +94,7 @@ const ProfilePage: React.FC = () => {
     zipcode: "",
     state: "",
     avatarUrl: "",
+    serviceTerritory: "",
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -137,6 +140,7 @@ const ProfilePage: React.FC = () => {
           phone: parsed.phone || "",
           businessName: parsed.businessName || "",
           industry: parsed.industry || "Windows and Doors",
+          serviceTerritory: parsed.serviceTerritory || "",
           address: parsed.address || "",
           city: parsed.city || "",
           zipcode: parsed.zipcode || "",
@@ -236,6 +240,7 @@ const ProfilePage: React.FC = () => {
       phone: (draft.phone || "").trim(),
       businessName: (draft.businessName || "").trim(),
       industry: (draft.industry || "").trim(),
+      serviceTerritory: (draft.serviceTerritory || "").trim(),
       address: (draft.address || "").trim(),
       city: (draft.city || "").trim(),
       zipcode: (draft.zipcode || "").trim(),
@@ -247,7 +252,7 @@ const ProfilePage: React.FC = () => {
       const email = user?.email ?? undefined;
       const extraKey = getExtraKey(email);
       localStorage.setItem(extraKey, JSON.stringify(cleaned));
-    } catch {}
+    } catch { }
 
     const fullNameToSave =
       [cleaned.firstName, cleaned.lastName].filter(Boolean).join(" ").trim() ||
@@ -274,6 +279,7 @@ const ProfilePage: React.FC = () => {
         referralFeeType: offersReferralFee ? referralFeeType : null,
         referralFeeValue: offersReferralFee ? referralValueNum : null,
         referralFeeNotes: offersReferralFee ? (referralFeeNotes || "").trim() || null : null,
+        serviceTerritory: cleaned.serviceTerritory || null,
       };
 
       const res = await axios.put<UserMiniDto>("/users/me", body);
@@ -379,7 +385,7 @@ const ProfilePage: React.FC = () => {
         const email = user?.email ?? undefined;
         const extraKey = getExtraKey(email);
         localStorage.setItem(extraKey, JSON.stringify(cleaned));
-      } catch {}
+      } catch { }
 
       setExtra(cleaned);
       setDraft((prev) => ({ ...prev, avatarUrl: nextAvatarUrl }));
@@ -422,7 +428,7 @@ const ProfilePage: React.FC = () => {
 
       try {
         moveExtrasToNewEmail(currentEmail, nextEmail);
-      } catch {}
+      } catch { }
 
       setChangeEmailMsg("Email updated ✅ Please sign in again with your new email.");
 
@@ -470,7 +476,7 @@ const ProfilePage: React.FC = () => {
         localStorage.removeItem(getVisKey(email));
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-      } catch {}
+      } catch { }
 
       logout();
       navigate("/login");
@@ -635,10 +641,22 @@ const ProfilePage: React.FC = () => {
 
           <div>
             <label>Industry</label>
+
             {!isEditing ? (
               <div className="profile-info-box">{industry}</div>
             ) : (
-              <input className="input" value={draft.industry || ""} onChange={(e) => setField("industry", e.target.value)} />
+              <select
+                className="input"
+                value={draft.industry || ""}
+                onChange={(e) => setField("industry", e.target.value)}
+              >
+                <option value="">Select industry</option>
+                {industries.map((ind) => (
+                  <option key={ind.value} value={ind.value}>
+                    {ind.label}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 
@@ -657,6 +675,24 @@ const ProfilePage: React.FC = () => {
               <div className="profile-info-box">{city}</div>
             ) : (
               <input className="input" value={draft.city || ""} onChange={(e) => setField("city", e.target.value)} />
+            )}
+          </div>
+
+          <div>
+            <label>Service Territory</label>
+
+            {!isEditing ? (
+              <div className="profile-info-box">
+                {extra.serviceTerritory?.trim() || "Not set"}
+              </div>
+            ) : (
+              <input
+                className="input"
+                value={draft.serviceTerritory || ""}
+                onChange={(e) =>
+                  setField("serviceTerritory", e.target.value)
+                }
+              />
             )}
           </div>
 
