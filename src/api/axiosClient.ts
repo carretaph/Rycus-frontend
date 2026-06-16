@@ -8,7 +8,7 @@ import { Capacitor } from "@capacitor/core";
  * ==========================================================
  */
 
-const RENDER_API_BASE = "http://localhost8080";
+const RENDER_API_BASE = "https://rycus-backend.onrender.com";
 
 const envBaseRaw = import.meta.env.VITE_API_BASE_URL;
 const envBase = envBaseRaw?.trim();
@@ -24,16 +24,13 @@ const platform = Capacitor.getPlatform();
  * - Web dev → localhost
  * - Prod → Render
  */
-const baseURL =
-  isNative && platform === "android"
-    ? "http://10.0.2.2:8080"
-    : envBase && envBase.length > 0
-    ? envBase
-    : isNative
-    ? RENDER_API_BASE
-    : isDev
-    ? "http://localhost:8080"
-    : RENDER_API_BASE;
+const baseURL = isNative
+  ? RENDER_API_BASE
+  : envBase && envBase.length > 0
+  ? envBase
+  : isDev
+  ? "http://localhost:8080"
+  : RENDER_API_BASE;
 
 /**
  * ==========================================================

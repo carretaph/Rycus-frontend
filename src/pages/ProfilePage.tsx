@@ -365,7 +365,7 @@ const ProfilePage: React.FC = () => {
 
       const res = await axios.post<UserMiniDto>("/users/me/avatar", fd, {
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": undefined as any,
         },
       });
 
