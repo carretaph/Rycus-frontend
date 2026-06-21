@@ -44,6 +44,7 @@ type FeedItem =
     officialPost?: boolean;
     pinned?: boolean;
     imageUrl?: string;
+    videoUrl?: string;
     authorAvatarUrl?: string;
     text: string;
     likeCount: number;
@@ -97,6 +98,11 @@ function mapPost(p: PostDto): FeedItem {
     ? imageUrlsRaw.filter((u: any) => typeof u === "string")
     : [];
 
+  const videoUrl =
+    typeof (p as any).videoUrl === "string"
+      ? (p as any).videoUrl
+      : undefined;
+
   const commentCount = Number((p as any).commentCount ?? 0) || 0;
   const createdAt = (p as any).createdAt || new Date().toISOString();
 
@@ -114,6 +120,7 @@ function mapPost(p: PostDto): FeedItem {
     likedByViewer: !!p.likedByViewer,
     commentCount,
     imageUrls,
+    videoUrl,
 
     officialPost: !!p.officialPost,
     pinned: !!p.pinned,
@@ -216,8 +223,26 @@ export default function FeedPage() {
 
     const next = picked.slice(0, 6);
 
-    const compressedFiles = await Promise.all(
+    const hasVideo = next.some((file) => file.type.startsWith("video/"));
+
+    if (hasVideo && !isAdmin) {
+      setError("Only Rycus Team can upload videos.");
+      e.currentTarget.value = "";
+      return;
+    }
+
+    if (hasVideo && next.length > 1) {
+      setError("Only 1 video allowed per post.");
+      e.currentTarget.value = "";
+      return;
+    }
+
+    const processedFiles = await Promise.all(
       next.map(async (file) => {
+        if (file.type.startsWith("video/")) {
+          return file;
+        }
+
         return await imageCompression(file, {
           maxSizeMB: 1,
           maxWidthOrHeight: 1600,
@@ -226,7 +251,7 @@ export default function FeedPage() {
       })
     );
 
-    setFilesWithPreviews(compressedFiles);
+    setFilesWithPreviews(processedFiles);
     e.currentTarget.value = "";
     return;
     if (picked.length > 6) {
@@ -466,11 +491,11 @@ export default function FeedPage() {
     return [...posts, ...STATIC_ITEMS].sort((a, b) => {
       const aPinned = a.kind === "POST" && a.pinned ? 1 : 0;
       const bPinned = b.kind === "POST" && b.pinned ? 1 : 0;
-  
+
       if (aPinned !== bPinned) {
         return bPinned - aPinned;
       }
-  
+
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [posts]);
@@ -575,10 +600,10 @@ export default function FeedPage() {
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <label className="feed-btn feed-btnOutline" style={{ cursor: "pointer" }}>
-                📷 Add Photos (max 6)
+                📷 Add Media
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={isAdmin ? "image/*,video/*" : "image/*"}
                   multiple
                   onChange={handleFileChange}
                   style={{ display: "none" }}
@@ -600,17 +625,32 @@ export default function FeedPage() {
               >
                 {previews.map((url, idx) => (
                   <div key={url} style={{ position: "relative" }}>
-                    <img
-                      src={url}
-                      alt={`preview-${idx + 1}`}
-                      style={{
-                        width: "100%",
-                        height: 90,
-                        objectFit: "cover",
-                        borderRadius: 10,
-                        display: "block",
-                      }}
-                    />
+                    {files[idx]?.type?.startsWith("video/") ? (
+                      <video
+                        src={url}
+                        controls
+                        style={{
+                          width: "100%",
+                          height: 120,
+                          objectFit: "cover",
+                          borderRadius: 10,
+                          display: "block",
+                          background: "#000",
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt={`preview-${idx + 1}`}
+                        style={{
+                          width: "100%",
+                          height: 90,
+                          objectFit: "cover",
+                          borderRadius: 10,
+                          display: "block",
+                        }}
+                      />
+                    )}
                     <button
                       className="feed-btn feed-btnDanger"
                       style={{
@@ -741,6 +781,23 @@ export default function FeedPage() {
                   </div>
 
                   {!!it.text && <div className="feed-postBody">{it.text}</div>}
+
+                  {it.videoUrl && (
+                    <div style={{ marginTop: 12 }}>
+                      <video
+                        controls
+                        preload="metadata"
+                        style={{
+                          width: "100%",
+                          borderRadius: 14,
+                          maxHeight: 700,
+                          background: "#000",
+                        }}
+                      >
+                        <source src={it.videoUrl} />
+                      </video>
+                    </div>
+                  )}
 
                   {Array.isArray(it.imageUrls) && it.imageUrls.length > 0 && (
                     <div

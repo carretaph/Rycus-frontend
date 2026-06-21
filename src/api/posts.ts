@@ -5,28 +5,29 @@ import axiosClient from "./axiosClient";
    DTOs
    ========================================================= */
 
-   export type PostDto = {
-    id: number;
-    text: string;
-  
-    authorEmail: string;
-    authorName: string;
-    authorId?: number;
-  
-    authorAvatarUrl?: string | null;
-  
-    createdAt: string;
-  
-    likeCount: number;
-    likedByViewer: boolean;
-  
-    commentCount?: number;
-    imageUrls?: string[];
-  
-    officialPost?: boolean;
-    pinned?: boolean;
-    imageUrl?: string | null;
-  };
+export type PostDto = {
+  id: number;
+  text: string;
+
+  authorEmail: string;
+  authorName: string;
+  authorId?: number;
+
+  authorAvatarUrl?: string | null;
+
+  createdAt: string;
+
+  likeCount: number;
+  likedByViewer: boolean;
+
+  commentCount?: number;
+  imageUrls?: string[];
+
+  officialPost?: boolean;
+  pinned?: boolean;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+};
 
 export type CreatePostRequest = {
   text: string;
@@ -35,6 +36,7 @@ export type CreatePostRequest = {
   officialPost?: boolean;
   pinned?: boolean;
   imageUrl?: string | null;
+  videoUrl?: string | null;
 };
 
 export type LikeResponse = {
@@ -77,8 +79,11 @@ export async function fetchFeed(limit: number = 50, viewerEmail?: string): Promi
     ? res.data.map((p) => ({
       ...p,
       authorAvatarUrl: p.authorAvatarUrl || (p as any).author_avatar_url || null,
-      imageUrls: Array.isArray((p as any).imageUrls) ? (p as any).imageUrls : (p as any).image_urls,
+      imageUrls: Array.isArray((p as any).imageUrls)
+        ? (p as any).imageUrls
+        : (p as any).image_urls,
       commentCount: (p as any).commentCount ?? (p as any).comment_count ?? 0,
+      videoUrl: (p as any).videoUrl ?? (p as any).video_url ?? null,
     }))
     : [];
 }
@@ -94,8 +99,11 @@ export async function createPost(body: CreatePostRequest): Promise<PostDto> {
   return {
     ...res.data,
     authorAvatarUrl: res.data.authorAvatarUrl || (res.data as any).author_avatar_url || null,
-    imageUrls: Array.isArray((res.data as any).imageUrls) ? (res.data as any).imageUrls : (res.data as any).image_urls,
+    imageUrls: Array.isArray((res.data as any).imageUrls)
+      ? (res.data as any).imageUrls
+      : (res.data as any).image_urls,
     commentCount: (res.data as any).commentCount ?? (res.data as any).comment_count ?? 0,
+    videoUrl: (res.data as any).videoUrl ?? (res.data as any).video_url ?? null,
   };
 }
 
@@ -123,8 +131,11 @@ export async function createPostWithImages(args: {
   return {
     ...res.data,
     authorAvatarUrl: res.data.authorAvatarUrl || (res.data as any).author_avatar_url || null,
-    imageUrls: Array.isArray((res.data as any).imageUrls) ? (res.data as any).imageUrls : (res.data as any).image_urls,
+    imageUrls: Array.isArray((res.data as any).imageUrls)
+      ? (res.data as any).imageUrls
+      : (res.data as any).image_urls,
     commentCount: (res.data as any).commentCount ?? (res.data as any).comment_count ?? 0,
+    videoUrl: (res.data as any).videoUrl ?? (res.data as any).video_url ?? null,
   };
 }
 
@@ -146,8 +157,11 @@ export async function updatePost(postId: number, email: string, text: string): P
   return {
     ...res.data,
     authorAvatarUrl: res.data.authorAvatarUrl || (res.data as any).author_avatar_url || null,
-    imageUrls: Array.isArray((res.data as any).imageUrls) ? (res.data as any).imageUrls : (res.data as any).image_urls,
+    imageUrls: Array.isArray((res.data as any).imageUrls)
+      ? (res.data as any).imageUrls
+      : (res.data as any).image_urls,
     commentCount: (res.data as any).commentCount ?? (res.data as any).comment_count ?? 0,
+    videoUrl: (res.data as any).videoUrl ?? (res.data as any).video_url ?? null,
   };
 }
 
