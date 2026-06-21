@@ -463,9 +463,16 @@ export default function FeedPage() {
   }
 
   const fullFeed = useMemo(() => {
-    return [...posts, ...STATIC_ITEMS].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return [...posts, ...STATIC_ITEMS].sort((a, b) => {
+      const aPinned = a.kind === "POST" && a.pinned ? 1 : 0;
+      const bPinned = b.kind === "POST" && b.pinned ? 1 : 0;
+  
+      if (aPinned !== bPinned) {
+        return bPinned - aPinned;
+      }
+  
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }, [posts]);
 
   const items = useMemo(() => {
