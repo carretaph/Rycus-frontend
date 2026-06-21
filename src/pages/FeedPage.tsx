@@ -144,6 +144,12 @@ export default function FeedPage() {
 
   const canLoadViewerEmail = ((user as any)?.email || "").trim() || undefined;
 
+  const isAdmin =
+    ((user as any)?.email || "").toLowerCase() === "carretaph@gmail.com";
+
+  const [officialPost, setOfficialPost] = useState(false);
+  const [pinnedPost, setPinnedPost] = useState(false);
+
   async function loadFeed(opts?: { silent?: boolean }) {
     const silent = !!opts?.silent;
 
@@ -267,8 +273,12 @@ export default function FeedPage() {
     }
 
     const authorEmail = (user as any).email;
-    const authorName =
+
+    const normalAuthorName =
       (user as any).name || (user as any).firstName || authorEmail.split("@")[0];
+
+    const authorName =
+      isAdmin && officialPost ? "Rycus Team" : normalAuthorName;
 
     setLoading(true);
     setError(null);
@@ -279,12 +289,20 @@ export default function FeedPage() {
       if (files.length > 0) {
         created = await createPostWithImages({ text, authorEmail, authorName, files });
       } else {
-        created = await createPost({ text, authorEmail, authorName } as any);
+        created = await createPost({
+          text,
+          authorEmail,
+          authorName,
+          officialPost: isAdmin && officialPost,
+          pinned: isAdmin && pinnedPost,
+        } as any);
       }
 
       setPosts((prev) => [mapPost(created), ...prev]);
       setPostText("");
       setFilesWithPreviews([]);
+      setOfficialPost(false);
+      setPinnedPost(false);
 
       void loadFeed({ silent: true });
     } catch (err: any) {
@@ -502,6 +520,36 @@ export default function FeedPage() {
               onChange={(e) => setPostText(e.target.value)}
               placeholder="What's new?"
             />
+
+            {isAdmin && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  marginTop: 10,
+                  marginBottom: 10,
+                  fontSize: 14,
+                }}
+              >
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={officialPost}
+                    onChange={(e) => setOfficialPost(e.target.checked)}
+                  />
+                  {" "}Official Rycus Post
+                </label>
+
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={pinnedPost}
+                    onChange={(e) => setPinnedPost(e.target.checked)}
+                  />
+                  {" "}Pin to Top
+                </label>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <label className="feed-btn feed-btnOutline" style={{ cursor: "pointer" }}>
