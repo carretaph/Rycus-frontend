@@ -24,8 +24,12 @@ type CommentDto = {
   createdAt: string;
   authorName: string;
   authorEmail: string;
+  officialPost?: boolean;
+  pinned?: boolean;
+  imageUrl?: string;
   authorAvatarUrl?: string;
   text: string;
+
 };
 
 type FeedItem =
@@ -37,6 +41,9 @@ type FeedItem =
     createdAt: string;
     authorName: string;
     authorEmail: string;
+    officialPost?: boolean;
+    pinned?: boolean;
+    imageUrl?: string;
     authorAvatarUrl?: string;
     text: string;
     likeCount: number;
@@ -647,7 +654,16 @@ export default function FeedPage() {
 
                       {it.authorName !== "Anonymous reviewer" &&
                         it.authorEmail !== "anonymous@rycus.app" && (
-                          <div className="feed-postEmail">{it.authorEmail}</div>
+                          it.officialPost ? (
+                            <div
+                              className="feed-postEmail"
+                              style={{ color: "#1d4ed8", fontWeight: 700 }}
+                            >
+                              Official Rycus Announcement
+                            </div>
+                          ) : (
+                            <div className="feed-postEmail">{it.authorEmail}</div>
+                          )
                         )}
                     </div>
 
