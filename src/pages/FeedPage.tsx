@@ -104,16 +104,20 @@ function mapPost(p: PostDto): FeedItem {
     kind: "POST",
     id: `post-${p.id}-${createdAt}`,
     postId: p.id,
-    authorId: Number((p as any).authorId ?? 0) || undefined,
+    authorId: Number(p.authorId ?? 0) || undefined,
     createdAt,
-    authorName: (p as any).authorName,
-    authorEmail: (p as any).authorEmail,
+    authorName: p.authorName,
+    authorEmail: p.authorEmail,
     authorAvatarUrl: avatar,
-    text: (p as any).text,
-    likeCount: Number((p as any).likeCount ?? 0) || 0,
-    likedByViewer: !!(p as any).likedByViewer,
+    text: p.text,
+    likeCount: Number(p.likeCount ?? 0) || 0,
+    likedByViewer: !!p.likedByViewer,
     commentCount,
     imageUrls,
+  
+    officialPost: !!p.officialPost,
+    pinned: !!p.pinned,
+    imageUrl: p.imageUrl || undefined,
   };
 }
 

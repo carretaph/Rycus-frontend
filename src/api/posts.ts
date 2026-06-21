@@ -5,30 +5,36 @@ import axiosClient from "./axiosClient";
    DTOs
    ========================================================= */
 
-export type PostDto = {
-  id: number;
-  text: string;
-
-  authorEmail: string;
-  authorName: string;
-
-  // avatar (tu fix)
-  authorAvatarUrl?: string | null;
-
-  createdAt: string;
-
-  likeCount: number;
-  likedByViewer: boolean;
-
-  // NEW (cuando backend lo devuelva)
-  commentCount?: number;
-  imageUrls?: string[];
-};
+   export type PostDto = {
+    id: number;
+    text: string;
+  
+    authorEmail: string;
+    authorName: string;
+    authorId?: number;
+  
+    authorAvatarUrl?: string | null;
+  
+    createdAt: string;
+  
+    likeCount: number;
+    likedByViewer: boolean;
+  
+    commentCount?: number;
+    imageUrls?: string[];
+  
+    officialPost?: boolean;
+    pinned?: boolean;
+    imageUrl?: string | null;
+  };
 
 export type CreatePostRequest = {
   text: string;
   authorEmail: string;
   authorName: string;
+  officialPost?: boolean;
+  pinned?: boolean;
+  imageUrl?: string | null;
 };
 
 export type LikeResponse = {
@@ -69,11 +75,11 @@ export async function fetchFeed(limit: number = 50, viewerEmail?: string): Promi
 
   return Array.isArray(res.data)
     ? res.data.map((p) => ({
-        ...p,
-        authorAvatarUrl: p.authorAvatarUrl || (p as any).author_avatar_url || null,
-        imageUrls: Array.isArray((p as any).imageUrls) ? (p as any).imageUrls : (p as any).image_urls,
-        commentCount: (p as any).commentCount ?? (p as any).comment_count ?? 0,
-      }))
+      ...p,
+      authorAvatarUrl: p.authorAvatarUrl || (p as any).author_avatar_url || null,
+      imageUrls: Array.isArray((p as any).imageUrls) ? (p as any).imageUrls : (p as any).image_urls,
+      commentCount: (p as any).commentCount ?? (p as any).comment_count ?? 0,
+    }))
     : [];
 }
 
@@ -195,9 +201,9 @@ export async function fetchComments(postId: number, limit: number = 50): Promise
 
   return Array.isArray(res.data)
     ? res.data.map((c) => ({
-        ...c,
-        authorAvatarUrl: c.authorAvatarUrl || (c as any).author_avatar_url || null,
-      }))
+      ...c,
+      authorAvatarUrl: c.authorAvatarUrl || (c as any).author_avatar_url || null,
+    }))
     : [];
 }
 
