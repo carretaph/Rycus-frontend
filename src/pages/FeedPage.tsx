@@ -114,7 +114,7 @@ function mapPost(p: PostDto): FeedItem {
     likedByViewer: !!p.likedByViewer,
     commentCount,
     imageUrls,
-  
+
     officialPost: !!p.officialPost,
     pinned: !!p.pinned,
     imageUrl: p.imageUrl || undefined,
@@ -247,11 +247,15 @@ export default function FeedPage() {
     authorEmail: string;
     authorName: string;
     files: File[];
+    officialPost?: boolean;
+    pinned?: boolean;
   }): Promise<PostDto> {
     const fd = new FormData();
     fd.append("text", args.text);
     fd.append("authorEmail", args.authorEmail);
     fd.append("authorName", args.authorName);
+    fd.append("officialPost", String(args.officialPost ?? false));
+    fd.append("pinned", String(args.pinned ?? false));
     args.files.forEach((f) => fd.append("files", f));
 
     const res = await axios.post("/posts", fd, {
@@ -291,7 +295,14 @@ export default function FeedPage() {
       let created: PostDto;
 
       if (files.length > 0) {
-        created = await createPostWithImages({ text, authorEmail, authorName, files });
+        created = await createPostWithImages({
+          text,
+          authorEmail,
+          authorName,
+          files,
+          officialPost: isAdmin && officialPost,
+          pinned: isAdmin && pinnedPost,
+        });
       } else {
         created = await createPost({
           text,
