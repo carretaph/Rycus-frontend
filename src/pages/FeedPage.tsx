@@ -295,67 +295,67 @@ export default function FeedPage() {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("upload_preset", "rycus_video_unsigned");
-  
+
     const res = await fetch(
-      "https://api.cloudinary.com/v1_1/dywqugq2q/video/upload",
+      "https://api.cloudinary.com/v1_1/dywqugq2q/auto/upload",
       {
         method: "POST",
         body: fd,
       }
     );
-  
+
     const data = await res.json();
-  
+
     if (!res.ok || !data.secure_url) {
       console.error("Cloudinary video upload error:", data);
       throw new Error(data?.error?.message || "Failed to upload video to Cloudinary");
     }
-  
+
     return data.secure_url;
   }
 
   async function handlePost() {
     const text = postText.trim();
-  
+
     if (!text && files.length === 0) {
       setError("Write something or add media 🙂");
       return;
     }
-  
+
     if (!user || !(user as any).email) {
       setError("You must be logged in.");
       return;
     }
-  
+
     const authorEmail = (user as any).email;
-  
+
     const normalAuthorName =
       (user as any).name || (user as any).firstName || authorEmail.split("@")[0];
-  
+
     const authorName = isAdmin && officialPost ? "Rycus Team" : normalAuthorName;
-  
+
     const videoFile = files.find((f) => f.type.startsWith("video/"));
     const imageFiles = files.filter((f) => !f.type.startsWith("video/"));
-  
+
     if (videoFile && !isAdmin) {
       setError("Only Rycus Team can upload videos.");
       return;
     }
-  
+
     if (videoFile && imageFiles.length > 0) {
       setError("Please upload either one video or photos, not both.");
       return;
     }
-  
+
     setLoading(true);
     setError(null);
-  
+
     try {
       let created: PostDto;
-  
+
       if (videoFile) {
         const videoUrl = await uploadVideoDirectToCloudinary(videoFile);
-  
+
         created = await createPost({
           text,
           authorEmail,
@@ -382,19 +382,19 @@ export default function FeedPage() {
           pinned: isAdmin && pinnedPost,
         } as any);
       }
-  
+
       setPosts((prev) => [mapPost(created), ...prev]);
       setPostText("");
       setFilesWithPreviews([]);
       setOfficialPost(false);
       setPinnedPost(false);
-  
+
       void loadFeed({ silent: true });
     } catch (err: any) {
       console.error("POST ERROR:", err);
       console.error("POST STATUS:", err?.response?.status);
       console.error("POST DATA:", err?.response?.data);
-  
+
       setError(
         err?.response?.data?.message ||
         err?.response?.data?.error ||
