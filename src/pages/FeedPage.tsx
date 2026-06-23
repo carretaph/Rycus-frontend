@@ -311,7 +311,13 @@ export default function FeedPage() {
       throw new Error(data?.error?.message || "Failed to upload video to Cloudinary");
     }
 
-    return data.secure_url;
+    const rawUrl = data.secure_url as string;
+
+const playableUrl = rawUrl.includes("/video/upload/")
+  ? rawUrl.replace("/video/upload/", "/video/upload/q_auto,f_mp4/")
+  : rawUrl;
+
+return playableUrl;
   }
 
   async function handlePost() {
