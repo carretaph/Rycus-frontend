@@ -357,7 +357,7 @@ export default function FeedPage() {
         const videoUrl = await uploadVideoDirectToCloudinary(videoFile);
 
         created = await createPost({
-          text,
+          text: text || " ",
           authorEmail,
           authorName,
           officialPost: isAdmin && officialPost,
